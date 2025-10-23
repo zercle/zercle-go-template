@@ -1,0 +1,274 @@
+definitions:
+  github_com_zercle_zercle-go-template_pkg_dto.CreatePostRequest:
+    properties:
+      content:
+        minLength: 10
+        type: string
+      title:
+        minLength: 3
+        type: string
+    required:
+    - content
+    - title
+    type: object
+  github_com_zercle_zercle-go-template_pkg_dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  github_com_zercle_zercle-go-template_pkg_dto.PostResponse:
+    properties:
+      author_id:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_zercle_zercle-go-template_pkg_dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        minLength: 2
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  github_com_zercle_zercle-go-template_pkg_dto.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_zercle_zercle-go-template_pkg_utils_response.Response:
+    properties:
+      data: {}
+      message:
+        description: Only for error
+        type: string
+      status:
+        description: success, fail, error
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Login Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+      summary: Login user
+      tags:
+      - users
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Register Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.UserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+      summary: Register a new user
+      tags:
+      - users
+  /health:
+    get:
+      description: Checks if the application is running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+      summary: System Health Check
+      tags:
+      - system
+  /health/live:
+    get:
+      description: Checks if the application is alive and can connect to the database
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+      summary: System Liveness Check
+      tags:
+      - system
+  /posts:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.PostResponse'
+                  type: array
+              type: object
+      summary: List all posts
+      tags:
+      - posts
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Create Post Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.CreatePostRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.PostResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+      summary: Create a new post
+      tags:
+      - posts
+  /posts/{id}:
+    get:
+      parameters:
+      - description: Post ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.PostResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+      summary: Get a post by ID
+      tags:
+      - posts
+  /users/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.UserResponse'
+              type: object
+      summary: Get user profile
+      tags:
+      - users
+swagger: "2.0"

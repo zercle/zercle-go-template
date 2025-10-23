@@ -1,0 +1,31 @@
+server:
+  host: "0.0.0.0"
+  port: 3000
+  readTimeout: "30s"
+  writeTimeout: "30s"
+  shutdownTimeout: "60s"
+
+database:
+  host: "db-prod"
+  port: 5432
+  user: "prod_user"
+  password: "prod_password"
+  name: "zercle_prod"
+  driver: "postgres"
+  maxOpenConns: 100
+  maxIdleConns: 20
+  connMaxLifetime: "30m"
+
+jwt:
+  secret: "prod-secret-must-change-env-var-override"
+  expiration: "15m"
+
+cors:
+  allowedOrigins: ["https://api.zercle.tech", "https://zercle.tech"]
+  allowedMethods: ["GET", "POST", "PUT", "DELETE"]
+  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedCredentials: true
+
+logging:
+  level: "warn"
+  format: "json"

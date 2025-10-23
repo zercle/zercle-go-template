@@ -1,0 +1,55 @@
+name: Reusable Setup
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        description: 'Go version to use'
+        default: 'stable'
+        required: false
+        type: string
+      install-tools:
+        description: 'Install code generation tools'
+        default: false
+        required: false
+        type: boolean
+      run-generate:
+        description: 'Run go generate'
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install code generation tools
+        if: inputs.install-tools
+        run: |
+          go install github.com/swaggo/swag/cmd/swag@latest
+
+      - name: Generate code
+        if: inputs.run-generate
+        run: go generate ./...
