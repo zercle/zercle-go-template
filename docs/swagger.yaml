@@ -1,0 +1,22 @@
+basePath: /api/v1
+host: localhost:3000
+info:
+  contact:
+    email: support@zercle.com
+    name: API Support
+    url: https://github.com/zercle/zercle-go-template
+  description: A production-ready RESTful API template built with Go Echo framework,
+    featuring clean architecture, JWT authentication, and PostgreSQL database.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Zercle Go Template API
+  version: "1.0"
+paths: {}
+securityDefinitions:
+  Bearer:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
