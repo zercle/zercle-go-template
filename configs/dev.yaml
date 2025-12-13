@@ -24,7 +24,7 @@ cors:
   allowedOrigins: ["*"]
   allowedMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
   allowedHeaders: ["Content-Type", "Authorization"]
-  allowedCredentials: true
+  allowedCredentials: false
 
 logging:
   level: "debug"

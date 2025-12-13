@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -9,8 +8,6 @@ import (
 	"syscall"
 
 	"github.com/gofiber/swagger"
-	"github.com/samber/do/v2"
-	httpAdapter "github.com/zercle/zercle-go-template/internal/adapter/handler/http"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/container"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/server"
@@ -33,7 +30,7 @@ func main() {
 	}
 
 	// 3. Initialize DI with logger
-	container, err := container.NewProdContainer(cfg, logger.Log)
+	container, err := container.NewContainer(cfg, logger.Log)
 	if err != nil {
 		log.Fatalf("failed to initialize DI: %v", err)
 	}
@@ -42,24 +39,13 @@ func main() {
 	app := server.New(cfg, logger.Log)
 
 	// 5. Register Routes
-	userHandler := do.MustInvoke[*httpAdapter.UserHandler](container)
-	postHandler := do.MustInvoke[*httpAdapter.PostHandler](container)
-
 	// Swagger
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
-	api := app.Group("/api/v1")
-
-	// Register Routes
-	userHandler.RegisterRoutes(api)
-	postHandler.RegisterRoutes(api)
-
-	// Health
-	// Health & Liveness
-	dbConn := do.MustInvoke[*sql.DB](container)
-	healthHandler := httpAdapter.NewHealthHandler(dbConn)
-	app.Get("/health", healthHandler.HealthCheck)
-	app.Get("/health/live", healthHandler.Liveness)
+	// Register Routes Conditionally
+	RegisterHealthRoutes(app, container)
+	RegisterUserRoutes(app, container)
+	RegisterPostRoutes(app, container)
 
 	// Start
 	go func() {

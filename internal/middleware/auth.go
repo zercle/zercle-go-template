@@ -6,7 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	"github.com/zercle/zercle-go-template/pkg/utils/response"
+	sharedHandler "github.com/zercle/zercle-go-template/internal/shared/handler/response"
 )
 
 // JWTClaims represents JWT token claims
@@ -21,13 +21,13 @@ func AuthMiddleware(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
-			return response.Fail(c, fiber.StatusUnauthorized, fiber.Map{"error": "missing authorization header"})
+			return sharedHandler.Fail(c, fiber.StatusUnauthorized, fiber.Map{"error": "missing authorization header"})
 		}
 
 		// Extract token from "Bearer <token>"
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			return response.Fail(c, fiber.StatusUnauthorized, fiber.Map{"error": "invalid authorization header format"})
+			return sharedHandler.Fail(c, fiber.StatusUnauthorized, fiber.Map{"error": "invalid authorization header format"})
 		}
 
 		tokenString := parts[1]
@@ -41,12 +41,12 @@ func AuthMiddleware(cfg *config.Config) fiber.Handler {
 			return []byte(cfg.JWT.Secret), nil
 		})
 		if err != nil {
-			return response.Fail(c, fiber.StatusUnauthorized, fiber.Map{"error": "invalid or expired token"})
+			return sharedHandler.Fail(c, fiber.StatusUnauthorized, fiber.Map{"error": "invalid or expired token"})
 		}
 
 		claims, ok := token.Claims.(*JWTClaims)
 		if !ok || !token.Valid {
-			return response.Fail(c, fiber.StatusUnauthorized, fiber.Map{"error": "invalid token claims"})
+			return sharedHandler.Fail(c, fiber.StatusUnauthorized, fiber.Map{"error": "invalid token claims"})
 		}
 
 		// Store claims in context

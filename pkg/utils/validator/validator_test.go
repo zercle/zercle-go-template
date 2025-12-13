@@ -4,20 +4,21 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/zercle/zercle-go-template/pkg/dto"
+	postDto "github.com/zercle/zercle-go-template/internal/features/post/dto"
+	userDto "github.com/zercle/zercle-go-template/internal/features/user/dto"
 	"github.com/zercle/zercle-go-template/pkg/utils/validator"
 )
 
 func TestValidate_RegisterRequest(t *testing.T) {
 	tests := []struct {
 		name    string
-		req     dto.RegisterRequest
+		req     userDto.RegisterRequest
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "valid request",
-			req: dto.RegisterRequest{
+			req: userDto.RegisterRequest{
 				Email:    "test@example.com",
 				Password: "password123",
 				Name:     "Test User",
@@ -26,7 +27,7 @@ func TestValidate_RegisterRequest(t *testing.T) {
 		},
 		{
 			name: "missing email",
-			req: dto.RegisterRequest{
+			req: userDto.RegisterRequest{
 				Password: "password123",
 				Name:     "Test User",
 			},
@@ -35,7 +36,7 @@ func TestValidate_RegisterRequest(t *testing.T) {
 		},
 		{
 			name: "invalid email",
-			req: dto.RegisterRequest{
+			req: userDto.RegisterRequest{
 				Email:    "not-an-email",
 				Password: "password123",
 				Name:     "Test User",
@@ -45,7 +46,7 @@ func TestValidate_RegisterRequest(t *testing.T) {
 		},
 		{
 			name: "password too short",
-			req: dto.RegisterRequest{
+			req: userDto.RegisterRequest{
 				Email:    "test@example.com",
 				Password: "short",
 				Name:     "Test User",
@@ -55,7 +56,7 @@ func TestValidate_RegisterRequest(t *testing.T) {
 		},
 		{
 			name: "name too short",
-			req: dto.RegisterRequest{
+			req: userDto.RegisterRequest{
 				Email:    "test@example.com",
 				Password: "password123",
 				Name:     "A",
@@ -65,7 +66,7 @@ func TestValidate_RegisterRequest(t *testing.T) {
 		},
 		{
 			name:    "all fields missing",
-			req:     dto.RegisterRequest{},
+			req:     userDto.RegisterRequest{},
 			wantErr: true,
 		},
 	}
@@ -88,13 +89,13 @@ func TestValidate_RegisterRequest(t *testing.T) {
 func TestValidate_LoginRequest(t *testing.T) {
 	tests := []struct {
 		name    string
-		req     dto.LoginRequest
+		req     userDto.LoginRequest
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "valid request",
-			req: dto.LoginRequest{
+			req: userDto.LoginRequest{
 				Email:    "test@example.com",
 				Password: "password123",
 			},
@@ -102,7 +103,7 @@ func TestValidate_LoginRequest(t *testing.T) {
 		},
 		{
 			name: "missing email",
-			req: dto.LoginRequest{
+			req: userDto.LoginRequest{
 				Password: "password123",
 			},
 			wantErr: true,
@@ -110,7 +111,7 @@ func TestValidate_LoginRequest(t *testing.T) {
 		},
 		{
 			name: "invalid email format",
-			req: dto.LoginRequest{
+			req: userDto.LoginRequest{
 				Email:    "invalid-email",
 				Password: "password123",
 			},
@@ -119,7 +120,7 @@ func TestValidate_LoginRequest(t *testing.T) {
 		},
 		{
 			name: "missing password",
-			req: dto.LoginRequest{
+			req: userDto.LoginRequest{
 				Email: "test@example.com",
 			},
 			wantErr: true,
@@ -145,13 +146,13 @@ func TestValidate_LoginRequest(t *testing.T) {
 func TestValidate_CreatePostRequest(t *testing.T) {
 	tests := []struct {
 		name    string
-		req     dto.CreatePostRequest
+		req     postDto.CreatePostRequest
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "valid request",
-			req: dto.CreatePostRequest{
+			req: postDto.CreatePostRequest{
 				Title:   "Test Post",
 				Content: "This is test content with enough characters",
 			},
@@ -159,7 +160,7 @@ func TestValidate_CreatePostRequest(t *testing.T) {
 		},
 		{
 			name: "title too short",
-			req: dto.CreatePostRequest{
+			req: postDto.CreatePostRequest{
 				Title:   "AB",
 				Content: "This is test content",
 			},
@@ -168,7 +169,7 @@ func TestValidate_CreatePostRequest(t *testing.T) {
 		},
 		{
 			name: "content too short",
-			req: dto.CreatePostRequest{
+			req: postDto.CreatePostRequest{
 				Title:   "Test Post",
 				Content: "short",
 			},
@@ -177,7 +178,7 @@ func TestValidate_CreatePostRequest(t *testing.T) {
 		},
 		{
 			name:    "missing required fields",
-			req:     dto.CreatePostRequest{},
+			req:     postDto.CreatePostRequest{},
 			wantErr: true,
 		},
 	}
@@ -200,25 +201,25 @@ func TestValidate_CreatePostRequest(t *testing.T) {
 func TestValidate_UpdateUserRequest(t *testing.T) {
 	tests := []struct {
 		name    string
-		req     dto.UpdateUserRequest
+		req     userDto.UpdateUserRequest
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "valid request with name",
-			req: dto.UpdateUserRequest{
+			req: userDto.UpdateUserRequest{
 				Name: "New Name",
 			},
 			wantErr: false,
 		},
 		{
 			name:    "empty request (all optional)",
-			req:     dto.UpdateUserRequest{},
+			req:     userDto.UpdateUserRequest{},
 			wantErr: false,
 		},
 		{
 			name: "name too short when provided",
-			req: dto.UpdateUserRequest{
+			req: userDto.UpdateUserRequest{
 				Name: "A",
 			},
 			wantErr: true,
@@ -244,13 +245,13 @@ func TestValidate_UpdateUserRequest(t *testing.T) {
 func TestValidate_UpdatePostRequest(t *testing.T) {
 	tests := []struct {
 		name    string
-		req     dto.UpdatePostRequest
+		req     postDto.UpdatePostRequest
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "valid request with both fields",
-			req: dto.UpdatePostRequest{
+			req: postDto.UpdatePostRequest{
 				Title:   "Updated Title",
 				Content: "Updated content with enough length",
 			},
@@ -258,19 +259,19 @@ func TestValidate_UpdatePostRequest(t *testing.T) {
 		},
 		{
 			name: "valid request with title only",
-			req: dto.UpdatePostRequest{
+			req: postDto.UpdatePostRequest{
 				Title: "Updated Title",
 			},
 			wantErr: false,
 		},
 		{
 			name:    "empty request (all optional)",
-			req:     dto.UpdatePostRequest{},
+			req:     postDto.UpdatePostRequest{},
 			wantErr: false,
 		},
 		{
 			name: "title too short when provided",
-			req: dto.UpdatePostRequest{
+			req: postDto.UpdatePostRequest{
 				Title: "AB",
 			},
 			wantErr: true,
@@ -278,7 +279,7 @@ func TestValidate_UpdatePostRequest(t *testing.T) {
 		},
 		{
 			name: "content too short when provided",
-			req: dto.UpdatePostRequest{
+			req: postDto.UpdatePostRequest{
 				Content: "short",
 			},
 			wantErr: true,

@@ -1,4 +1,4 @@
-.PHONY: help init generate build test test-coverage lint fmt clean docker-build docker-up docker-down migrate-up migrate-down dev run
+.PHONY: help init generate build test test-coverage lint fmt clean docker-build docker-up docker-down migrate-up migrate-down dev run build-health build-user build-post build-all build-custom
 
 # Variables
 GO := go
@@ -12,7 +12,12 @@ help:
 	@echo "Available targets:"
 	@echo "  init              - Initialize project dependencies"
 	@echo "  generate          - Generate sqlc code and mocks"
-	@echo "  build             - Build the application"
+	@echo "  build             - Build the application (includes all handlers)"
+	@echo "  build-health      - Build with health handler only"
+	@echo "  build-user        - Build with user handler only"
+	@echo "  build-post        - Build with post handler only"
+	@echo "  build-all         - Build with all handlers explicitly"
+	@echo "  build-custom      - Build with custom tags (use TAGS='tag1,tag2')"
 	@echo "  dev               - Run in development mode with hot reload"
 	@echo "  run               - Run the compiled binary"
 	@echo "  test              - Run all tests"
@@ -32,11 +37,52 @@ init:
 	$(GO) mod tidy
 	$(GO) mod download
 
-# Build the application
+# Build the application (default - includes all handlers)
 build: clean
-	@echo "Building application..."
+	@echo "Building application with all handlers..."
 	@mkdir -p $(BINARY_DIR)
 	$(GO) build $(GOFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME) ./cmd/server
+	@echo "Binary built: $(BINARY_DIR)/$(BINARY_NAME)"
+
+# Build tags
+BUILDTAGS_HEALTH := -tags=health
+BUILDTAGS_USER := -tags=user
+BUILDTAGS_POST := -tags=post
+BUILDTAGS_ALL := -tags=all
+
+# Build with health handler only
+build-health: clean
+	@echo "Building with health handler..."
+	@mkdir -p $(BINARY_DIR)
+	$(GO) build $(GOFLAGS) $(BUILDTAGS_HEALTH) -o $(BINARY_DIR)/$(BINARY_NAME) ./cmd/server
+	@echo "Binary built: $(BINARY_DIR)/$(BINARY_NAME)"
+
+# Build with user handler only
+build-user: clean
+	@echo "Building with user handler..."
+	@mkdir -p $(BINARY_DIR)
+	$(GO) build $(GOFLAGS) $(BUILDTAGS_USER) -o $(BINARY_DIR)/$(BINARY_NAME) ./cmd/server
+	@echo "Binary built: $(BINARY_DIR)/$(BINARY_NAME)"
+
+# Build with post handler only
+build-post: clean
+	@echo "Building with post handler..."
+	@mkdir -p $(BINARY_DIR)
+	$(GO) build $(GOFLAGS) $(BUILDTAGS_POST) -o $(BINARY_DIR)/$(BINARY_NAME) ./cmd/server
+	@echo "Binary built: $(BINARY_DIR)/$(BINARY_NAME)"
+
+# Build with all handlers explicitly
+build-all: clean
+	@echo "Building with all handlers..."
+	@mkdir -p $(BINARY_DIR)
+	$(GO) build $(GOFLAGS) $(BUILDTAGS_ALL) -o $(BINARY_DIR)/$(BINARY_NAME) ./cmd/server
+	@echo "Binary built: $(BINARY_DIR)/$(BINARY_NAME)"
+
+# Build with custom tags
+build-custom:
+	@echo "Building with custom tags: $(TAGS)"
+	@mkdir -p $(BINARY_DIR)
+	$(GO) build $(GOFLAGS) -tags="$(TAGS)" -o $(BINARY_DIR)/$(BINARY_NAME) ./cmd/server
 	@echo "Binary built: $(BINARY_DIR)/$(BINARY_NAME)"
 
 # Run the application

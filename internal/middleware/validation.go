@@ -3,7 +3,7 @@ package middleware
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/zercle/zercle-go-template/pkg/utils/response"
+	sharedHandler "github.com/zercle/zercle-go-template/internal/shared/handler/response"
 	"github.com/zercle/zercle-go-template/pkg/utils/validator"
 )
 
@@ -13,11 +13,11 @@ func ValidateRequest[T any]() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var req T
 		if err := c.BodyParser(&req); err != nil {
-			return response.Fail(c, fiber.StatusBadRequest, fiber.Map{"error": "invalid request body"})
+			return sharedHandler.Fail(c, fiber.StatusBadRequest, fiber.Map{"error": "invalid request body"})
 		}
 
 		if err := validator.Validate(&req); err != nil {
-			return response.Fail(c, fiber.StatusBadRequest, fiber.Map{"error": err.Error()})
+			return sharedHandler.Fail(c, fiber.StatusBadRequest, fiber.Map{"error": err.Error()})
 		}
 
 		// Store validated request in context for handler to use

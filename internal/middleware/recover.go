@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
 	"github.com/samber/oops"
-	"github.com/zercle/zercle-go-template/pkg/utils/response"
+	sharedHandler "github.com/zercle/zercle-go-template/internal/shared/handler/response"
 )
 
 // RecoveryMiddleware recovers from panics and logs them using zerolog and oops
@@ -46,7 +46,7 @@ func RecoveryMiddleware(log zerolog.Logger) fiber.Handler {
 					Msg("Panic recovered")
 
 				// Return JSend error response
-				err = response.Error(c, fiber.StatusInternalServerError,
+				err = sharedHandler.Error(c, fiber.StatusInternalServerError,
 					fmt.Sprintf("Internal server error: %s", builder.Error()))
 			}
 		}()

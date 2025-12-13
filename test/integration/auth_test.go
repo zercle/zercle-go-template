@@ -1,4 +1,4 @@
-package integration_test
+package integration
 
 import (
 	"bytes"
@@ -10,11 +10,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
-	httpAdapter "github.com/zercle/zercle-go-template/internal/adapter/handler/http"
-	domerrors "github.com/zercle/zercle-go-template/internal/core/domain/errors"
-	"github.com/zercle/zercle-go-template/internal/core/service"
-	"github.com/zercle/zercle-go-template/pkg/dto"
-	"github.com/zercle/zercle-go-template/test/mocks"
+	"github.com/zercle/zercle-go-template/internal/core/port/mocks"
+	userDto "github.com/zercle/zercle-go-template/internal/features/user/dto"
+	userHandler "github.com/zercle/zercle-go-template/internal/features/user/handler"
+	"github.com/zercle/zercle-go-template/internal/features/user/service"
+	sharederrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 	"go.uber.org/mock/gomock"
 )
 
@@ -30,7 +30,7 @@ func TestAuthFlow_Integration(t *testing.T) {
 	svc := service.NewUserService(mockRepo, jwtSecret, time.Hour)
 
 	// 3. Real Handler
-	handler := httpAdapter.NewUserHandler(svc)
+	handler := userHandler.NewUserHandler(svc)
 
 	// 4. Fiber App
 	app := fiber.New()
@@ -39,7 +39,7 @@ func TestAuthFlow_Integration(t *testing.T) {
 	auth.Post("/login", handler.Login)
 
 	t.Run("Register_Success", func(t *testing.T) {
-		reqBody := dto.RegisterRequest{
+		reqBody := userDto.RegisterRequest{
 			Email:    "new@example.com",
 			Password: "securepass",
 			Name:     "Integration User",
@@ -47,7 +47,7 @@ func TestAuthFlow_Integration(t *testing.T) {
 		body, _ := json.Marshal(reqBody)
 
 		// Expectations
-		mockRepo.EXPECT().GetByEmail(gomock.Any(), reqBody.Email).Return(nil, domerrors.ErrNotFound)
+		mockRepo.EXPECT().GetByEmail(gomock.Any(), reqBody.Email).Return(nil, sharederrors.ErrNotFound)
 		mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
 
 		req := httptest.NewRequest("POST", "/auth/register", bytes.NewReader(body))
@@ -62,20 +62,13 @@ func TestAuthFlow_Integration(t *testing.T) {
 	})
 
 	t.Run("Login_Success", func(t *testing.T) {
-		reqBody := dto.LoginRequest{
+		reqBody := userDto.LoginRequest{
 			Email:    "new@example.com",
 			Password: "securepass",
 		}
 		body, _ := json.Marshal(reqBody)
 
-		// Mock user retrieval (needs password hash check, so we must return a User with hashed pass)
-		// We'll skip real hasing details or just assume Service checks hash.
-		// Service uses bcrypt.CompareHashAndPassword. We need a real hash in the mock user.
-		// Since we can't easily generate hash here without importing bcrypt (which we can),
-		// or we can test failure if hash mismatch.
-		// For verification, let's test "Invalid Credentials" flow to avoid hash complexity in mock setup here.
-
-		mockRepo.EXPECT().GetByEmail(gomock.Any(), reqBody.Email).Return(nil, domerrors.ErrNotFound)
+		mockRepo.EXPECT().GetByEmail(gomock.Any(), reqBody.Email).Return(nil, sharederrors.ErrNotFound)
 
 		req := httptest.NewRequest("POST", "/auth/login", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
