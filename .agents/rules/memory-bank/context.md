@@ -1,248 +1,549 @@
-# Context - Zercle Go Fiber Template
+# Zercle Go Template - Context & Implementation Notes
 
-## Project Identity
-**Name**: Zercle Go Fiber Template
-**Purpose**: Production-ready microservice template using Clean Architecture, DDD, and PostgreSQL
-**Language**: Go 1.25.0
-**Primary Framework**: Fiber v2.52.9 (high-performance HTTP framework)
+## Architectural Decisions
 
-## Recent Updates & Evolution
-**Build Tags System**: Conditional compilation with build tags (`health`, `user`, `post`, `all`) for modular deployments
-**Route Modularization**: Routes split into separate files (routes_base.go, routes_health.go, routes_user.go, routes_post.go)
-**DI Hooks System**: Modular DI registration with hooks (di_health.go, di_hooks_*.go, di_post.go, di_user.go)
-**Memory Bank**: Comprehensive documentation system for long-term project knowledge
-**Feature Completion**: All features (Health, User, Post) fully implemented with Clean Architecture
-**Test Coverage**: Complete test suite with 16 test files covering all layers (handler, service, repository)
-**Project Cleanup**: Removed all .gitkeep placeholder files, final documentation updates
+### Technology Choices
 
-## Key Domain Concepts
+#### Go Echo Framework
+**Decision**: Use Echo v4 instead of Gin, Fiber, or standard library
+**Rationale**:
+- Excellent performance (competitive with Gin)
+- Minimalist but extensible
+- Built-in support for middleware, routing, and WebSocket
+- Active community and maintenance
+- Clean API design
 
-### Entities
-- **User**: Core user entity with UUIDv7 ID, name, email, password, timestamps
-- **Post**: Post entity with UUIDv7 ID, title, content, user association, timestamps
-- **HealthStatus**: Health check status entity with timestamp, database status, and error information
+**Trade-offs**:
+- Slightly more opinionated than standard library
+- Requires learning Echo-specific patterns
 
-### Value Objects & Types
-- **UUIDv7**: Time-sorted UUIDs for scalable primary keys and distributed systems
-- **Time**: Standard Go time.Time for all timestamps
-- **JWT Claims**: UserID in tokens for authentication context
+#### SQLC vs ORM (GORM/sqlx)
+**Decision**: Use SQLC for database access
+**Rationale**:
+- Type-safe queries generated at compile time
+- No runtime reflection overhead
+- SQL queries are explicit and reviewable
+- Better performance than ORMs
+- Catches SQL errors at compile time
 
-### Domain Errors
-Located in `internal/core/domain/errors/errors.go`
-Custom error types with separation of domain errors from infrastructure errors
-Wrapped errors with context at each layer
+**Trade-offs**:
+- More verbose than ORMs for complex queries
+- Requires writing SQL queries manually
+- No automatic migration generation
 
-### Core Services
-- **UserService**: User business logic (registration, authentication, profile management)
-- **PostService**: Post business logic (create, list, retrieve by ID)
-- **HealthService**: Health check logic (readiness, liveness, database connectivity)
+#### PostgreSQL vs MySQL
+**Decision**: Use PostgreSQL 18+
+**Rationale**:
+- Advanced features (JSONB, arrays, custom types)
+- Better transaction handling
+- Superior concurrency model
+- Excellent for complex queries
+- Native support for UUIDs
 
-### Repositories
-- **UserRepository**: PostgreSQL-based user data access with sqlc-generated code
-- **PostRepository**: PostgreSQL-based post data access with sqlc-generated code
-- **HealthRepository**: Database health check and connectivity verification
-- Support for soft deletes and hard deletes
+**Trade-offs**:
+- Slightly higher resource usage
+- Not as widely available on cheap hosting
 
-### API Endpoints
-- **Health**: `GET /health` (readiness), `GET /health/live` (liveness)
-- **Auth**: `POST /auth/register`, `POST /auth/login`
-- **Users**: `GET /users/me` (protected)
-- **Posts**: `POST /posts`, `GET /posts`, `GET /posts/:id`
+#### JWT Authentication
+**Decision**: JWT tokens with HS256 signing
+**Rationale**:
+- Stateless authentication (no server-side session storage)
+- Easy to scale horizontally
+- Standard and widely adopted
+- Built-in expiration handling
+- Simple implementation
 
-## Technology Stack
+**Trade-offs**:
+- Token revocation requires additional infrastructure
+- Larger token size than session IDs
+- Requires secure secret management
 
-### Core
-- **Fiber v2.52.9**: HTTP web framework (Express.js-inspired for Go)
-- **PostgreSQL 18+**: Primary database with UUIDv7 support
-- **Go 1.25.0**: Language version
+#### JSend Response Format
+**Decision**: Standardize on JSend for all API responses
+**Rationale**:
+- Clear distinction between success, fail, and error states
+- Widely adopted standard
+- Predictable structure for clients
+- Easy to implement middleware
 
-### Database Tools
-- **sqlc v1.26+**: Type-safe SQL query compiler with prepared statements
-- **golang-migrate**: Database migration tool with versioned files
-- **UUIDv7**: Time-ordered UUID generation for distributed systems
+**Trade-offs**:
+- Slightly more verbose than simple JSON responses
+- Requires consistent implementation across all handlers
 
-### Infrastructure
-- **samber/do/v2**: Dependency Injection container with centralized wiring
-- **viper**: Configuration management (YAML + env vars with validation)
-- **slog**: Structured logging (Go 1.21+)
-- **zerolog**: High-performance structured logging with contextual fields
-- **JWT v5**: Authentication tokens
-- **bcrypt**: Password hashing via golang.org/x/crypto
+#### Zerolog vs Zap/Logrus
+**Decision**: Use zerolog for structured logging
+**Rationale**:
+- Zero-allocation logging (high performance)
+- Simple API
+- Built-in structured logging support
+- JSON output for production
+- Console output for development
 
-### Validation & Security
-- **go-playground/validator/v10**: Request validation with custom tags
-- **CORS**: Configurable cross-origin policies
-- **Rate Limiting**: Protection against DoS and abuse
+**Trade-offs**:
+- Less feature-rich than Zap
+- Smaller community than Logrus
 
-### API & Documentation
-- **Swagger/OpenAPI 2.0**: Auto-generated API docs via swaggo/swag
-- **JSend Format**: Standardized JSON responses {status, data, message}
+#### Viper Configuration
+**Decision**: Use Viper for configuration management
+**Rationale**:
+- Support for multiple formats (YAML, JSON, ENV)
+- Environment variable override
+- Live reload support (not used in production)
+- Standard for Go configuration
 
-### Testing & Quality
-- **testify**: Testing framework with assertions
-- **go-sqlmock**: SQL mocking for tests
-- **Mockery**: Mock generation via go.uber.org/mock/mockgen
-- **golangci-lint**: Go linter with strict rules
-- **race detection**: Always enabled in test runs
+**Trade-offs**:
+- Additional dependency
+- Overkill for simple use cases
 
-### DevOps
-- **Docker & Docker Compose**: Containerization with multi-stage builds
-- **GitHub Actions**: CI/CD pipeline with caching, test, lint, and Docker image build
-- **GitHub Container Registry**: Registry integration
-- **Non-root Containers**: Security best practice
+### Project Structure Decisions
 
-## Configuration Layers (Precedence)
-1. Hardcoded defaults
-2. YAML config file (`configs/{env}.yaml`: dev, uat, prod)
-3. Environment variables (highest priority)
+#### Domain-Driven Design
+**Decision**: Organize code by domain (user, service, booking, payment)
+**Rationale**:
+- Clear business boundary separation
+- Easy to locate feature code
+- Supports future microservices extraction
+- Aligns with clean architecture principles
 
-## Key Environment Variables
-- `SERVER_HOST`, `SERVER_PORT`, `SERVER_ENV`
-- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_DRIVER`
-- `JWT_SECRET`, `JWT_EXPIRATION`
-- `LOG_LEVEL`, `LOG_FORMAT`
-- `CORS_ALLOWED_ORIGINS`
-- `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW`
+**Trade-offs**:
+- More directories than feature-based organization
+- May feel complex for small projects
 
-## Development Workflow
-1. `make init` - Install dependencies
-2. `make docker-up` - Start PostgreSQL
-3. `make migrate-up` - Run migrations
-4. `make generate` - Regenerate code (sqlc, mocks, swagger)
-5. `make dev` - Run in development mode with hot reload
-6. `make test` - Run tests with race detection
-7. `make test-coverage` - Generate coverage report (minimum 80%)
-8. `make lint` - Run static analysis
-9. `make build` - Build binary with tags
+#### Clean Architecture Layers
+**Decision**: Enforce strict layer separation (Handler → UseCase → Repository)
+**Rationale**:
+- Testability: Each layer can be tested independently
+- Maintainability: Changes are localized to layers
+- Flexibility: Easy to swap implementations
+- Clarity: Clear responsibility boundaries
 
-## Build Tags System
-**Tags**: `health`, `user`, `post`, `all`
-**Purpose**: Conditional compilation for modular deployments
-**Usage**: `go build -tags "health,user" ./cmd/server`
-**Benefit**: Build minimal binaries with only required handlers
-**Documentation**: See BUILD_TAGS.md for details
+**Trade-offs**:
+- More boilerplate code
+- Indirection can make simple operations verbose
+- Steeper learning curve for new developers
 
-## Architecture Principles
-- **Clean Architecture**: Strict layered separation with inward dependencies
-- **DDD**: Domain-driven design with bounded contexts
-- **Hexagonal/Ports & Adapters**: Dependency inversion for testability
-- **Dependency Inversion**: Depend on abstractions, not concretions
-- **SOLID Principles**: Applied throughout codebase
-- **No ORM**: Direct SQL with sqlc for type safety and performance
+#### Interface-Based Design
+**Decision**: Define interfaces for repositories and use cases
+**Rationale**:
+- Enables mocking for testing
+- Supports dependency injection
+- Makes implementations interchangeable
+- Follows Go best practices
 
-## Critical File Locations
-- **Entry Point**: `cmd/server/main.go`
-- **Config**: `internal/infrastructure/config/config.go`
-- **DI Container**: `internal/infrastructure/container/di.go`
-- **DI Hooks**: `internal/infrastructure/container/di_*.go`
-- **Server Setup**: `internal/infrastructure/server/server.go`
-- **Routes**: `cmd/server/routes_*.go`
-- **Domain Entities**: `internal/core/domain/`
-- **Services**: `internal/core/service/`
-- **Handlers**: `internal/adapter/handler/http/`
-- **Repositories**: `internal/adapter/storage/postgres/`
-- **DTOs**: `pkg/dto/`
-- **Ports (Interfaces)**: `internal/core/port/`
-- **SQL Queries**: `sql/queries/`
-- **Migrations**: `sql/migrations/`
-- **Build Tags Doc**: `BUILD_TAGS.md`
+**Trade-offs**:
+- More files to maintain
+- Interface drift from implementations
 
-## Build Outputs
-- **Binary**: `./bin/service`
-- **Server**: http://localhost:3000
-- **Swagger**: http://localhost:3000/swagger/index.html
+### Database Design Decisions
 
-## Container Stack
-- PostgreSQL 16-alpine database (via docker-compose)
-- Application service with health checks
-- Bridge network for service communication
-- Volumes for persistent database data and code mount
+#### UUID Primary Keys
+**Decision**: Use UUIDs instead of auto-increment integers
+**Rationale**:
+- No sequential ID exposure (security)
+- Easy distributed generation
+- No coordination needed for IDs
+- Works well with API endpoints
 
-## Generated Code
-- **sqlc**: Generates `internal/infrastructure/sqlc/*`
-- **Mocks**: Generated in `test/mocks/` via mockery
-- **Swagger**: Auto-generated in `docs/`
+**Trade-offs**:
+- Larger storage size (16 bytes vs 4/8 bytes)
+- Slightly slower indexing
+- Less human-readable
 
-## Testing Strategy
-**Test Pyramid**:
-- **Unit Tests**: Domain (no dependencies), Service (mock repositories), Repository (sqlmock)
-- **Handler Tests**: HTTP handling with httptest
-- **Integration Tests**: Full HTTP stack with real database in `test/integration/`
-- **Mocking**: Generated mocks for all interfaces
-- **Coverage**: Minimum 80% with race detection
-- **Commands**: `make test`, `make test-coverage`
+#### Migration Files
+**Decision**: Use timestamped migration files
+**Rationale**:
+- Clear ordering of migrations
+- Standard practice with golang-migrate
+- Easy to track schema evolution
+- Supports rollback files
 
-**Test Files Created (16 total)**:
-- **Health Feature**: health_handler_test.go, health_service_test.go, health_repo_test.go
-- **User Feature**: user_handler_test.go, user_service_test.go, user_repo_test.go
-- **Post Feature**: post_handler_test.go, post_service_test.go, post_repo_test.go
-- **Existing**: auth_test.go, response_test.go, validator_test.go, integration/auth_test.go
-- **Mock Files**: repository_mock.go, service_mock.go
+**Trade-offs**:
+- Requires careful naming conventions
+- Merge conflicts need manual resolution
 
-## Security Features
-- JWT-based stateless authentication
-- bcrypt password hashing (configurable cost)
-- Request validation middleware
-- CORS configuration (explicit origins, not wildcard)
-- Rate limiting middleware
-- Non-root Docker containers
-- Input validation at handler and middleware levels
+#### SQLC Query Organization
+**Decision**: Separate query files by table
+**Rationale**:
+- Easy to locate queries
+- Clear ownership of queries
+- Supports code generation
+- Aligns with domain structure
 
-## Logging & Observability
-- Structured logging with zerolog and slog
-- Request ID tracking for correlation
-- Multiple log levels (debug, info, warn, error)
-- JSON format (production), text format (development)
-- Contextual log fields (request ID, user ID, HTTP method, path, status, duration)
+**Trade-offs**:
+- Some queries span multiple tables (join queries)
+- May require additional query files
 
-## Migration Strategy
-- Versioned migrations in `sql/migrations/` with timestamped files
-- Tool: golang-migrate
-- Up/down migration support
-- Test migrations on copy before production
+## Domain Rules
 
-## Code Generation Triggers
-- Database schema changes → `make generate`
-- Interface changes → `make generate`
-- API changes → Swagger auto-regeneration
-- Command: `go generate ./...`
+### User Domain
+- **Email uniqueness**: Enforced at database level with UNIQUE constraint
+- **Password requirements**: Minimum 8 characters, hashed with bcrypt (cost 10)
+- **JWT expiration**: Configurable, default 3600 seconds (1 hour)
+- **Token claims**: user_id, exp, iat
+- **User ownership**: Users can only access their own resources
 
-## Performance Optimizations
-- **Database**: Configurable connection pooling, prepared statements (sqlc)
-- **HTTP**: Configurable timeouts, keep-alive, compression (gzip/brotli)
-- **Memory**: Object pooling for frequent allocations, minimal heap usage
-- **Logging**: Fast structured logging with minimal allocations
-- **Fiber**: High-performance HTTP handling
+### Service Domain
+- **Service ownership**: Only service creators can update/delete
+- **Price validation**: Must be positive number
+- **Duration validation**: Must be positive integer (minutes)
+- **Search behavior**: Case-insensitive partial match on name and description
 
-## Recent Changes (from git status)
-- **Build Tags System**: Added conditional compilation with build tags for modular builds
-- **Route Modularization**: Split routes into separate files for better organization
-- **DI Hooks**: Modular DI registration with conditional hooks
-- **Memory Bank**: Added comprehensive documentation system for project knowledge
-- **Makefile Updates**: Enhanced with new targets and build tag support
-- **Feature Refactoring**: Complete refactoring to feature-based architecture
-- **Health Feature**: Fully implemented with Clean Architecture layers
-- **Test Restoration**: Created comprehensive test suite (16 test files)
-- **Cleanup**: Removed all .gitkeep placeholder files
-- **Port Interfaces**: Added health-specific port interfaces
-- **DI Wiring**: Complete dependency injection setup for all features
+### Booking Domain
+- **Booking status workflow**: pending → confirmed → cancelled
+- **Date validation**: Booking date must be in the future
+- **Overlap prevention**: Cannot double-book same service at same time
+- **Cancellation rules**: Only pending bookings can be cancelled
+- **Status transitions**: Validated in use case layer
 
-## Project Evolution
-1. **Initial commit (0185abd)**: Bootstrap structure
-2. **Second commit (da9257f)**: Bootstrap application with Fiber, core handlers, middleware
-3. **Third commit (70f3044)**: Dev configuration, Memory Bank documentation, GEMINI documentation
-4. **Fourth commit (e4f5bb8)**: Added dev configuration, Memory Bank documentation, BUILD_TAGS.md
-5. **Feature Refactor**: Complete feature-based architecture with modular builds
-6. **Health Implementation**: Full Clean Architecture implementation for Health feature
-7. **Test Suite**: Comprehensive testing with 16 test files across all layers
-8. **Final State**: Production-ready template with complete test coverage
+### Payment Domain
+- **Payment workflow**: pending → completed/refunded/failed
+- **Amount validation**: Cannot exceed booking total
+- **Refund rules**: Only completed payments can be refunded
+- **Booking payment**: Multiple payments allowed per booking
+- **Confirmation**: Payment confirmation updates booking status to confirmed
 
-## Final State (Current)
-**Status**: ✅ Complete and Production-Ready
-**Architecture**: Feature-based Clean Architecture with modular builds
-**Features**: Health (complete), User (complete), Post (complete)
-**Test Coverage**: Comprehensive test suite with 16 test files
-**Build System**: Modular build tags system for selective deployment
-**Documentation**: Memory Bank, README, and inline documentation complete
-**Dependencies**: All dependencies managed and locked
-**Quality**: Linting, testing, and validation configured
+## File Purpose Summaries
+
+### Core Application Files
+- **cmd/server/main.go**: Application entry point, initializes all layers and starts HTTP server
+- **go.mod**: Module definition and dependency management
+- **go.sum**: Dependency checksums for reproducible builds
+- **Makefile**: Build automation with common development tasks
+- **Dockerfile**: Multi-stage container image for production deployment
+- **docker-compose.yml**: Local development orchestration (API + PostgreSQL)
+- **docker-compose.test.yml**: Test database orchestration
+
+### Configuration Files
+- **configs/local.yaml**: Local development configuration (default)
+- **configs/dev.yaml**: Development environment configuration
+- **configs/uat.yaml**: User acceptance testing configuration
+- **configs/prod.yaml**: Production environment configuration
+- **.env.example**: Example environment variables template
+- **infrastructure/config/config.go**: Configuration struct and loading logic
+
+### Infrastructure Layer
+- **infrastructure/db/postgres.go**: Database connection and connection pooling
+- **infrastructure/logger/logger.go**: Structured logger wrapper (zerolog)
+- **infrastructure/http/client/resty.go**: HTTP client for external API calls
+- **infrastructure/sqlc/db/**: SQLC generated code (do not edit manually)
+
+### Domain Files (Pattern: domain/{name}/)
+
+#### User Domain
+- **handler/handler.go**: HTTP handlers for auth and user profile endpoints
+- **usecase/usecase.go**: Business logic for authentication and user management
+- **repository/repository.go**: Data access layer for user operations
+- **model/user.go**: Internal user domain model
+- **request/user.go**: HTTP request DTOs for user operations
+- **response/user.go**: HTTP response DTOs for user operations
+- **interface.go**: Shared interfaces for user domain
+
+#### Service Domain
+- **handler/handler.go**: HTTP handlers for service CRUD operations
+- **usecase/usecase.go**: Business logic for service management
+- **repository/repository.go**: Data access layer for service operations
+- **model/service.go**: Internal service domain model
+- **request/service.go**: HTTP request DTOs for service operations
+- **response/service.go**: HTTP response DTOs for service operations
+- **interface.go**: Shared interfaces for service domain
+
+#### Booking Domain
+- **handler/handler.go**: HTTP handlers for booking operations
+- **usecase/usecase.go**: Business logic for booking workflow
+- **repository/repository.go**: Data access layer for booking operations
+- **model/booking.go**: Internal booking domain model
+- **request/booking.go**: HTTP request DTOs for booking operations
+- **response/booking.go**: HTTP response DTOs for booking operations
+- **interface.go**: Shared interfaces for booking domain
+
+#### Payment Domain
+- **handler/handler.go**: HTTP handlers for payment operations
+- **usecase/usecase.go**: Business logic for payment processing
+- **repository/repository.go**: Data access layer for payment operations
+- **model/payment.go**: Internal payment domain model
+- **request/payment.go**: HTTP request DTOs for payment operations
+- **response/payment.go**: HTTP response DTOs for payment operations
+- **interface.go**: Shared interfaces for payment domain
+
+### Database Files
+- **sql/migration/**: Database schema migration files (up/down)
+- **sql/query/**: SQLC query definitions organized by table
+- **infrastructure/sqlc/db/**: Generated Go code from SQLC queries
+
+### Test Files
+- **test/integration/**: Integration tests with test server
+- **test/unit/**: Unit tests for individual components
+- **domain/*/*_test.go**: Unit tests for handlers, use cases, repositories
+
+### Package Files (pkg/)
+- **pkg/middleware/**: Echo middleware (request ID, logging, CORS, rate limiting, JWT)
+- **pkg/response/**: JSend response builders and helpers
+- **pkg/health/**: Health check handlers
+
+### Documentation Files
+- **docs/**: Swagger/OpenAPI generated documentation
+- **README.md**: Project overview and getting started guide
+- **PODMAN.md**: Podman setup instructions
+- **requirements.md**: Project requirements and specifications
+- **CLAUDE.md**: AI assistant instructions and memory bank rules
+
+## Implementation Notes
+
+### Dependency Injection Pattern
+Each domain uses constructor functions for initialization:
+```go
+func Initialize(queries *sqlc.Queries, log *logger.Logger) Repository {
+    return &repositoryImpl{queries, log}
+}
+```
+
+This pattern:
+- Makes dependencies explicit
+- Enables easy mocking for tests
+- Supports compile-time dependency checking
+- Follows Go idioms
+
+### Error Handling Strategy
+1. **Repository layer**: Returns raw database errors wrapped with context
+2. **UseCase layer**: Maps repository errors to domain errors, adds business logic validation
+3. **Handler layer**: Maps domain errors to HTTP status codes and JSend responses
+
+Example:
+```go
+// Repository
+return fmt.Errorf("failed to get user: %w", err)
+
+// UseCase
+if errors.Is(err, sql.ErrNoRows) {
+    return ErrUserNotFound
+}
+return fmt.Errorf("repository error: %w", err)
+
+// Handler
+if errors.Is(err, ErrUserNotFound) {
+    return c.JSON(http.StatusNotFound, response.Error("User not found"))
+}
+```
+
+### Request Validation Strategy
+1. **Handler layer**: Validates request structure using go-playground/validator
+2. **UseCase layer**: Validates business rules and constraints
+3. **Repository layer**: Relies on database constraints for data integrity
+
+### Logging Strategy
+- **Request logging**: Middleware logs all incoming requests with timing
+- **Error logging**: All errors logged with contextual fields (request_id, user_id)
+- **Debug logging**: Enabled in local/dev environments
+- **Production logging**: JSON format for log aggregation
+
+### Testing Strategy
+1. **Unit tests**: Test individual components in isolation using mocks
+2. **Integration tests**: Test full HTTP request/response cycle
+3. **Test structure**: Table-driven tests for multiple scenarios
+4. **Coverage target**: >80% overall, >90% for critical business logic
+
+### Configuration Loading
+1. Read `SERVER_ENV` environment variable (defaults to "local")
+2. Load corresponding YAML file from `configs/{env}.yaml`
+3. Override with environment variables if present
+4. Validate configuration structure
+5. Fail fast on invalid configuration
+
+### Graceful Shutdown
+1. Listen for SIGINT/SIGTERM signals
+2. Stop accepting new requests
+3. Wait up to 30 seconds for in-flight requests to complete
+4. Close database connections
+5. Flush logger
+6. Exit
+
+### API Versioning
+- Current version: `/api/v1/`
+- Future versions: `/api/v2/`, `/api/v3/`
+- No breaking changes within a version
+- Deprecate old versions before removing
+
+## Known Issues & Limitations
+
+### Current Limitations
+1. **No file upload support**: Service images require manual URLs
+2. **No caching layer**: All queries hit database directly
+3. **No async processing**: Background jobs require external queue
+4. **No pagination**: List endpoints return all results (performance concern)
+5. **No rate limiting per user**: Global rate limiting only
+
+### Future Improvements
+1. Add Redis caching layer for frequently accessed data
+2. Implement pagination for all list endpoints
+3. Add user-specific rate limiting
+4. Implement file upload service for service images
+5. Add background job processing for notifications
+6. Implement audit logging for sensitive operations
+
+## Dependencies Summary
+
+### Core Dependencies
+- **github.com/labstack/echo/v4**: Web framework
+- **github.com/jackc/pgx/v5**: PostgreSQL driver
+- **github.com/rs/zerolog**: Structured logging
+- **github.com/spf13/viper**: Configuration management
+- **github.com/swaggo/swag**: Swagger documentation generation
+
+### Development Dependencies
+- **github.com/stretchr/testify**: Testing assertions and mocks
+- **go.uber.org/mock**: Mock generation
+- **github.com/swaggo/echo-swagger**: Swagger UI for Echo
+
+### Build Dependencies
+- **github.com/go-playground/validator/v10**: Request validation
+- **github.com/golang-jwt/jwt/v5**: JWT token generation and validation
+- **github.com/google/uuid**: UUID generation
+- **golang.org/x/crypto**: Password hashing (bcrypt)
+
+## Environment Configuration
+
+### Local Development
+```bash
+SERVER_ENV=local
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=password
+DB_NAME=zercle_db
+JWT_SECRET=dev-jwt-secret-key-change-in-production
+```
+
+### Development Environment
+```bash
+SERVER_ENV=dev
+# Database and other credentials from infrastructure
+```
+
+### Production Environment
+```bash
+SERVER_ENV=prod
+# All secrets from secure secret management
+# No defaults in production
+```
+
+## Git Workflow
+
+### Branch Strategy
+- **main**: Production-ready code
+- **develop**: Development branch for next release
+- **feature/***: Feature branches
+- **bugfix/***: Bug fix branches
+- **hotfix/***: Emergency production fixes
+
+### Commit Message Format
+```
+<type>: <description>
+
+[optional body]
+
+[optional footer]
+```
+
+Types: feat, fix, docs, style, refactor, test, chore
+
+Example:
+```
+feat: add user authentication
+
+Implement JWT-based authentication with login and registration endpoints.
+
+Closes #123
+```
+
+## Performance Considerations
+
+### Database Optimization
+- Use indexes on frequently queried columns
+- Use connection pooling (MaxOpenConns: 25, MaxIdleConns: 5)
+- Set connection lifetime (5 minutes)
+- Use prepared statements (SQLC handles this)
+
+### API Optimization
+- Implement pagination for list endpoints (future)
+- Add caching layer for frequently accessed data (future)
+- Use compression for large responses (future)
+- Optimize JSON serialization (future)
+
+### Memory Management
+- Preallocate slices with capacity
+- Use bytes.Buffer for string building
+- Reuse objects where possible
+- Limit concurrent goroutines
+
+## Security Considerations
+
+### Authentication & Authorization
+- Never store passwords in plain text (use bcrypt)
+- Use HTTPS in production
+- Validate JWT signatures on every request
+- Implement token expiration
+- Use secure secret management
+
+### Input Validation
+- Validate all input at handler layer
+- Sanitize data before database operations
+- Use parameterized queries (SQLC prevents SQL injection)
+- Limit file upload sizes (when implemented)
+
+### Data Protection
+- Never expose sensitive data in JSON responses
+- Hash passwords before storing
+- Use environment variables for secrets
+- Implement CORS properly
+- Add rate limiting to prevent abuse
+
+## Monitoring & Observability
+
+### Health Checks
+- `/health`: Liveness probe (always returns 200 if running)
+- `/readiness`: Readiness probe (checks database connectivity)
+
+### Logging
+- Structured JSON logs in production
+- Include request_id for tracing
+- Log all errors with context
+- Use appropriate log levels
+
+### Metrics (Future)
+- Request count and latency
+- Database query performance
+- Error rates by endpoint
+- Active connections
+
+## Deployment Considerations
+
+### Container Orchestration
+- Support for Docker and Podman
+- docker-compose for local development
+- Kubernetes ready (health checks, graceful shutdown)
+- Horizontal scaling support (stateless handlers)
+
+### Configuration Management
+- Environment-specific YAML files
+- Environment variable override support
+- No secrets in code or configuration files
+- Validation on startup
+
+### Database Migrations
+- Run migrations on deployment
+- Support for rollbacks
+- Version-controlled migration files
+- Test migrations before production
+
+## Integration Points
+
+### External Services (Future)
+- **Payment Gateway**: Stripe/PayPal integration
+- **Email Service**: SendGrid/Mailgun for notifications
+- **SMS Service**: Twilio for SMS notifications
+- **Storage Service**: S3/GCS for file uploads
+
+### API Integrations (Future)
+- **Calendar Sync**: Google Calendar/Outlook integration
+- **Video Conferencing**: Zoom/Teams integration
+- **Analytics**: Google Analytics/Mixpanel

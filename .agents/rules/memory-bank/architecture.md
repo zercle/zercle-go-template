@@ -1,320 +1,512 @@
-# Architecture - Zercle Go Fiber Template
+# Zercle Go Template - Architecture
 
-## Architectural Pattern
-**Clean Architecture** with **Domain-Driven Design (DDD)** and **Hexagonal Architecture** principles.
+## System Architecture
 
-## Modular Architecture
-**Build Tags System**: Conditional compilation with build tags for modular deployments
-- **Tags**: `health`, `user`, `post`, `all`
-- **Purpose**: Build minimal binaries with only required handlers
-- **Benefit**: Reduced binary size, faster deployment, selective functionality
-- **Documentation**: See BUILD_TAGS.md for detailed usage
+### High-Level Architecture
 
-**Route Modularization**: Routes split into separate files for better organization
-- `routes_base.go` - Base route configuration
-- `routes_health.go` - Health check routes
-- `routes_user.go` - User management routes
-- `routes_post.go` - Post management routes
+The application follows **Clean Architecture** principles with clear separation of concerns:
 
-**DI Hooks System**: Modular dependency injection registration
-- `di.go` - Main DI container
-- `di_health.go` - Health-specific DI setup
-- `di_post.go` - Post module DI setup
-- `di_user.go` - User module DI setup
-- `di_hooks_*.go` - Conditional hooks for modular registration
-
-## Layered Architecture
-
-### 1. Handler Layer (HTTP Adapters)
-**Location**: `internal/adapter/handler/http/`
-**Responsibility**: HTTP request/response handling
-**Dependencies**: Depends on Service layer (inward)
-
-**Components**:
-- `health_handler.go` - Health check endpoints (readiness and liveness)
-- `user_handler.go` - User authentication & profile
-- `post_handler.go` - Post CRUD operations
-- `response/` - JSend response formatting utilities
-
-**Rules**:
-- No business logic in handlers
-- Only HTTP-specific concerns (parsing, validation, response formatting)
-- Depends on Service interfaces (ports)
-
-### 2. Service Layer (Core Business Logic)
-**Location**: `internal/core/service/`
-**Responsibility**: Orchestrate business workflows
-**Dependencies**: Depends on Repository layer (inward)
-
-**Components**:
-- `user_service.go` - User registration, login, profile
-- `post_service.go` - Post creation, listing, retrieval
-- `health_service.go` - Health checks with database connectivity verification
-
-**Rules**:
-- Contains business rules and logic
-- Coordinates between multiple repositories
-- Depends on repository interfaces (ports)
-- No HTTP or database knowledge
-
-### 3. Repository Layer (Data Access)
-**Location**: `internal/adapter/storage/postgres/`
-**Responsibility**: Data persistence and retrieval
-**Dependencies**: Depends on Domain and Infrastructure
-
-**Components**:
-- `user_repo.go` - User data access
-- `post_repo.go` - Post data access
-- `health_repo.go` - Database health check and connectivity verification
-- `*_test.go` - Repository tests
-
-**Rules**:
-- Implements repository interfaces (ports)
-- Contains SQL queries and database operations
-- Uses sqlc-generated code
-- No business logic, only data access
-
-### 4. Domain Layer (Core Business)
-**Location**: `internal/core/domain/`
-**Responsibility**: Business entities and rules
-**Dependencies**: None (innermost layer)
-
-**Components**:
-- `user.go` - User entity definition
-- `post.go` - Post entity definition
-- `health.go` - Health status entity definition
-- `errors/` - Domain-specific error types
-
-**Rules**:
-- Pure business logic, no external dependencies
-- Defines entities, value objects, and domain events
-- Framework-agnostic
-- Contains business rules and invariants
-
-## Dependency Flow
 ```
-Handler → Service → Repository → Domain
-          ↓
-    Infrastructure (sqlc, config, etc.)
+┌─────────────────────────────────────────────────────────────┐
+│                         HTTP Layer                           │
+│  (Echo Framework + Middleware + Request/Response)            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Handler Layer                           │
+│  (HTTP request handling, validation, response formatting)    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      UseCase Layer                           │
+│  (Business logic, orchestration, domain rules)              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Repository Layer                          │
+│  (Data access abstraction, interface-based)                 │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Infrastructure Layer                       │
+│  (Database, external services, config, logging)             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Ports & Adapters
+## Layer Boundaries
 
-### Ports (Interfaces)
-**Location**: `internal/core/port/`
-**Purpose**: Define contracts for external dependencies
+### Handler Layer (`domain/*/handler/`)
+**Responsibility**: HTTP request/response handling only
 
-**Interfaces**:
-- `service.go` - Service port definitions
-- `repository.go` - Repository port definitions
-- `service_health.go` - Health service port
-- `repository_health.go` - Health repository port
+**Can do:**
+- Parse and validate HTTP requests
+- Extract request context (user ID, request ID)
+- Call use case methods
+- Format responses using JSend standard
+- Set appropriate HTTP status codes
 
-**Rules**:
-- Interfaces define what is needed, not how
-- Inward-pointing dependencies
-- Mockable for testing
+**Cannot do:**
+- Implement business logic
+- Access database directly
+- Call other handlers
+- Make external API calls
 
-### Adapters (Implementations)
-**Purpose**: Implement ports with external systems
+**Dependencies:**
+- Input: HTTP request (Echo context)
+- Output: UseCase interface
 
-**HTTP Adapter**:
-- Fiber handlers implementing service ports
+### UseCase Layer (`domain/*/usecase/`)
+**Responsibility**: Business logic and orchestration
 
-**Storage Adapter**:
-- PostgreSQL repositories implementing repository ports
+**Can do:**
+- Implement business rules
+- Orchestrate multiple repository calls
+- Validate domain constraints
+- Transform data between models
+- Call other use cases if needed
 
-## Infrastructure Layer
-**Location**: `internal/infrastructure/`
-**Responsibility**: Framework and external system integration
+**Cannot do:**
+- Access HTTP context
+- Return HTTP-specific types
+- Access database directly
+- Format JSON responses
 
-**Components**:
-- `config/` - Configuration management
-- `container/` - Dependency injection setup with hooks
-- `server/` - Fiber server configuration
-- `sqlc/` - Generated database code
+**Dependencies:**
+- Input: Repository interfaces, config, logger
+- Output: Domain models, errors
 
-## Dependency Injection
-**Framework**: samber/do/v2
-**Location**: `internal/infrastructure/container/di.go`
+### Repository Layer (`domain/*/repository/`)
+**Responsibility**: Data access abstraction
 
-**Wiring**:
-- Register concrete implementations
-- Inject dependencies into handlers
-- Manage lifecycle (singleton, transient)
-- Modular registration via hooks
+**Can do:**
+- Execute database queries via SQLC
+- Map database results to domain models
+- Handle data persistence
+- Implement CRUD operations
 
-**Benefits**:
-- Decouples code from concrete dependencies
-- Enables easy testing with mocks
-- Centralized dependency management
-- Modular and conditional wiring
+**Cannot do:**
+- Implement business logic
+- Validate business rules
+- Access HTTP context
+- Call other repositories
 
-## Data Flow Examples
+**Dependencies:**
+- Input: SQLC querier interface, logger
+- Output: Domain models, errors
 
-### User Registration Flow
+## Module Structure
+
+### Domain Modules
+
+Each domain follows this structure:
+
 ```
-1. HTTP POST /auth/register
-   ↓
-2. UserHandler.Register()
-   ↓
-3. UserService.Register()
-   ↓
-4. UserRepository.Create()
-   ↓
-5. PostgreSQL (via sqlc)
-   ↓
-6. Response flows back through layers
+domain/{name}/
+├── handler/          # HTTP handlers
+│   ├── handler.go    # Handler implementation
+│   ├── init.go       # Dependency injection
+│   └── handler_test.go
+├── usecase/          # Business logic
+│   ├── usecase.go    # UseCase implementation
+│   ├── init.go       # Dependency injection
+│   └── usecase_test.go
+├── repository/       # Data access
+│   ├── repository.go # Repository implementation
+│   └── init.go       # Dependency injection
+├── model/            # Domain models
+│   └── {name}.go     # Internal models
+├── request/          # Request DTOs
+│   └── {name}.go     # HTTP request structures
+├── response/         # Response DTOs
+│   └── {name}.go     # HTTP response structures
+├── mock/             # Generated mocks
+│   └── interface.go  # Mock implementations
+└── interface.go      # Shared interfaces
 ```
 
-### Get Post Flow
+### Current Domains
+
+1. **User Domain** (`domain/user/`)
+   - Authentication and authorization
+   - User profile management
+   - JWT token generation
+
+2. **Service Domain** (`domain/service/`)
+   - Service catalog CRUD
+   - Service search and filtering
+   - Availability management
+
+3. **Booking Domain** (`domain/booking/`)
+   - Booking creation and management
+   - Status workflow (pending → confirmed → cancelled)
+   - Date range queries
+
+4. **Payment Domain** (`domain/payment/`)
+   - Payment processing
+   - Payment status tracking
+   - Refund handling
+
+## Data Flow
+
+### Request Flow (Read Operation)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Handler
+    participant UseCase
+    participant Repository
+    participant Database
+
+    Client->>Handler: HTTP GET /api/v1/services/123
+    Handler->>Handler: Validate request
+    Handler->>UseCase: GetServiceByID(id)
+    UseCase->>Repository: GetService(id)
+    Repository->>Database: SQLC Query
+    Database-->>Repository: Service data
+    Repository-->>UseCase: Domain model
+    UseCase->>UseCase: Apply business rules
+    UseCase-->>Handler: Domain model
+    Handler->>Handler: Map to response DTO
+    Handler-->>Client: JSend success response
 ```
-1. HTTP GET /posts/:id
-   ↓
-2. PostHandler.GetByID()
-   ↓
-3. PostService.GetByID()
-   ↓
-4. PostRepository.FindByID()
-   ↓
-5. PostgreSQL (via sqlc)
-   ↓
-6. Response flows back through layers
+
+### Request Flow (Write Operation)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Handler
+    participant UseCase
+    participant Repository
+    participant Database
+
+    Client->>Handler: HTTP POST /api/v1/bookings
+    Handler->>Handler: Validate request body
+    Handler->>UseCase: CreateBooking(request)
+    UseCase->>UseCase: Validate business rules
+    UseCase->>Repository: CreateBooking(model)
+    Repository->>Database: SQLC Insert
+    Database-->>Repository: Created record
+    Repository-->>UseCase: Domain model with ID
+    UseCase-->>Handler: Domain model
+    Handler->>Handler: Map to response DTO
+    Handler-->>Client: JSend success + 201 Created
+```
+
+## Integration Points
+
+### External Dependencies
+
+1. **PostgreSQL Database**
+   - Location: `infrastructure/db/`
+   - Connection pooling via pgx/v5
+   - Queries via SQLC generated code
+   - Migrations in `sql/migration/`
+
+2. **Configuration System**
+   - Location: `infrastructure/config/`
+   - YAML files in `configs/`
+   - Environment variable override
+   - Four environments: local, dev, uat, prod
+
+3. **Logging System**
+   - Location: `infrastructure/logger/`
+   - Structured logging with zerolog
+   - Contextual fields (request_id, user_id)
+   - Level-based filtering
+
+### Middleware Chain
+
+Order of execution in `cmd/server/main.go`:
+
+1. **RequestID** - Generate unique request identifier
+2. **Logger** - Log incoming requests with timing
+3. **Recover** - Catch panics and return 500
+4. **CORS** - Handle cross-origin requests
+5. **RateLimit** - Apply rate limiting rules
+6. **JWTAuth** - Validate JWT tokens (protected routes)
+
+## Component Interactions
+
+### Dependency Injection Pattern
+
+Each domain uses constructor pattern:
+
+```go
+// Repository initialization
+func Initialize(queries *sqlc.Queries, log *logger.Logger) Repository {
+    return &repositoryImpl{queries, log}
+}
+
+// UseCase initialization
+func Initialize(repo Repository, cfg *config.Config, log *logger.Logger) UseCase {
+    return &useCaseImpl{repo, cfg, log}
+}
+
+// Handler initialization
+func Initialize(useCase UseCase, log *logger.Logger) Handler {
+    return &handlerImpl{useCase, log}
+}
+```
+
+### Cross-Domain Communication
+
+**Allowed patterns:**
+- UseCase can call other UseCases (e.g., BookingUseCase calls ServiceUseCase)
+- UseCase can call multiple Repositories
+- Handler cannot call other Handlers
+
+**Example:**
+```go
+// In booking usecase
+type UseCaseImpl struct {
+    bookingRepo  booking.Repository
+    serviceRepo  service.Repository  // Cross-domain dependency
+    log          *logger.Logger
+}
 ```
 
 ## Error Handling Strategy
-- Domain errors in `internal/core/domain/errors/`
-- Repository errors wrapped with context
-- Service errors propagated with context
-- Handler converts to HTTP responses
-- JSend format for all responses
 
-## Configuration Management
-**Pattern**: Configuration struct with validation
-**Location**: `internal/infrastructure/config/config.go`
+### Error Categories
 
-**Loading Order**:
-1. Defaults (hardcoded)
-2. YAML config file
-3. Environment variables
+1. **Domain Errors** (Business logic violations)
+   - Return as structured errors with context
+   - Handler maps to 400 status codes
+   - Include field-level validation errors
 
-**Validation**:
-- Struct tag validation (validator/v10)
-- Custom business rules (e.g., production JWT secret check)
+2. **Infrastructure Errors** (Database, network)
+   - Log with full context
+   - Return generic error to client
+   - Handler maps to 500 status codes
 
-## Database Architecture
-**ORM**: None (raw SQL with sqlc)
-**Migration Tool**: golang-migrate
-**Query Generator**: sqlc
-**Connection**: lib/pq (native PostgreSQL driver)
+3. **Not Found Errors**
+   - Return domain-specific error
+   - Handler maps to 404 status codes
 
-**Benefits**:
-- Type-safe queries
-- No ORM complexity
-- Explicit SQL control
-- Better performance
+4. **Validation Errors**
+   - Collect all validation failures
+   - Return with field names and messages
+   - Handler maps to 400 with errors array
 
-## API Design
-**Format**: RESTful JSON
-**Response Format**: JSend {status, data, message}
-**Documentation**: Swagger/OpenAPI 2.0
+### Error Propagation
 
-**Validation**:
-- Request validation middleware
-- DTO validation with custom tags
-- Error aggregation
+```
+Repository → UseCase → Handler → Client
+   (log)       (wrap)     (map)
+```
 
 ## Security Architecture
-**Authentication**: JWT tokens
-**Middleware**:
-- Auth middleware (token validation)
-- CORS middleware
-- Rate limiting
-- Request ID
-- Logging
 
-**Password Security**:
-- bcrypt hashing via golang.org/x/crypto
-- Salt rounds configured
+### Authentication Flow
+
+```
+Client → POST /auth/login
+    ↓
+Handler validates credentials
+    ↓
+UseCase checks password hash
+    ↓
+UseCase generates JWT token
+    ↓
+Handler returns token
+```
+
+### Authorization Flow
+
+```
+Client → Protected Route + Bearer Token
+    ↓
+JWTAuth Middleware validates token
+    ↓
+Middleware extracts user_id from claims
+    ↓
+Handler accesses user_id from context
+    ↓
+UseCase enforces ownership rules
+```
+
+## Database Architecture
+
+### Schema Design
+
+- **Users**: Authentication and profile data
+- **Services**: Service catalog with pricing
+- **Bookings**: Booking records with status workflow
+- **Payments**: Payment transactions linked to bookings
+- **Availability Slots**: Service availability definitions
+
+### Query Strategy
+
+- Use SQLC for type-safe SQL queries
+- Queries defined in `sql/query/`
+- Generated code in `infrastructure/sqlc/db/`
+- Named queries for clarity and reusability
+
+### Transaction Management
+
+- Use transactions for multi-step operations
+- Example: Creating booking + initial payment
+- Rollback on any step failure
+- Repository methods accept context for transaction control
+
+## Scaling Considerations
+
+### Vertical Scaling
+- Increase database connection pool size
+- Add more CPU/memory to containers
+- Optimize slow queries with indexes
+
+### Horizontal Scaling (Future)
+- Stateless handlers enable multiple instances
+- Shared database required
+- Load balancer distributes traffic
+- Session data in JWT (no server-side state)
+
+### Performance Optimization
+- Database query caching (future Redis)
+- Connection pooling (current)
+- Indexed foreign keys
+- Pagination for list endpoints
 
 ## Testing Architecture
-**Strategy**: Test pyramid
 
-**Unit Tests**:
-- Domain entities (no dependencies)
-- Services (with mock repositories)
-- Repositories (with sqlmock)
+### Unit Tests
+- Test each layer in isolation
+- Use mocked dependencies
+- Table-driven for multiple scenarios
+- Located in `domain/*/handler/`, `usecase/`, `repository/`
 
-**Integration Tests**:
-- Full HTTP stack
-- Real database connection
-- `test/integration/` directory
+### Integration Tests
+- Full HTTP request/response cycle
+- Real database (test container)
+- Test server setup
+- Located in `test/integration/`
 
-**Mocking**:
-- Generated mocks via mockery
-- Manual mocks for special cases
-- sqlmock for database testing
+### Test Coverage Goals
+- Handlers: >80%
+- UseCases: >90% (critical business logic)
+- Repositories: >70% (simple CRUD)
 
-## Build & Deployment
-**Binary**: Compiled to `./bin/service`
-**Build Tags**: Conditional compilation for modular builds
-**Docker**: Multi-stage Dockerfile with non-root user
-**Compose**: Development stack with PostgreSQL
+## Deployment Architecture
 
-**Entry Point**: `cmd/server/main.go`
-**Server**: Fiber HTTP server
-**Port**: Configurable (default 3000)
+### Container Deployment
+```
+┌─────────────────┐
+│   Podman/Docker │
+│   Container     │
+│                 │
+│  ┌───────────┐  │
+│  │  API App  │  │
+│  └───────────┘  │
+└─────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│   PostgreSQL    │
+│   Container     │
+└─────────────────┘
+```
 
-## Observability
-**Logging**:
-- Structured logging (zerolog/slog)
-- Request ID correlation
-- Contextual log fields
-- Multiple levels (debug, info, warn, error)
+### Orchestration
+- docker-compose.yml for local/dev
+- docker-compose.test.yml for testing
+- Support for Kubernetes in future
+- Health checks for orchestration
 
-**Health Checks**:
-- `/health` - Readiness probe
-- `/health/live` - Liveness probe
+## Configuration Architecture
 
-**Metrics**: Ready for OpenTelemetry integration
+### Environment Hierarchy
 
-## Module Boundaries
-**Strict Separation**:
-- No circular dependencies
-- Inner layers cannot depend on outer layers
-- Interfaces define contracts
-- Dependencies point inward
-- Build tags control module inclusion
+```
+configs/
+├── local.yaml   # Local development (default)
+├── dev.yaml     # Development environment
+├── uat.yaml     # User acceptance testing
+└── prod.yaml    # Production environment
+```
 
-**Communication**:
-- Layer-to-layer via interfaces
-- No skip-layer dependencies
-- Explicit dependency injection
-- Modular registration via hooks
+### Configuration Loading
+1. Read SERVER_ENV environment variable
+2. Load corresponding YAML file
+3. Override with environment variables if present
+4. Validate configuration structure
+5. Fail fast on invalid configuration
 
-## Code Organization Rules
-- One file per domain entity
-- Clear package naming
-- Small, focused functions
-- Explicit error handling
-- No global state
-- Composition over inheritance
-- Modular route organization
+### Configuration Structure
+- `server`: Host, port, environment
+- `database`: Connection details
+- `jwt`: Secret and expiration
+- `logging`: Level and format
+- `cors`: Allowed origins
+- `rate_limit`: Requests per window
 
-## Scalability Considerations
-- Stateless service design
-- Database connection pooling
-- JWT for horizontal scaling
-- UUIDv7 for distributed IDs
-- Rate limiting for protection
-- Build tags for selective deployment
-- Prepared for caching layer
+## Monitoring & Observability
 
-## Future Extensibility
-**Pattern**: Open/Closed Principle
-- Add new endpoints without modifying existing
-- Add new services following patterns
-- Swap implementations via DI
-- New databases via repository pattern
-- New protocols via adapter pattern
-- New modules via build tags
+### Health Checks
+- `/health`: Liveness probe (always 200 if running)
+- `/readiness`: Readiness probe (checks database)
+- Used by orchestration platforms
+
+### Logging Strategy
+- Structured JSON logs (prod) or console (local/dev)
+- Request ID for distributed tracing
+- Log levels: debug, info, warn, error
+- Contextual fields: request_id, user_id, action, duration
+
+### Metrics (Future)
+- Request count and latency
+- Database query performance
+- Error rates by endpoint
+- Active connections
+
+## Architectural Decisions
+
+### Why Clean Architecture?
+- **Testability**: Each layer can be tested in isolation
+- **Maintainability**: Changes in one layer don't cascade
+- **Flexibility**: Easy to swap implementations (e.g., database)
+- **Clarity**: Clear responsibility boundaries
+
+### Why SQLC?
+- **Type Safety**: Compile-time query validation
+- **Performance**: No ORM overhead
+- **Simplicity**: SQL queries are explicit
+- **Maintainability**: Queries in .sql files are reviewable
+
+### Why Echo Framework?
+- **Performance**: Fast HTTP router
+- **Minimalism**: Only what's needed, nothing more
+- **Middleware**: Extensible middleware system
+- **Community**: Active development and support
+
+### Why JSend Format?
+- **Consistency**: All responses have same structure
+- **Clarity**: Clear distinction between success, fail, error
+- **Predictability**: Clients know what to expect
+- **Adoption**: Widely used standard
+
+## Future Architectural Evolution
+
+### Microservices Extraction
+- Domains can be extracted to separate services
+- Clear interfaces enable this
+- Database per service pattern
+- API gateway for routing
+
+### Event-Driven Architecture
+- Add message queue (RabbitMQ/Kafka)
+- Emit domain events (booking created, payment confirmed)
+- Async processing for non-critical operations
+- Event sourcing for audit trail
+
+### CQRS Pattern
+- Separate read and write models
+- Optimized data structures for queries
+- Eventual consistency for reads
+- Scalable read replicas

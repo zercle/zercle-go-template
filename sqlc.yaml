@@ -1,12 +1,11 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    schema: "sql/migrations"
-    queries: "sql/queries"
+    schema: "sql/migration"
+    queries: "sql/query"
     gen:
       go:
-        out: "internal/infrastructure/sqlc"
-        package: "db"
+        sql_package: "pgx/v5"
+        out: "infrastructure/sqlc/db"
         emit_interface: true
         emit_json_tags: true
-        json_tags_case_style: "camel"

@@ -1,675 +1,792 @@
-# Task Workflows - Zercle Go Fiber Template
+# Zercle Go Template - Workflows & Guides
 
-## Development Workflows
+## Common Workflows
 
-### 1. Initial Project Setup
-**Purpose**: Set up development environment from scratch
+### Adding a New Domain
 
-**Steps**:
+Follow this pattern when adding a new business domain:
+
 ```bash
-# 1. Clone and navigate
-git clone <repo-url>
-cd zercle-go-template
+# 1. Create domain directory structure
+mkdir -p domain/{name}/{handler,usecase,repository,model,request,response,mock}
 
-# 2. Initialize dependencies
-make init
+# 2. Create interface.go
+cat > domain/{name}/interface.go << 'EOF'
+package {name}
 
-# 3. Install development tools
-make install-tools
+// Repository defines the data access operations for {name}.
+type Repository interface {
+    Create(ctx context.Context, model *Model) error
+    GetByID(ctx context.Context, id string) (*Model, error)
+    List(ctx context.Context) ([]*Model, error)
+    Update(ctx context.Context, model *Model) error
+    Delete(ctx context.Context, id string) error
+}
 
-# 4. Setup environment
-cp .env.example .env
-# Edit .env with your values
+// UseCase defines the business logic operations for {name}.
+type UseCase interface {
+    Create(ctx context.Context, req *request.Create) (*Model, error)
+    GetByID(ctx context.Context, id string) (*Model, error)
+    List(ctx context.Context) ([]*Model, error)
+    Update(ctx context.Context, id string, req *request.Update) (*Model, error)
+    Delete(ctx context.Context, id string) error
+}
 
-# 5. Start infrastructure
-make docker-up
+// Handler defines the HTTP handlers for {name}.
+type Handler interface {
+    Create(c echo.Context) error
+    GetByID(c echo.Context) error
+    List(c echo.Context) error
+    Update(c echo.Context) error
+    Delete(c echo.Context) error
+}
+EOF
 
-# 6. Run migrations
-make migrate-up
-
-# 7. Generate code
-make generate
-
-# 8. Run tests
-make test
-
-# 9. Start development
-make dev
+# 3. Implement each layer following existing domain patterns
+# 4. Add tests for each layer
+# 5. Register routes in cmd/server/main.go
+# 6. Generate mocks: go generate ./domain/{name}/...
 ```
 
-**Expected Outcome**: Running application at http://localhost:3000 with Swagger at http://localhost:3000/swagger
+### Adding a New API Endpoint
 
----
-
-### 2. Daily Development
-**Purpose**: Regular development workflow
-
-**Steps**:
-```bash
-# Before coding
-make lint
-make test
-
-# During coding (frequently)
-make fmt
-make test
-
-# After coding
-make test-coverage
-make lint
-make generate  # if SQL or interfaces changed
-
-# Test in dev mode
-make dev
-```
-
-**Expected Outcome**: Code passes all checks and tests
-
----
-
-### 3. Adding a New Feature
-**Purpose**: Extend the application with new functionality
-
-**Steps**:
-
-#### A. Create Domain Entity
-1. Define entity in `internal/core/domain/`
-2. Add domain errors if needed
-3. Write unit tests for domain logic
-
-#### B. Define Repository Interface
-1. Create interface in `internal/core/port/repository.go`
-2. Add CRUD methods
-3. Write SQL queries in `sql/queries/`
-4. Run `make generate`
-
-#### C. Implement Repository
-1. Create implementation in `internal/adapter/storage/postgres/`
-2. Use sqlc-generated code
-3. Write unit tests with sqlmock
-
-#### D. Define Service Interface & Implementation
-1. Add interface in `internal/core/port/service.go`
-2. Create service in `internal/core/service/`
-3. Inject repository via DI
-4. Write unit tests with mock repository
-
-#### E. Create DTOs
-1. Create request DTOs in `pkg/dto/`
-2. Add validation tags
-3. Create response DTOs
-
-#### F. Implement HTTP Handler
-1. Create handler in `internal/adapter/handler/http/`
-2. Inject service via DI
-3. Implement endpoints
-4. Add Swagger annotations
-5. Write integration tests
-
-#### G. Register in DI Container
-1. Update `internal/infrastructure/container/di.go`
-2. Register repository and service
-3. Register handler
-
-#### H. Update Migrations
-1. Create migration in `sql/migrations/`
-2. Add schema changes
-3. Test migration up/down
-
-#### I. Final Checks
-```bash
-make generate  # Regenerate code
-make test      # Run all tests
-make lint      # Lint code
-make test-coverage  # Check coverage
-```
-
-**Expected Outcome**: New feature fully integrated with tests and documentation
-
----
-
-### 4. Database Migration Workflow
-**Purpose**: Add or modify database schema
-
-**Steps**:
-```bash
-# 1. Create new migration file
-# Format: YYYYMMDDHHMMSS_description.sql
-touch sql/migrations/$(date +%Y%m%d%H%M%S)_add_feature.sql
-
-# 2. Write UP migration
-# sql/migrations/YYYYMMDDHHMMSS_add_feature.sql:
--- +migrate Up
-CREATE TABLE ...;
-
-# 3. Write DOWN migration
--- +migrate Down
-DROP TABLE ...;
-
-# 4. Test migration up
-make migrate-up
-
-# 5. Test migration down
-make migrate-down
-
-# 6. Re-run up
-make migrate-up
-
-# 7. Update sqlc queries if needed
-# Edit files in sql/queries/
-
-# 8. Regenerate code
-make generate
-
-# 9. Verify with tests
-make test
-```
-
-**Expected Outcome**: Schema changes applied safely with rollback capability
-
----
-
-### 5. Running Tests
-**Purpose**: Execute test suite
-
-**Steps**:
-```bash
-# Unit tests only
-go test -v ./internal/core/domain/...
-go test -v ./internal/core/service/...
-go test -v ./internal/adapter/storage/...
-
-# All tests
-make test
-
-# With race detection
-go test -race ./...
-
-# With coverage
-make test-coverage
-# Open coverage.html for detailed report
-
-# Specific package
-go test -v ./internal/adapter/handler/http/
-
-# Verbose output
-go test -v -count=1 ./...
-
-# Integration tests
-go test -v ./test/integration/...
-```
-
-**Expected Outcome**: All tests pass with acceptable coverage
-
----
-
-### 6. Code Generation
-**Purpose**: Regenerate code from SQL and interfaces
-
-**Steps**:
-```bash
-# Generate all (sqlc, mocks, swagger)
-make generate
-
-# Or individually:
-sqlc generate                    # SQL to Go
-go generate ./...                # Mocks
-swag init -g cmd/server/main.go  # Swagger
-```
-
-**Triggers for Generation**:
-- SQL query changes in `sql/queries/`
-- Interface changes in `internal/core/port/`
-- Handler changes (for Swagger)
-- API endpoint changes
-
-**Expected Outcome**: Type-safe code generated and up-to-date
-
----
-
-### 7. Linting & Formatting
-**Purpose**: Ensure code quality
-
-**Steps**:
-```bash
-# Format code
-make fmt
-# or: gofmt -s -w .
-
-# Run linter
-make lint
-# or: golangci-lint run ./...
-
-# Fix auto-fixable issues
-golangci-lint run --fix ./...
-```
-
-**Expected Outcome**: Code passes all linting rules and is formatted
-
----
-
-### 8. Building & Running
-**Purpose**: Compile and execute application
-
-**Steps**:
-```bash
-# Build binary
-make build
-# Output: ./bin/service
-
-# Run compiled binary
-./bin/service
-
-# Run in development mode
-make dev
-# Uses: go run ./cmd/server
-
-# Build Docker image
-make docker-build
-
-# Run with Docker Compose
-make docker-up
-make docker-down
-```
-
-**Expected Outcome**: Application running and accessible
-
----
-
-### 9. Production Deployment
-**Purpose**: Deploy to production
-
-**Steps**:
-```bash
-# 1. Ensure production config
-# Edit configs/prod.yaml or use environment variables
-
-# 2. Validate configuration
-# Verify JWT_SECRET is not default
-# Verify database credentials
-# Verify CORS origins
-
-# 3. Build binary
-make build
-
-# 4. Run tests
-make test
-
-# 5. Build Docker image
-make docker-build
-
-# 6. Tag for registry
-docker tag zercle-go-template:latest your-registry/zercle-go-template:v1.0.0
-
-# 7. Push to registry
-docker push your-registry/zercle-go-template:v1.0.0
-
-# 8. Deploy to infrastructure
-# (Kubernetes, ECS, etc.)
-
-# 9. Run migrations
-# Execute migrate-up on production database
-
-# 10. Verify deployment
-curl http://your-domain/health
-```
-
-**Expected Outcome**: Application running in production environment
-
----
-
-## Testing Workflows
-
-### 10. Writing Unit Tests
-**Purpose**: Add tests for new code
-
-**Domain Layer**:
 ```go
-// Test in internal/core/domain/*_test.go
-func TestUser_Validate(t *testing.T) {
+// 1. Define request/response DTOs
+// domain/{name}/request/{operation}.go
+type CreateSomethingRequest struct {
+    Field1 string `json:"field1" validate:"required"`
+    Field2 int    `json:"field2" validate:"gte=0"`
+}
+
+// domain/{name}/response/{operation}.go
+type SomethingResponse struct {
+    ID     string `json:"id"`
+    Field1 string `json:"field1"`
+    Field2 int    `json:"field2"`
+}
+
+// 2. Add use case method
+// domain/{name}/usecase/usecase.go
+func (uc *useCaseImpl) CreateSomething(ctx context.Context, req *request.CreateSomethingRequest) (*model.Something, error) {
+    // Validate business rules
+    // Call repository
+    // Return result
+}
+
+// 3. Add handler method
+// domain/{name}/handler/handler.go
+func (h *handlerImpl) CreateSomething(c echo.Context) error {
+    var req request.CreateSomethingRequest
+    if err := c.Bind(&req); err != nil {
+        return response.Error(c, http.StatusBadRequest, "Invalid request body")
+    }
+    
+    if err := c.Validate(req); err != nil {
+        return response.ValidationError(c, err)
+    }
+    
+    model, err := h.useCase.CreateSomething(context.Background(), &req)
+    if err != nil {
+        return response.Error(c, http.StatusInternalServerError, err.Error())
+    }
+    
+    return response.Success(c, http.StatusCreated, model)
+}
+
+// 4. Register route in cmd/server/main.go
+api.POST("/something", handler.CreateSomething)
+```
+
+### Adding Database Queries
+
+```sql
+-- 1. Create SQL query file
+-- sql/query/{table}/{operation}.sql
+
+-- name: GetSomethingByID :one
+SELECT * FROM something
+WHERE id = $1;
+
+-- name: ListSomething :many
+SELECT * FROM something
+WHERE deleted_at IS NULL
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: CreateSomething :one
+INSERT INTO something (field1, field2)
+VALUES ($1, $2)
+RETURNING *;
+```
+
+```bash
+# 2. Generate SQLC code
+make generate
+# or
+go generate ./...
+
+# 3. Use generated code in repository
+import "github.com/zercle/zercle-go-template/infrastructure/sqlc/db"
+
+func (r *repositoryImpl) GetByID(ctx context.Context, id string) (*Model, error) {
+    row, err := r.queries.GetSomethingByID(ctx, id)
+    if err != nil {
+        return nil, err
+    }
+    return mapToModel(row), nil
+}
+```
+
+### Database Migrations
+
+```bash
+# 1. Create migration files
+# Timestamp format: YYYYMMDD_description
+cat > sql/migration/20251226_add_new_table.up.sql << 'EOF'
+CREATE TABLE new_table (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    field1 VARCHAR(255) NOT NULL,
+    field2 INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_new_table_field1 ON new_table(field1);
+EOF
+
+cat > sql/migration/20251226_add_new_table.down.sql << 'EOF'
+DROP INDEX IF EXISTS idx_new_table_field1;
+DROP TABLE IF EXISTS new_table;
+EOF
+
+# 2. Run migrations (manual or via migration tool)
+# Using docker-compose
+podman-compose -f docker-compose.yml exec db psql -U postgres -d zercle_db -f sql/migration/20251226_add_new_table.up.sql
+```
+
+### Testing Guide
+
+#### Writing Unit Tests
+
+```go
+func TestUseCase_CreateSomething(t *testing.T) {
     tests := []struct {
         name    string
-        user    User
+        input   *request.CreateSomethingRequest
+        setup   func(*MockRepository)
         wantErr bool
+        err     error
     }{
-        {"valid user", User{...}, false},
-        {"invalid email", User{...}, true},
+        {
+            name: "success",
+            input: &request.CreateSomethingRequest{
+                Field1: "test",
+                Field2: 100,
+            },
+            setup: func(m *MockRepository) {
+                m.CreateFunc = func(ctx context.Context, model *Model) error {
+                    return nil
+                }
+            },
+            wantErr: false,
+        },
+        {
+            name: "validation error",
+            input: &request.CreateSomethingRequest{
+                Field1: "", // Invalid: empty
+                Field2: 100,
+            },
+            setup:   func(m *MockRepository) {},
+            wantErr: true,
+            err:     ErrInvalidField,
+        },
     }
+
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            err := ValidateUser(tt.user)
+            mockRepo := &MockRepository{}
+            tt.setup(mockRepo)
+
+            useCase := NewUseCase(mockRepo, &config.Config{}, &logger.Logger{})
+
+            err := useCase.Create(context.Background(), tt.input)
+
             if (err != nil) != tt.wantErr {
-                t.Errorf("ValidateUser() error = %v, wantErr %v", err, tt.wantErr)
+                t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+            }
+
+            if tt.wantErr && !errors.Is(err, tt.err) {
+                t.Errorf("Create() error = %v, want %v", err, tt.err)
             }
         })
     }
 }
 ```
 
-**Service Layer**:
-```go
-// Test in internal/core/service/*_test.go
-func TestUserService_Register(t *testing.T) {
-    // Setup mocks
-    mockRepo := &MockUserRepository{}
-    service := NewUserService(mockRepo)
+#### Writing Integration Tests
 
-    // Test
-    user, err := service.Register(input)
+```go
+func TestCreateUserIntegration(t *testing.T) {
+    // Setup test server
+    testServer := setupTestServer(t)
+    defer testServer.Close()
+
+    // Test data
+    requestBody := map[string]interface{}{
+        "email":    "test@example.com",
+        "password": "password123",
+        "full_name": "Test User",
+    }
+
+    // Make request
+    resp := testServer.POST("/api/v1/auth/register").
+        WithJSON(requestBody).
+        Expect()
 
     // Assertions
-    require.NoError(t, err)
-    assert.Equal(t, expectedUser, user)
+    resp.Status(http.StatusCreated)
+    resp.JSON().Path("$.status").String().Equal("success")
+    resp.JSON().Path("$.data.email").String().Equal("test@example.com")
 }
 ```
 
-**Repository Layer**:
-```go
-// Test in internal/adapter/storage/postgres/*_test.go
-func TestUserRepository_Create(t *testing.T) {
-    db, mock, _ := sqlmock.New()
-    defer db.Close()
+### Debugging Guide
 
-    repo := NewUserRepository(db)
+#### Common Issues
 
-    // Test
-    err := repo.Create(user)
-
-    // Assertions
-    assert.NoError(t, err)
-}
-```
-
-**Handler Layer**:
-```go
-// Test in internal/adapter/handler/http/*_test.go
-func TestUserHandler_Register(t *testing.T) {
-    app := fiber.New()
-    handler := NewUserHandler(service)
-    app.Post("/auth/register", handler.Register)
-
-    // Test
-    req := httptest.NewRequest("POST", "/auth/register", body)
-    resp, _ := app.Test(req)
-
-    // Assertions
-    assert.Equal(t, 201, resp.StatusCode)
-}
-```
-
----
-
-### 11. Integration Testing
-**Purpose**: Test full stack integration
-
-**Setup**:
-```go
-// test/integration/auth_test.go
-func TestUserRegistration(t *testing.T) {
-    // Setup test database
-    db := setupTestDB()
-    defer db.Close()
-
-    // Setup DI
-    container := di.NewContainer(db)
-    app := setupFiberApp(container)
-
-    // Test
-    req := httptest.NewRequest("POST", "/auth/register", jsonBody)
-    resp, body := app.Test(req)
-
-    // Assertions
-    assert.Equal(t, 201, resp.StatusCode)
-    assert.Contains(t, body, "token")
-}
-```
-
----
-
-## Debugging Workflows
-
-### 12. Debugging Failed Tests
-**Steps**:
+**1. Database Connection Failed**
 ```bash
-# Run with verbose output
-go test -v ./package/...
+# Check database is running
+podman ps | grep postgres
+
+# Check database logs
+podman logs zercle-db
+
+# Test connection
+psql -h localhost -U postgres -d zercle_db
+```
+
+**2. SQLC Generated Code Issues**
+```bash
+# Regenerate SQLC code
+make generate
+
+# Check SQL query syntax
+# Ensure query files have correct comments:
+-- name: QueryName :one or :many
+```
+
+**3. Tests Failing**
+```bash
+# Run specific test
+go test ./domain/user/usecase -v -run TestCreateUser
 
 # Run with race detector
-go test -race ./package/...
+go test -race ./...
 
-# Run single test
-go test -v -run TestSpecific ./...
-
-# Run with debugger
-dlv test ./package/...
-
-# Check coverage for specific test
-go test -coverprofile=coverage.out ./package/...
-go tool cover -func=coverage.out
+# Run with coverage
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
 ```
 
----
-
-### 13. Database Debugging
-**Steps**:
+**4. Import Errors**
 ```bash
-# Connect to database
-psql -h localhost -U postgres -d zercle_db
-
-# Check migrations
-migrate -path sql/migrations -database "postgres://..." version
-
-# Check table structure
-\dt
-\d users
-
-# Check indexes
-\di
-
-# Run query with EXPLAIN
-EXPLAIN ANALYZE SELECT * FROM users WHERE email = 'test@example.com';
-```
-
----
-
-### 14. Performance Debugging
-**Steps**:
-```bash
-# CPU profiling
-go test -cpuprofile=cpu.prof -count=1 ./...
-go tool pprof cpu.prof
-
-# Memory profiling
-go test -memprofile=mem.prof -count=1 ./...
-go tool pprof mem.prof
-
-# Benchmark tests
-go test -bench=. -benchmem ./...
-
-# Race detection
-go test -race -count=1 ./...
-```
-
----
-
-## Maintenance Workflows
-
-### 15. Dependency Updates
-**Steps**:
-```bash
-# Check for updates
-go list -u -m all
-
-# Update specific dependency
-go get github.com/gofiber/fiber/v2@v2.53.0
+# Tidy dependencies
 go mod tidy
 
-# Update all dependencies
+# Verify dependencies
+go mod verify
+
+# Update dependencies
 go get -u ./...
-go mod tidy
-
-# Verify
-make test
-make lint
-
-# Commit
-git add go.mod go.sum
-git commit -m "chore: update dependencies"
 ```
 
----
+#### Debug Logging
 
-### 16. Security Updates
-**Steps**:
-```bash
-# Check for vulnerabilities
-go list -json -m all | nancy sleuth
+```go
+// Add debug logging in use case
+log.Debug("Processing request",
+    "action", "create_user",
+    "email", req.Email,
+)
 
-# Update vulnerable dependencies
-go get -u github.com/vulnerable/package
-go mod tidy
-
-# Run security scan
-make docker-build
-# Scan image with security scanner
-
-# Verify
-make test
+// Add error logging with context
+log.Error("Failed to create user",
+    "error", err,
+    "email", req.Email,
+    "request_id", requestID,
+)
 ```
 
----
+## Development Workflow
 
-### 17. Code Cleanup
-**Steps**:
+### Initial Setup
+
 ```bash
-# Format code
-make fmt
+# 1. Clone repository
+git clone https://github.com/zercle/zercle-go-template.git
+cd zercle-go-template
 
-# Remove unused imports
-go mod tidy
+# 2. Install dependencies
+make init
+
+# 3. Generate SQLC code and mocks
+make generate
+
+# 4. Set environment variables
+export SERVER_ENV=local
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_USER=postgres
+export DB_PASSWORD=password
+export DB_NAME=zercle_db
+
+# 5. Start database
+make docker-up
+
+# 6. Run migrations
+# Run migration SQL files manually or via migration tool
+
+# 7. Start application
+make run
+```
+
+### Daily Development
+
+```bash
+# Start database
+make docker-up
+
+# Run application in development mode
+make dev
+
+# Run tests
+make test
 
 # Run linter
 make lint
 
-# Fix issues
-golangci-lint run --fix ./...
+# Format code
+make fmt
 
-# Verify
-make test
-make test-coverage
-
-# Clean up
-make clean
+# Generate code after SQL changes
+make generate
 ```
 
----
+### Before Committing
 
-## Emergency Workflows
-
-### 18. Database Rollback
-**Steps**:
 ```bash
-# Check current version
-migrate -path sql/migrations -database "postgres://..." version
+# 1. Format code
+make fmt
 
-# Rollback one step
-migrate -path sql/migrations -database "postgres://..." down 1
-
-# Rollback to specific version
-migrate -path sql/migrations -database "postgres://..." down -version=20240101000000
-
-# Verify
-make test
-```
-
----
-
-### 19. Hotfix Deployment
-**Steps**:
-```bash
-# Create hotfix branch
-git checkout -b fix/critical-bug
-
-# Fix the issue
-# ...
-
-# Test
-make test
+# 2. Run linter
 make lint
 
-# Deploy
-make build
-make docker-build
-# Deploy to production
+# 3. Run all tests
+make test
 
-# Merge back
-git checkout main
-git merge fix/critical-bug
-git push origin main
+# 4. Run tests with coverage
+make test-coverage
+
+# 5. Check test coverage
+go tool cover -func=coverage.out
+
+# 6. Build application
+make build
 ```
 
----
+## Code Review Checklist
 
-### 20. Performance Incident Response
-**Steps**:
+### Functionality
+- [ ] Feature works as specified
+- [ ] Edge cases are handled
+- [ ] Error handling is comprehensive
+- [ ] Business rules are enforced
+
+### Code Quality
+- [ ] Code follows project structure
+- [ ] Functions are small and focused
+- [ ] Names are descriptive and clear
+- [ ] No code duplication
+- [ ] Proper error wrapping
+
+### Testing
+- [ ] Unit tests cover all paths
+- [ ] Tests use table-driven pattern
+- [ ] Mocks are used appropriately
+- [ ] Coverage >80% for new code
+- [ ] Integration tests if applicable
+
+### Documentation
+- [ ] Godoc comments on exports
+- [ ] Comments explain "why" not "what"
+- [ ] README updated if needed
+- [ ] Swagger annotations added
+
+### Security
+- [ ] Input validation is present
+- [ ] Sensitive data not exposed
+- [ ] SQL injection prevented (SQLC)
+- [ ] Authentication/authorization enforced
+
+### Performance
+- [ ] No unnecessary database queries
+- [ ] Efficient data structures used
+- [ ] Context timeouts set
+- [ ] Connection pooling configured
+
+## Troubleshooting Guide
+
+### Build Issues
+
+**Error: cannot find package**
 ```bash
-# Check health
+go mod download
+go mod tidy
+```
+
+**Error: SQLC generated files missing**
+```bash
+make generate
+```
+
+### Runtime Issues
+
+**Error: connection refused**
+- Check database is running: `make docker-up`
+- Check connection string in configs/local.yaml
+- Verify database credentials
+
+**Error: duplicate key value violates unique constraint**
+- Check if record already exists
+- Ensure proper error handling in repository
+- Return appropriate error to client
+
+### Test Issues
+
+**Tests failing with connection error**
+```bash
+# Start test database
+podman-compose -f docker-compose.test.yml up -d
+
+# Run tests
+make test
+```
+
+**Coverage below threshold**
+- Add tests for uncovered paths
+- Use `go tool cover -html=coverage.out` to visualize
+- Focus on critical business logic
+
+## Performance Optimization
+
+### Database Queries
+
+```go
+// Bad: N+1 query problem
+for _, booking := range bookings {
+    user, _ := repo.GetUser(ctx, booking.UserID)
+}
+
+// Good: Single query with JOIN
+bookingsWithUsers, _ := repo.GetBookingsWithUsers(ctx)
+```
+
+### Caching Strategy (Future)
+
+```go
+// Add Redis caching layer
+func (uc *useCaseImpl) GetByID(ctx context.Context, id string) (*Model, error) {
+    // Check cache first
+    if cached, found := uc.cache.Get(id); found {
+        return cached, nil
+    }
+    
+    // Get from database
+    model, err := uc.repo.GetByID(ctx, id)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Store in cache
+    uc.cache.Set(id, model, 5*time.Minute)
+    
+    return model, nil
+}
+```
+
+## Deployment Workflow
+
+### Production Build
+
+```bash
+# 1. Set production environment
+export SERVER_ENV=prod
+
+# 2. Build optimized binary
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o bin/service ./cmd/server
+
+# 3. Build Docker image
+make docker-build
+
+# 4. Tag image
+docker tag zercle-go-template:latest zercle-go-template:v1.0.0
+
+# 5. Push to registry
+docker push registry.example.com/zercle-go-template:v1.0.0
+```
+
+### Environment Variables (Production)
+
+```bash
+SERVER_ENV=prod
+DB_HOST=prod-db.example.com
+DB_PORT=5432
+DB_USER=app_user
+DB_PASSWORD=<secure-password>
+DB_NAME=zercle_prod
+JWT_SECRET=<secure-jwt-secret>
+JWT_EXPIRATION=3600
+LOG_LEVEL=info
+```
+
+### Health Checks
+
+```bash
+# Liveness probe
 curl http://localhost:3000/health
 
-# Check logs
-tail -f logs/app.log
+# Readiness probe
+curl http://localhost:3000/readiness
 
-# Check database
-# Connect and check active connections
-SELECT * FROM pg_stat_activity;
-
-# Scale if needed
-# Update docker-compose.yml or Kubernetes deployment
-
-# Profile application
-go test -cpuprofile=cpu.prof ./...
-go tool pprof cpu.prof
+# Expected response
+{"status":"healthy"}
 ```
 
----
+## Refactoring Guidelines
 
-## Common Commands Reference
+### When to Refactor
+- Code duplication detected
+- Function or method too long (>50 lines)
+- Complex conditional logic
+- Poor performance identified
+- Test coverage difficult to maintain
 
-| Task | Command |
-|------|---------|
-| Initialize | `make init` |
-| Generate Code | `make generate` |
-| Run Dev | `make dev` |
-| Run Tests | `make test` |
-| Coverage | `make test-coverage` |
-| Lint | `make lint` |
-| Format | `make fmt` |
-| Build | `make build` |
-| Docker Up | `make docker-up` |
-| Docker Down | `make docker-down` |
-| Migrate Up | `make migrate-up` |
-| Migrate Down | `make migrate-down` |
-| Install Tools | `make install-tools` |
-| Clean | `make clean` |
+### Refactoring Steps
+1. Write tests for existing behavior
+2. Make small, incremental changes
+3. Run tests after each change
+4. Update documentation
+5. Commit with "refactor:" prefix
 
-## Task Automation Tips
+### Example Refactoring
 
-1. **Pre-commit Hook**: Add to `.git/hooks/pre-commit`
-   ```bash
-   #!/bin/bash
-   make fmt
-   make lint
-   make test
-   ```
+**Before: Long function with nested conditionals**
+```go
+func (h *handlerImpl) CreateUser(c echo.Context) error {
+    var req request.CreateUser
+    if err := c.Bind(&req); err != nil {
+        return response.Error(c, http.StatusBadRequest, "Invalid request")
+    }
+    if req.Email == "" {
+        return response.Error(c, http.StatusBadRequest, "Email required")
+    }
+    if req.Password == "" {
+        return response.Error(c, http.StatusBadRequest, "Password required")
+    }
+    // ... more validation
+    // ... business logic
+    return response.Success(c, http.StatusCreated, user)
+}
+```
 
-2. **Makefile Targets**: Add custom targets for repeated tasks
+**After: Extracted validation and business logic**
+```go
+func (h *handlerImpl) CreateUser(c echo.Context) error {
+    var req request.CreateUser
+    if err := c.Bind(&req); err != nil {
+        return response.Error(c, http.StatusBadRequest, "Invalid request")
+    }
+    
+    if err := h.validateCreateUserRequest(&req); err != nil {
+        return err
+    }
+    
+    user, err := h.useCase.CreateUser(context.Background(), &req)
+    if err != nil {
+        return h.handleError(c, err)
+    }
+    
+    return response.Success(c, http.StatusCreated, user)
+}
 
-3. **Shell Aliases**: Add to `~/.bashrc` or `~/.zshrc`
-   ```bash
-   alias test-all="make test && make test-coverage"
-   alias deploy-prod="make build && make docker-build"
-   ```
+func (h *handlerImpl) validateCreateUserRequest(req *request.CreateUser) error {
+    if req.Email == "" {
+        return response.Error(c, http.StatusBadRequest, "Email required")
+    }
+    if req.Password == "" {
+        return response.Error(c, http.StatusBadRequest, "Password required")
+    }
+    return nil
+}
+```
 
-4. **VS Code Tasks**: Configure in `.vscode/tasks.json`
+## Security Best Practices
 
-5. **Docker Compose Override**: Use `docker-compose.override.yml` for dev
+### Input Validation
+```go
+// Always validate input
+type CreateUserRequest struct {
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required,min=8"`
+}
+
+func (h *handlerImpl) CreateUser(c echo.Context) error {
+    var req CreateUserRequest
+    if err := c.Bind(&req); err != nil {
+        return response.Error(c, http.StatusBadRequest, "Invalid request")
+    }
+    
+    if err := c.Validate(&req); err != nil {
+        return response.ValidationError(c, err)
+    }
+    
+    // Continue with validated input
+}
+```
+
+### SQL Injection Prevention
+```go
+// SQLC prevents SQL injection with parameterized queries
+// Queries are defined in .sql files
+func (r *repositoryImpl) GetByEmail(ctx context.Context, email string) (*User, error) {
+    // SQLC generates type-safe parameterized query
+    return r.queries.GetUserByEmail(ctx, email)
+}
+```
+
+### Password Security
+```go
+import "golang.org/x/crypto/bcrypt"
+
+// Always hash passwords before storing
+func HashPassword(password string) (string, error) {
+    bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+    return string(bytes), err
+}
+
+// Never log passwords
+log.Info("User created", "email", email) // Good
+log.Info("User created", "password", password) // BAD - Never do this
+```
+
+## Monitoring & Logging
+
+### Structured Logging
+```go
+// Good: Structured logging with context
+log.Info("User logged in",
+    "user_id", userID,
+    "email", email,
+    "ip", clientIP,
+    "user_agent", userAgent,
+    "request_id", requestID,
+)
+
+// Bad: Unstructured logging
+log.Infof("User %s logged in from %s", userID, clientIP)
+```
+
+### Error Logging
+```go
+// Always log errors with context
+log.Error("Failed to create user",
+    "error", err,
+    "email", req.Email,
+    "request_id", requestID,
+    "retry_attempt", attempt,
+)
+```
+
+## API Design Patterns
+
+### RESTful Conventions
+```go
+// Resource naming
+GET    /api/v1/users           // List users
+GET    /api/v1/users/:id       // Get specific user
+POST   /api/v1/users           // Create user
+PUT    /api/v1/users/:id       // Update user (full)
+PATCH  /api/v1/users/:id       // Update user (partial)
+DELETE /api/v1/users/:id       // Delete user
+
+// Nested resources
+GET    /api/v1/users/:id/bookings          // List user's bookings
+POST   /api/v1/users/:id/bookings          // Create booking for user
+GET    /api/v1/bookings/:id/payments       // List payments for booking
+```
+
+### Pagination (Future Implementation)
+```go
+// Request
+GET /api/v1/users?page=1&limit=20&sort=created_at&order=desc
+
+// Response
+{
+    "status": "success",
+    "data": {
+        "users": [...],
+        "pagination": {
+            "page": 1,
+            "limit": 20,
+            "total": 100,
+            "total_pages": 5
+        }
+    }
+}
+```
+
+## Quick Reference
+
+### Makefile Commands
+```bash
+make init           # Install dependencies
+make generate       # Generate SQLC code and mocks
+make build          # Build application
+make run            # Run compiled binary
+make dev            # Run in development mode
+make test           # Run tests
+make test-coverage  # Run tests with coverage
+make lint           # Run linter
+make fmt            # Format code
+make clean          # Clean build artifacts
+make docker-build   # Build Docker image
+make docker-up      # Start containers
+make docker-down    # Stop containers
+```
+
+### Environment Variables
+```bash
+SERVER_ENV          # Environment: local/dev/uat/prod
+DB_HOST            # Database host
+DB_PORT            # Database port (default: 5432)
+DB_USER            # Database user
+DB_PASSWORD        # Database password
+DB_NAME            # Database name
+JWT_SECRET         # JWT signing secret
+JWT_EXPIRATION     # JWT expiration in seconds
+LOG_LEVEL          # Log level: debug/info/warn/error
+```
+
+### Common Ports
+- API Server: 3000
+- PostgreSQL: 5432
+- Swagger UI: http://localhost:3000/swagger/index.html
+
+### Directory Quick Access
+```bash
+cd domain/user           # User domain
+cd domain/booking        # Booking domain
+cd infrastructure/db     # Database layer
+cd sql/migration         # Database migrations
+cd test/integration      # Integration tests
