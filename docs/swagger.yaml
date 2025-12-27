@@ -1,17 +1,125 @@
+basePath: /api/v1
 definitions:
-  github_com_zercle_zercle-go-template_pkg_dto.CreatePostRequest:
+  github_com_zercle_zercle-go-template_domain_booking_model.BookingStatus:
+    enum:
+    - pending
+    - confirmed
+    - completed
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - BookingStatusPending
+    - BookingStatusConfirmed
+    - BookingStatusCompleted
+    - BookingStatusCancelled
+  github_com_zercle_zercle-go-template_domain_booking_request.CreateBooking:
     properties:
-      content:
-        minLength: 10
+      notes:
+        maxLength: 500
         type: string
-      title:
-        minLength: 3
+      service_id:
+        type: string
+      start_time:
         type: string
     required:
-    - content
-    - title
+    - service_id
+    - start_time
     type: object
-  github_com_zercle_zercle-go-template_pkg_dto.LoginRequest:
+  github_com_zercle_zercle-go-template_domain_booking_request.UpdateBookingStatus:
+    properties:
+      status:
+        allOf:
+        - $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_booking_model.BookingStatus'
+        enum:
+        - pending
+        - confirmed
+        - completed
+        - cancelled
+    required:
+    - status
+    type: object
+  github_com_zercle_zercle-go-template_domain_payment_model.PaymentMethod:
+    enum:
+    - credit_card
+    - debit_card
+    - paypal
+    - bank_transfer
+    - cash
+    type: string
+    x-enum-varnames:
+    - PaymentMethodCreditCard
+    - PaymentMethodDebitCard
+    - PaymentMethodPayPal
+    - PaymentMethodBankTransfer
+    - PaymentMethodCash
+  github_com_zercle_zercle-go-template_domain_payment_request.CreatePayment:
+    properties:
+      booking_id:
+        type: string
+      payment_method:
+        $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_payment_model.PaymentMethod'
+      transaction_id:
+        type: string
+    required:
+    - booking_id
+    - payment_method
+    type: object
+  github_com_zercle_zercle-go-template_domain_payment_request.RefundPayment:
+    properties:
+      reason:
+        maxLength: 500
+        type: string
+    type: object
+  github_com_zercle_zercle-go-template_domain_service_request.CreateService:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      duration_minutes:
+        maximum: 480
+        minimum: 1
+        type: integer
+      is_active:
+        type: boolean
+      max_capacity:
+        maximum: 50
+        minimum: 1
+        type: integer
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      price:
+        type: number
+    required:
+    - duration_minutes
+    - max_capacity
+    - name
+    - price
+    type: object
+  github_com_zercle_zercle-go-template_domain_service_request.UpdateService:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      duration_minutes:
+        maximum: 480
+        minimum: 1
+        type: integer
+      is_active:
+        type: boolean
+      max_capacity:
+        maximum: 50
+        minimum: 1
+        type: integer
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      price:
+        type: number
+    type: object
+  github_com_zercle_zercle-go-template_domain_user_request.LoginUser:
     properties:
       email:
         type: string
@@ -21,216 +129,256 @@ definitions:
     - email
     - password
     type: object
-  github_com_zercle_zercle-go-template_pkg_dto.PostResponse:
-    properties:
-      author_id:
-        type: string
-      content:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      title:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  github_com_zercle_zercle-go-template_pkg_dto.RegisterRequest:
+  github_com_zercle_zercle-go-template_domain_user_request.RegisterUser:
     properties:
       email:
         type: string
-      name:
+      full_name:
         minLength: 2
         type: string
       password:
         minLength: 8
         type: string
+      phone:
+        type: string
     required:
     - email
-    - name
+    - full_name
     - password
     type: object
-  github_com_zercle_zercle-go-template_pkg_dto.UserResponse:
+  github_com_zercle_zercle-go-template_domain_user_request.UpdateUser:
     properties:
-      created_at:
+      full_name:
+        maxLength: 255
+        minLength: 2
         type: string
-      email:
-        type: string
-      id:
-        type: string
-      name:
-        type: string
-      updated_at:
+      phone:
         type: string
     type: object
-  github_com_zercle_zercle-go-template_pkg_utils_response.Response:
-    properties:
-      data: {}
-      message:
-        description: Only for error
-        type: string
-      status:
-        description: success, fail, error
-        type: string
-    type: object
+host: localhost:3000
 info:
-  contact: {}
+  contact:
+    email: support@zercle.com
+    name: API Support
+    url: https://github.com/zercle/zercle-go-template
+  description: A production-ready RESTful API template built with Go Echo framework,
+    featuring clean architecture, JWT authentication, and online booking capabilities.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Zercle Go Template API
+  version: "1.0"
 paths:
   /auth/login:
     post:
       consumes:
       - application/json
+      description: Authenticate user with email and password, returns JWT token
       parameters:
-      - description: Login Request
+      - description: Login credentials
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.LoginRequest'
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_user_request.LoginUser'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Login successful
           schema:
-            allOf:
-            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-            - properties:
-                data:
-                  additionalProperties:
-                    type: string
-                  type: object
-              type: object
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            additionalProperties: true
+            type: object
         "401":
-          description: Unauthorized
+          description: Invalid credentials
           schema:
-            $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-      summary: Login user
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: User login
       tags:
-      - users
+      - auth
   /auth/register:
     post:
       consumes:
       - application/json
+      description: Create a new user account with email, password, and name
       parameters:
-      - description: Register Request
+      - description: Registration details
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.RegisterRequest'
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_user_request.RegisterUser'
       produces:
       - application/json
       responses:
         "201":
-          description: Created
+          description: User registered successfully
           schema:
-            allOf:
-            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.UserResponse'
-              type: object
+            additionalProperties: true
+            type: object
         "400":
-          description: Bad Request
+          description: Validation error
           schema:
-            $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
+            additionalProperties: true
+            type: object
+        "409":
+          description: Email already exists
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
       summary: Register a new user
       tags:
-      - users
-  /health:
+      - auth
+  /bookings:
     get:
-      description: Checks if the application is running
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-            - properties:
-                data:
-                  type: string
-              type: object
-      summary: System Health Check
-      tags:
-      - system
-  /health/live:
-    get:
-      description: Checks if the application is alive and can connect to the database
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-            - properties:
-                data:
-                  type: string
-              type: object
-        "503":
-          description: Service Unavailable
-          schema:
-            $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-      summary: System Liveness Check
-      tags:
-      - system
-  /posts:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.PostResponse'
-                  type: array
-              type: object
-      summary: List all posts
-      tags:
-      - posts
-    post:
       consumes:
       - application/json
+      description: Get a paginated list of the authenticated user's bookings
       parameters:
-      - description: Create Post Request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.CreatePostRequest'
+      - default: 20
+        description: Number of items (max 100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of items to skip
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: Bookings retrieved
           schema:
-            allOf:
-            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.PostResponse'
-              type: object
+            additionalProperties: true
+            type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-      summary: Create a new post
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List user's bookings
       tags:
-      - posts
-  /posts/{id}:
-    get:
+      - bookings
+    post:
+      consumes:
+      - application/json
+      description: Create a new booking for a service
       parameters:
-      - description: Post ID
+      - description: Booking details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_booking_request.CreateBooking'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Booking created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Service not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Create a new booking
+      tags:
+      - bookings
+  /bookings/{booking_id}/payments:
+    get:
+      consumes:
+      - application/json
+      description: Get the payment associated with a specific booking
+      parameters:
+      - description: Booking ID
+        in: path
+        name: booking_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment retrieved
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid booking ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Payment not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Get payment by booking ID
+      tags:
+      - payments
+  /bookings/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a single booking by its ID
+      parameters:
+      - description: Booking ID
         in: path
         name: id
         required: true
@@ -239,36 +387,851 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Booking retrieved
           schema:
-            allOf:
-            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.PostResponse'
-              type: object
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid booking ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
         "404":
-          description: Not Found
+          description: Booking not found
           schema:
-            $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-      summary: Get a post by ID
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Get booking by ID
       tags:
-      - posts
-  /users/me:
-    get:
+      - bookings
+  /bookings/{id}/cancel:
+    put:
+      consumes:
+      - application/json
+      description: Cancel an existing booking (only by the booking owner)
+      parameters:
+      - description: Booking ID
+        in: path
+        name: id
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Booking cancelled
           schema:
-            allOf:
-            - $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_utils_response.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/github_com_zercle_zercle-go-template_pkg_dto.UserResponse'
-              type: object
+            additionalProperties: true
+            type: object
+        "400":
+          description: Cannot cancel completed booking
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - not your booking
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Booking not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Cancel a booking
+      tags:
+      - bookings
+  /bookings/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update the status of a booking (admin/staff only)
+      parameters:
+      - description: Booking ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_booking_request.UpdateBookingStatus'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Status updated
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid status transition
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Booking not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Update booking status
+      tags:
+      - bookings
+  /bookings/dates:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of bookings within a specific date range (public)
+      parameters:
+      - description: Start date (RFC3339 format)
+        in: query
+        name: start_date
+        required: true
+        type: string
+      - description: End date (RFC3339 format)
+        in: query
+        name: end_date
+        required: true
+        type: string
+      - default: 20
+        description: Number of items (max 100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of items to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Bookings retrieved
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid date range or format
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List bookings by date range
+      tags:
+      - bookings
+  /bookings/services/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of bookings for a specific service (public)
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 20
+        description: Number of items (max 100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of items to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Bookings retrieved
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid service ID
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List bookings by service
+      tags:
+      - bookings
+  /payments:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of payments with optional status filter
+      parameters:
+      - description: Filter by payment status
+        enum:
+        - pending
+        - completed
+        - failed
+        - refunded
+        in: query
+        name: status
+        type: string
+      - default: 20
+        description: Number of items (max 100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of items to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payments retrieved
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List payments
+      tags:
+      - payments
+    post:
+      consumes:
+      - application/json
+      description: Create a new payment for a booking
+      parameters:
+      - description: Payment details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_payment_request.CreatePayment'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Payment created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Create a new payment
+      tags:
+      - payments
+  /payments/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a single payment by its ID
+      parameters:
+      - description: Payment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment retrieved
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid payment ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Payment not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Get payment by ID
+      tags:
+      - payments
+  /payments/{id}/confirm:
+    put:
+      consumes:
+      - application/json
+      description: Confirm a pending payment (marks as completed)
+      parameters:
+      - description: Payment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment confirmed
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Cannot confirm payment with current status
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Payment not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Confirm a payment
+      tags:
+      - payments
+  /payments/{id}/refund:
+    put:
+      consumes:
+      - application/json
+      description: Refund a completed payment
+      parameters:
+      - description: Payment ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Refund reason
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_payment_request.RefundPayment'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment refunded
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Cannot refund pending/refunded payment
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Payment not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Refund a payment
+      tags:
+      - payments
+  /services:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of services
+      parameters:
+      - description: Filter by active status
+        enum:
+        - "true"
+        - "false"
+        in: query
+        name: is_active
+        type: string
+      - default: 20
+        description: Number of items (max 100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of items to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Services retrieved
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: List services
+      tags:
+      - services
+    post:
+      consumes:
+      - application/json
+      description: Create a new service with name, description, duration, price, and
+        capacity
+      parameters:
+      - description: Service details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_service_request.CreateService'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Service created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Create a new service
+      tags:
+      - services
+  /services/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an existing service by ID
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Service deleted
+        "400":
+          description: Invalid service ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Service not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Delete a service
+      tags:
+      - services
+    get:
+      consumes:
+      - application/json
+      description: Get a single service by its ID
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service retrieved
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid service ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Service not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get service by ID
+      tags:
+      - services
+    put:
+      consumes:
+      - application/json
+      description: Update an existing service by ID
+      parameters:
+      - description: Service ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Service update details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_service_request.UpdateService'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service updated
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Service not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Update a service
+      tags:
+      - services
+  /services/search:
+    get:
+      consumes:
+      - application/json
+      description: Search for services by name
+      parameters:
+      - description: Search term for service name
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: Filter by active status
+        enum:
+        - "true"
+        - "false"
+        in: query
+        name: is_active
+        type: string
+      - default: 20
+        description: Number of items (max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Search results
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing name parameter
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Search services
+      tags:
+      - services
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: Get a paginated list of users
+      parameters:
+      - default: 20
+        description: Number of items to return (max 100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of items to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users retrieved
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: List users
+      tags:
+      - users
+  /users/profile:
+    delete:
+      consumes:
+      - application/json
+      description: Delete the authenticated user's account
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Account deleted successfully
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Delete user account
+      tags:
+      - users
+    get:
+      consumes:
+      - application/json
+      description: Get the authenticated user's profile information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile retrieved
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
       summary: Get user profile
       tags:
       - users
+    put:
+      consumes:
+      - application/json
+      description: Update the authenticated user's profile information
+      parameters:
+      - description: Profile update details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_domain_user_request.UpdateUser'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Email already exists
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Update user profile
+      tags:
+      - users
+securityDefinitions:
+  Bearer:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

@@ -1,189 +1,75 @@
+---
+globs: []
+alwaysApply: true
+description: AI Coder Unified Ruleset - Memory Bank persistence system replacing full codebase scans.
+---
+
 # Memory Bank System
 
-## Structure
-Memory Bank lives in `.agents/rules/memory-bank/`.
-
-Files:
-- brief.md (user‑only)
-- product.md
-- architecture.md
-- tech.md
-- context.md
-- tasks.md (optional)
-
-**brief.md**: High‑level project description (read‑only for AI).  
-**product.md**: Goals, UX, features, requirements, roadmap.  
-**architecture.md**: System architecture, boundaries, flows, module rules.  
-**tech.md**: Coding standards, patterns, performance rules, testing rules.  
-**context.md**: Evolving decisions, key terms, domain rules, file summaries.  
-**tasks.md**: Repetitive workflows (test, refactor, review pipelines).
+## Location & Files
+`.agents/rules/memory-bank/`
+- `brief.md` - user-only project overview (read-only)
+- `product.md` - goals, UX, features, roadmap
+- `architecture.md` - architecture, boundaries, flows, modules
+- `tech.md` - standards, patterns, testing rules
+- `context.md` - decisions, domain rules, file summaries
+- `tasks.md` - workflows (test, refactor, review)
 
 ## Startup Behavior
-At the beginning of each task:
-1. Load all Memory Bank files.  
-2. Print `Memory Bank: Active` if Memory Bank files loaded, otherwise `Memory Bank: Missing`.  
-3. Summarize project in 3–6 bullets, using Memory Bank only.  
-4. Use this reconstructed context for all reasoning.  
-5. Do not scan project files unless user approves.
+1. Load all Memory Bank files
+2. Print `Memory Bank: Active` or `Memory Bank: Missing`
+3. Summarize project (3–6 bullets) from Memory Bank only
+4. Use this context for all reasoning
+5. Never scan codebase unless user approves
 
-## When the AI Must Use Memory Bank
-Always reference Memory Bank before:
-- Designing or modifying architecture  
-- Naming decisions  
-- Implementing features  
-- Applying coding standards  
-- Testing  
-- Refactoring  
-- Reviewing for compliance  
-- Preventing regressions  
+## Memory Bank Rules
+**Always reference before:** architecture changes, naming, implementation, coding standards, testing, refactoring, reviews.
 
-Memory Bank is the authoritative source of project rules.
+**Never scan files unless:** `update memory bank`, `initialize memory bank`, or AI asks `OK to update Memory Bank?`
 
-## When the AI Must NOT Read the Codebase
-Do not scan files unless:
-- User says `update memory bank`  
-- User says `initialize memory bank`  
-- AI asks: `I need to inspect files—OK to update Memory Bank?`
+**Updating rules:**
+- Extract long-term knowledge only (no raw code)
+- Update `context.md` first, then others as needed
+- Ask before overwriting major sections
+- Max 300 lines per file
 
-This protects performance and context window.
+**Permissions:**
+- Editable: `context.md`, `architecture.md`, `tech.md`, `product.md`, `tasks.md`
+- Read-only: `brief.md` (needs user approval)
 
-## Updating the Memory Bank
-Triggered by explicit user commands or new essential info.
+**Thread drift:** Suggest `Update Memory Bank and start fresh thread?`; new thread must reload Memory Bank.
 
-Update rules:
-1. Scan project directory (scoped or full).  
-2. Extract only long‑term knowledge (not code).  
-3. Update context.md first.  
-4. Update architecture.md, tech.md, product.md if needed.  
-5. Ask before overwriting major sections.  
-6. Never store raw code, each file limit 300 lines.
-
-## Files the AI May Modify
-Allowed: context.md, architecture.md, tech.md, product.md, tasks.md.  
-Forbidden (need user approval): brief.md.
-
-## Thread & Context Window Rules
-If conversation drifts, AI should suggest:  
-`Update Memory Bank and start a fresh thread?`
-
-A new thread must always reload Memory Bank.
-
-## Consistency Enforcement
-AI must enforce consistency with:
-- architecture.md  
-- tech.md  
-- product.md  
-- context.md  
-
-If user requests a conflicting change:
-- AI asks for confirmation  
-- AI issues a consistency warning  
-
-## Goals of the Memory Bank System
-- Reduce repetitive context loading  
-- Prevent architectural drift  
-- Maintain long‑term understanding  
-- Improve coding quality  
-- Minimize token overhead  
-- Enable stable agentic workflows  
+**Consistency:** Enforce with architecture.md, tech.md, product.md, context.md. Confirm conflicts with user + warn.
 
 # Generic Programming Guidelines
-These rules apply across languages, frameworks, and systems.
 
-## Performance Patterns
-- Use object pooling to reduce allocations.  
-- Preallocate collections to avoid resizing.  
-- Optimize data layout for cache locality.  
-- Avoid unnecessary type conversions.  
-- Use zero‑copy techniques when possible.  
-- Minimize heap usage; prefer stack allocation.  
-- Ensure escape analysis keeps values local.  
+## Performance & Concurrency
+- Pool objects, preallocate collections, optimize cache locality
+- Minimize heap, prefer stack, zero-copy when possible
+- Controlled pools, atomic ops, lazy init, immutable sharing, cancellation tokens
 
-## Concurrency Guidelines
-- Limit concurrency with controlled pools.  
-- Use atomic operations over locks for simple counters.  
-- Apply lazy initialization for expensive work.  
-- Share immutable data safely.  
-- Use cancellation tokens for timeouts.  
+## I/O & Memory
+- Buffered I/O, batch ops, connection pooling
+- Know platform model, reduce hot-path allocations, use value types, dispose properly
 
-## I/O Optimization
-- Use buffered I/O.  
-- Batch reads/writes.  
-- Use proper pooling for connections.  
+## Core Principles
+- **SOLID**: SRP, OCP, LSP, ISP, DIP
+- **Generics**: type-safe reuse, constraints, interfaces, collections
+- **Idiomatic**: small focused functions, descriptive names, no globals, composition over inheritance, minimal interfaces
+- **Error handling**: explicit handling, typed errors, wrap context, robust recovery
 
-## Generic Programming Principles
-- Use generics/templates for reusable, type‑safe code.  
-- Apply type constraints to enforce correctness.  
-- Use generic interfaces for polymorphism.  
-- Prefer generic collections.  
-- Reuse generic algorithms.  
-
-## SOLID Principles
-- SRP: One responsibility per component.  
-- OCP: Extend without modifying.  
-- LSP: Subtypes must behave as base types.  
-- ISP: Favor small, focused interfaces.  
-- DIP: Depend on abstractions.  
-
-## Idiomatic Practices
-- Keep functions small and focused.  
-- Use descriptive names.  
-- Avoid global state.  
-- Favor composition over inheritance.  
-- Keep interfaces minimal.  
-- Maintain consistent abstraction levels.  
-
-## Error Handling Best Practices
-- Always handle errors explicitly.  
-- Don’t use exceptions for normal flow.  
-- Use typed errors/enums.  
-- Wrap errors with context.  
-- Implement robust recovery paths.  
-
-## Testing Strategies
-- Write unit tests for critical logic.  
-- Use table‑driven tests.  
-- Benchmark performance‑critical code.  
-- Use mocks/stubs for external dependencies.  
-- Use property‑based tests for generic logic.  
+## Testing & Patterns
+- Unit tests critical logic, table-driven tests, benchmarks, mocks/stubs, property-based tests
+- Patterns: Factory, Strategy, Observer, Decorator, Command, Template Method
 
 ## Anti‑Patterns
-- Excessive concurrency  
-- Large “god” interfaces  
-- Ignoring errors  
-- Overuse of reflection/dynamic typing  
-- Tight coupling  
-- Premature optimization  
+- Excessive concurrency, god interfaces, ignored errors, overuse of reflection/dynamic, tight coupling, premature optimization
 
-## Generic Design Patterns
-- Factory  
-- Strategy  
-- Observer  
-- Decorator  
-- Command  
-- Template Method  
+## Additional
+- Design for composition/extensibility, intentional strong typing, clear interface docs, consistent conventions
 
-## Memory Management
-- Understand target platform memory model.  
-- Reduce object creation in hot paths.  
-- Use value types where appropriate.  
-- Dispose/close resources properly.  
-- Profile memory usage.  
-
-## Additional Best Practices
-- Design for composition and extensibility.  
-- Use strong typing intentionally.  
-- Balance generic vs. specific implementations.  
-- Clearly document interfaces.  
-- Maintain consistent coding conventions.  
-
-# Combined Agent Behavior Summary
-The AI Coder Agent must:
-- Load Memory Bank on every task.  
-- Use Memory Bank as primary context.  
-- Follow all programming best practices above.  
-- Ensure architectural, naming, and coding consistency.  
-- Avoid reading source unless asked.  
-- Update Memory Bank only when user authorizes.  
-- Warn about contradictions.  
-- Never store raw code in Memory Bank.
+# Agent Behavior Summary
+- Load Memory Bank every task, use as primary context
+- Follow all guidelines above, ensure consistency
+- Never read source unless asked, update Memory Bank only with authorization
+- Warn contradictions, never store raw code

@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  postgres-test:
+    image: mirror.gcr.io/postgres:18-alpine
+    container_name: zercle-postgres-test
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB: zercle_test_db
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data:rw,noexec,nosuid,size=512m
+    restart: "no"

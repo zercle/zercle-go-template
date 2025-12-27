@@ -3,7 +3,7 @@ name: Deploy to Production
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 # Ensure only one deployment runs at a time
 concurrency:
@@ -16,75 +16,76 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write  # Need write permission for creating releases
+      contents: write # Need write permission for creating releases
       packages: write
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 0  # Full history for changelog generation
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # Full history for changelog generation
 
-    # Note: We rely on CI workflow (triggered by tag push) for validation
-    # No need to duplicate test/lint here - they run automatically
+      # Note: We rely on CI workflow (triggered by tag push) for validation
+      # No need to duplicate test/lint here - they run automatically
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v6
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract version from tag
-      id: tag
-      run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Extract version from tag
+        id: tag
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        push: true
-        tags: |
-          ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.version }}
-          ghcr.io/${{ github.repository }}:latest
-        labels: |
-          org.opencontainers.image.version=${{ steps.tag.outputs.version }}
-          org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-        # Reuse Docker layer cache from CI builds
-        cache-from: |
-          type=registry,ref=ghcr.io/${{ github.repository }}:latest
-          type=gha
-        cache-to: type=gha,mode=max
-        # Multi-platform build for production
-        platforms: linux/amd64,linux/arm64
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+          labels: |
+            org.opencontainers.image.version=${{ steps.tag.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          # Reuse Docker layer cache from CI builds
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ github.repository }}:latest
+            type=gha
+          cache-to: type=gha,mode=max
+          # Multi-platform build for production
+          # TODO: Adjust platforms as needed for your deployment targets
+          platforms: linux/amd64,linux/arm64
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        body: |
-          ## Docker Image
-          
-          Pull the production-ready image:
-          ```bash
-          docker pull ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.version }}
-          ```
-          
-          Or use the latest tag:
-          ```bash
-          docker pull ghcr.io/${{ github.repository }}:latest
-          ```
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: |
+            ## Docker Image
 
-          ## Platforms
-          - linux/amd64
-          - linux/arm64
+            Pull the production-ready image:
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.version }}
+            ```
 
-          ## Changes
-          See commits between previous release and this one for detailed changes.
-        draft: false
-        prerelease: false
-        generate_release_notes: true  # Auto-generate changelog from commits
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            Or use the latest tag:
+            ```bash
+            docker pull ghcr.io/${{ github.repository }}:latest
+            ```
+
+            ## Platforms
+            - linux/amd64
+            - linux/arm64
+
+            ## Changes
+            See commits between previous release and this one for detailed changes.
+          draft: false
+          prerelease: false
+          generate_release_notes: true # Auto-generate changelog from commits
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

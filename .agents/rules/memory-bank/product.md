@@ -1,369 +1,252 @@
-# Product Requirements - Zercle Go Fiber Template
+# Zercle Go Template - Product Specification
 
-## Vision Statement
-A production-ready, high-performance Go microservice template that implements industry best practices for building scalable, maintainable web applications using Clean Architecture and Domain-Driven Design principles.
-
-## Goals
+## Product Goals
 
 ### Primary Goals
-1. **Developer Productivity**: Fast project setup with battle-tested architecture
-2. **Production Ready**: Enterprise-grade patterns and security from day one
-3. **Performance**: Ultra-fast HTTP handling with Fiber framework
-4. **Maintainability**: Clear separation of concerns with Clean Architecture
-5. **Scalability**: Designed for horizontal and vertical scaling
-6. **Security**: JWT authentication, validation, and security middleware
+1. **Rapid Development**: Enable developers to start building features in under 5 minutes
+2. **Production Excellence**: Provide battle-tested patterns and configurations for production deployments
+3. **Maintainability**: Enforce clean architecture that remains maintainable as the codebase grows
+4. **Extensibility**: Make it easy to add new domains, features, and integrations
+5. **Developer Experience**: Clear documentation, examples, and intuitive code structure
 
-### Non-Goals
-- Monolithic UI framework
-- Specific business domain (intentionally generic template)
-- Multi-language support (Go only)
-- Cloud-specific deployment (cloud-agnostic)
+### Success Metrics
+- Setup time < 5 minutes from clone to running application
+- Test coverage > 80%
+- Zero critical bugs in first month of production use
+- API documentation completeness 100%
+- Average time to add new domain < 30 minutes
 
-## Target Users
+## User Experience Requirements
 
-### Primary Users
-1. **Backend Developers**: Building Go microservices
-2. **Tech Leads**: Establishing architecture standards
-3. **DevOps Engineers**: Deploying and maintaining services
-4. **CTOs**: Setting up development teams
-
-### User Personas
-- **Fast-Paced Startup**: Needs production-ready code quickly
-- **Enterprise Team**: Requires best practices and maintainability
-- **Freelancer**: Wants proven patterns without learning curve
-- **Learning Developer**: Wants to learn Clean Architecture
-
-## Core Features
-
-### 1. HTTP API Framework
-- **Fiber Framework**: High-performance HTTP server
-- **RESTful Endpoints**: Standard HTTP methods and status codes
-- **JSON Responses**: JSend format for consistency
-- **Swagger Documentation**: Auto-generated OpenAPI docs
-- **CORS Support**: Configurable cross-origin policies
-
-### 2. Authentication & Authorization
-- **JWT Tokens**: Stateless authentication
-- **Registration**: New user creation
-- **Login**: User authentication
-- **Password Security**: bcrypt hashing
-- **Protected Routes**: Middleware-based auth
-
-### 3. Database Integration
-- **PostgreSQL**: Primary database
-- **UUIDv7**: Time-ordered IDs for scalability
-- **sqlc**: Type-safe SQL queries
-- **Migrations**: Versioned database schema changes
-- **Connection Pooling**: Configurable connection limits
-
-### 4. Domain Model
-- **User Entity**: Core user with ID, name, email, password
-- **Post Entity**: Example entity with CRUD operations
-- **Repository Pattern**: Abstracted data access
-- **Service Layer**: Business logic orchestration
-
-### 5. Configuration Management
-- **Environment-Based**: Dev, UAT, Production configs
-- **YAML Config Files**: Structured configuration
-- **Environment Variables**: Override capability
-- **Validation**: Configuration validation on startup
-- **Security**: Production checks (e.g., JWT secret)
-
-### 6. Observability
-- **Structured Logging**: Contextual log entries
-- **Request ID**: Correlation across logs
-- **Health Checks**: Readiness and liveness probes
-- **Metrics Ready**: OpenTelemetry preparation
-- **Multiple Log Levels**: Debug, info, warn, error
-
-### 7. Development Tools
-- **Makefile**: Common tasks automation
-- **Docker Support**: Containerization
-- **Code Generation**: sqlc, mocks, swagger
-- **Testing Suite**: Unit, integration, coverage
-- **Linting**: golangci-lint integration
-
-### 8. Modular Build System
-- **Build Tags**: Conditional compilation for modular deployments
-- **Route Modularization**: Separate route files for better organization
-- **DI Hooks**: Modular dependency injection registration
-- **Selective Deployment**: Build minimal binaries with only required handlers
-- **Reduced Binary Size**: Smaller deployments with targeted functionality
-
-## Functional Requirements
-
-### User Management
-- **Registration**: Create new user account
-  - Input: name, email, password
-  - Validation: email format, password strength
-  - Output: user (without password), JWT token
-- **Login**: Authenticate existing user
-  - Input: email, password
-  - Output: JWT token, user info
-- **Profile**: Get current user profile
-  - Authentication: Required
-  - Output: user details (name, email, createdAt)
-
-### Post Management
-- **Create Post**: Authenticated user creates post
-  - Input: title, content
-  - Output: created post with ID
-- **List Posts**: Public endpoint to list all posts
-  - Output: paginated list of posts
-- **Get Post**: Public endpoint to get post by ID
-  - Input: post ID
-  - Output: post details
-
-### Health Monitoring
-- **Health Check**: Readiness probe
-  - Endpoint: GET /health
-  - Checks: Database connectivity
-- **Liveness Check**: Container health
-  - Endpoint: GET /health/live
-  - Checks: Application running
-
-## Non-Functional Requirements
-
-### Performance
-- **Response Time**: <100ms for simple queries
-- **Throughput**: 10,000+ requests/second (with proper hardware)
-- **Database**: Connection pooling with configurable limits
-- **Memory**: Efficient allocation, minimal GC pressure
-
-### Scalability
-- **Horizontal Scaling**: Stateless design
-- **Database**: Connection pooling, prepared statements
-- **IDs**: UUIDv7 for distributed systems
-- **Caching**: Ready for Redis integration
-
-### Security
-- **Authentication**: JWT with configurable expiration
-- **Password Hashing**: bcrypt with cost factor
-- **Input Validation**: All inputs validated
-- **SQL Injection**: Parameterized queries only
-- **CORS**: Configurable origin policies
-- **Rate Limiting**: Prevent abuse
-- **Secrets**: Environment variables for sensitive data
-
-### Reliability
-- **Error Handling**: Explicit, no silent failures
-- **Transactions**: ACID compliance for data integrity
-- **Migrations**: Versioned, reversible database changes
-- **Health Checks**: Application and database monitoring
-
-### Maintainability
-- **Clean Architecture**: Layer separation
-- **Dependency Injection**: Loose coupling
-- **Testing**: Unit, integration, coverage
-- **Documentation**: Code comments, swagger, README
-- **Code Generation**: sqlc, mocks
-- **Linting**: Static analysis
+### API Consumer Experience
+- Consistent response format (JSend) across all endpoints
+- Clear error messages with actionable guidance
+- Request ID for tracing in all responses
+- Comprehensive Swagger/OpenAPI documentation
+- Predictable status codes and error handling
 
 ### Developer Experience
-- **Quick Start**: <5 minutes to running
-- **Makefile**: Common tasks simplified
-- **Docker**: One-command infrastructure
-- **Hot Reload**: Development mode
-- **API Docs**: Auto-generated Swagger UI
-- **Error Messages**: Clear, actionable
+- Clear project structure following Go conventions
+- Table-driven test examples for all patterns
+- Godoc comments on all exported types and functions
+- Environment-based configuration (local/dev/uat/prod)
+- Makefile with common commands
+- Hot reload in development mode
 
-## API Specifications
+## Feature Specifications
 
-### Response Format (JSend)
-```json
-{
-  "status": "success|error|fail",
-  "data": {},
-  "message": "Optional message"
-}
-```
+### Core Features
 
-### Status Codes
-- 200: Success
-- 201: Created
-- 400: Bad Request (validation error)
-- 401: Unauthorized (missing/invalid token)
-- 403: Forbidden (insufficient permissions)
-- 404: Not Found
-- 409: Conflict (duplicate email)
-- 422: Unprocessable Entity (validation failed)
-- 500: Internal Server Error
+#### 1. Authentication & Authorization
+- JWT-based token authentication
+- User registration with email/password
+- Login with JWT token generation
+- Protected route middleware
+- Token expiration configuration
+- Password hashing with bcrypt
 
-### Authentication
-- **Type**: Bearer token in Authorization header
-- **Format**: `Authorization: Bearer <token>`
-- **Expiration**: Configurable (default 24h)
-- **Secret**: Environment variable
+**Acceptance Criteria:**
+- Registration validates email format and password strength
+- Login returns JWT with configurable expiration
+- Protected routes return 401 without valid token
+- Tokens are signed using HS256 algorithm
 
-## Database Schema
+#### 2. User Management
+- User profile CRUD operations
+- List users (admin functionality)
+- Update user profile
+- Delete user account
+- Email uniqueness validation
 
-### Users Table
-- id: UUIDv7 (primary key)
-- name: VARCHAR(255)
-- email: VARCHAR(255) (unique, indexed)
-- password: VARCHAR(255) (hashed)
-- created_at: TIMESTAMP
-- updated_at: TIMESTAMP
+**Acceptance Criteria:**
+- Users can only view/update their own profile
+- Email uniqueness enforced at database level
+- Soft delete or hard delete configured per requirements
 
-### Posts Table
-- id: UUIDv7 (primary key)
-- title: VARCHAR(255)
-- content: TEXT
-- user_id: UUIDv7 (foreign key to users)
-- created_at: TIMESTAMP
-- updated_at: TIMESTAMP
+#### 3. Service Catalog
+- Create services with name, description, duration, price
+- List all services with pagination
+- Search services by name/description
+- Get service details by ID
+- Update service information
+- Delete services
 
-## Environment Configurations
+**Acceptance Criteria:**
+- Services can be created by authenticated users
+- Search is case-insensitive and partial match
+- Price and duration are required fields
+- Services reference availability slots
 
-### Development
-- **Port**: 3000
-- **Environment**: dev
-- **Log Level**: debug
-- **Database**: localhost:5432
-- **CORS**: All origins (development only)
+#### 4. Booking System
+- Create bookings for services with date/time
+- List bookings by user
+- List bookings by service
+- List bookings by date range
+- Get booking details by ID
+- Update booking status (pending/confirmed/cancelled)
+- Cancel bookings with validation
 
-### UAT
-- **Port**: Configurable
-- **Environment**: test
-- **Log Level**: info
-- **Database**: UAT database
-- **CORS**: Restricted origins
+**Acceptance Criteria:**
+- Bookings cannot overlap for same service
+- Cancellation only allowed if not confirmed
+- Status transitions follow business rules
+- Booking date must be in the future
 
-### Production
-- **Port**: Configurable
-- **Environment**: production
-- **Log Level**: warn
-- **Database**: Production cluster
-- **CORS**: Strict origins
-- **JWT Secret**: Must be changed from default
+#### 5. Payment Processing
+- Create payment records for bookings
+- List payments by user
+- Get payment details
+- Get payments by booking
+- Confirm payment
+- Refund payment
+- Payment status tracking (pending/completed/refunded/failed)
 
-## Constraints
+**Acceptance Criteria:**
+- One booking can have multiple payments
+- Payment amount cannot exceed booking total
+- Refund only allowed for completed payments
+- Payment confirmation updates booking status
 
-### Technical Constraints
-- **Go Version**: 1.25.0 minimum
-- **PostgreSQL**: 18+ for UUIDv7 support
-- **Memory**: Minimal 512MB
-- **CPU**: Minimal 1 core
+#### 6. Availability Management
+- Define availability slots for services
+- Query available slots
+- Prevent booking outside available slots
 
-### Architectural Constraints
-- **Clean Architecture**: Strictly enforced
-- **No ORM**: Use sqlc with raw SQL
-- **No Global State**: Except configuration
-- **Dependency Injection**: Required for dependencies
+**Acceptance Criteria:**
+- Slots defined by day of week and time ranges
+- Overlapping slots are merged or rejected
+- Bookings validate against availability
 
-### Security Constraints
-- **No Plaintext Passwords**: Must hash
-- **No Hardcoded Secrets**: Environment variables only
-- **HTTPS**: Required in production
-- **Input Validation**: All user inputs
+### Infrastructure Features
 
-## Acceptance Criteria
+#### 1. Health Monitoring
+- `/health` endpoint for liveness checks
+- `/readiness` endpoint for readiness probes
+- Database connectivity check
+- Graceful degradation on database failure
 
-### User Registration
-- [ ] Email validation works
-- [ ] Password hashing with bcrypt
-- [ ] Duplicate email returns 409
-- [ ] Returns JWT token
-- [ ] Password not in response
+#### 2. Logging
+- Structured logging with zerolog
+- Log levels: debug, info, warn, error
+- Contextual fields: request_id, user_id, action
+- Console output in local/dev, JSON in uat/prod
 
-### User Login
-- [ ] Valid credentials return JWT
-- [ ] Invalid credentials return 401
-- [ ] Token expiration respected
-- [ ] Returns user profile
+#### 3. Configuration
+- YAML-based configuration files
+- Environment variable override support
+- Four environments: local, dev, uat, prod
+- Configuration validation on startup
 
-### Protected Endpoints
-- [ ] Require valid JWT
-- [ ] Return 401 for missing token
-- [ ] Return 401 for invalid token
-- [ ] Allow requests with valid token
+#### 4. API Standards
+- Request ID middleware for tracing
+- CORS configuration per environment
+- Rate limiting (token bucket algorithm)
+- Request validation with descriptive errors
+- JSend response format
 
-### Database Operations
-- [ ] Transactions maintain ACID
-- [ ] Migrations run successfully
-- [ ] Connection pool configured
-- [ ] Queries are parameterized
+#### 5. Database Management
+- PostgreSQL as primary database
+- SQLC for type-safe queries
+- Migration files for schema changes
+- Connection pooling configuration
+- Query performance monitoring
 
-### Performance
-- [ ] <100ms response for simple queries
-- [ ] No memory leaks under load
-- [ ] Database connection pool efficient
-- [ ] Proper timeouts configured
+#### 6. Graceful Shutdown
+- SIGINT/SIGTERM handling
+- 30-second timeout for in-flight requests
+- Database connection cleanup
+- Logger flush before exit
 
-## Future Roadmap
+## Roadmap Priorities
 
-### Phase 1 (Current)
-- [x] Clean Architecture foundation
-- [x] User authentication
-- [x] Post CRUD
-- [x] PostgreSQL integration
-- [x] Docker support
-- [x] Swagger documentation
-- [x] Build Tags System
-- [x] Route Modularization
-- [x] DI Hooks System
-- [x] Memory Bank Documentation
+### Phase 1: Foundation (Current - Complete)
+- ✅ Clean architecture setup
+- ✅ Domain layer implementation (user, service, booking, payment)
+- ✅ Authentication with JWT
+- ✅ Basic CRUD operations
+- ✅ Testing infrastructure
+- ✅ Docker/Podman support
+- ✅ Health checks
+- ✅ Documentation
 
-### Phase 2 (Next)
+### Phase 2: Enhancement (Next)
+- [ ] API rate limiting per user
+- [ ] Email notifications for booking confirmations
+- [ ] File upload for service images
+- [ ] Advanced search with filters
+- [ ] Pagination for all list endpoints
+- [ ] Audit logging for sensitive operations
+- [ ] Metrics/monitoring integration (Prometheus)
 - [ ] Redis caching layer
-- [ ] Background jobs (Redis Queue)
-- [ ] Email notifications
-- [ ] File upload support
-- [ ] Search functionality
 
-### Phase 3 (Future)
-- [ ] GraphQL API
-- [ ] WebSocket support
-- [ ] gRPC integration
-- [ ] Multi-tenancy
-- [ ] Audit logging
-- [ ] Data partitioning
+### Phase 3: Advanced Features
+- [ ] WebSocket support for real-time updates
+- [ ] GraphQL API alternative
+- [ ] Multi-tenancy support
+- [ ] Webhook system for integrations
+- [ ] Background job processing
+- [ ] Message queue integration (RabbitMQ/Kafka)
+- [ ] API versioning beyond v1
+- [ ] Internationalization (i18n)
 
-### Phase 4 (Long-term)
-- [ ] Event sourcing
-- [ ] CQRS implementation
-- [ ] Service mesh ready
-- [ ] Kubernetes manifests
-- [ ] Helm charts
-- [ ] Observability stack (Prometheus, Grafana)
+### Phase 4: Production Hardening
+- [ ] Distributed tracing (OpenTelemetry)
+- [ ] Circuit breakers for external services
+- [ ] API gateway integration
+- [ ] Secret management (HashiCorp Vault)
+- [ ] Database read replicas
+- [ ] CDN integration for static assets
+- [ ] Automated backups
+- [ ] Disaster recovery procedures
 
-## Success Metrics
-
-### Development Velocity
-- Time to first successful deployment: <1 day
-- New developer onboarding: <2 hours
-- Feature implementation time: Baseline established
-
-### Code Quality
-- Test coverage: >80%
-- Linting issues: 0
-- Technical debt: Minimal, tracked
+## Quality Standards
 
 ### Performance
-- P95 latency: <200ms
-- Uptime: 99.9%
-- Error rate: <0.1%
+- API response time < 200ms (p95)
+- Database query time < 50ms (p95)
+- Support 1000+ concurrent users
+- Memory usage < 512MB under normal load
 
-### Maintenance
-- Security updates: Monthly
-- Dependency updates: Monthly
-- Documentation freshness: Always current
+### Security
+- SQL injection prevention (SQLC parameterized queries)
+- XSS protection via input validation
+- CSRF protection for state-changing operations
+- Rate limiting to prevent abuse
+- Secure password hashing (bcrypt, cost 10+)
+- JWT token expiration enforced
+- Environment-specific secrets
 
-## Risk Assessment
+### Reliability
+- 99.9% uptime target
+- Graceful degradation on failures
+- Automatic retries for transient failures
+- Health check endpoints for orchestration
+- Database connection pooling with limits
 
-### Technical Risks
-- **Fiber Framework Maturity**: Mitigation - Express.js proven patterns
-- **UUIDv7 Adoption**: Mitigation - Simple migration path
-- **No ORM Complexity**: Mitigation - sqlc provides type safety
+### Maintainability
+- Code coverage > 80%
+- Cyclomatic complexity < 10 per function
+- Godoc on all exported code
+- Clear separation of concerns
+- Interface-based dependency injection
+- Table-driven tests for all logic
 
-### Operational Risks
-- **Configuration Complexity**: Mitigation - Strong validation
-- **Database Dependencies**: Mitigation - Clear migration guides
-- **Security**: Mitigation - Industry-standard practices
+## Known Limitations
 
-### Mitigation Strategies
-- Comprehensive testing suite
-- Clear documentation
-- Strong type system
-- Explicit error handling
-- Security best practices
+1. **Single Database**: Currently supports only PostgreSQL; multi-database not planned
+2. **No Caching**: In-memory cache not implemented; all queries hit database
+3. **No Async Jobs**: Background processing requires external queue implementation
+4. **No File Storage**: File uploads require external object storage integration
+5. **Single Region**: Not designed for multi-region deployment
+6. **No GraphQL**: REST API only; GraphQL requires separate implementation
+
+## Future Considerations
+
+- Add GraphQL API alongside REST
+- Implement event sourcing for audit trail
+- Add read replicas for scaling reads
+- Consider microservices extraction for domains
+- Implement API gateway for routing
+- Add feature flags system
+- Implement A/B testing framework
+- Add analytics integration

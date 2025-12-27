@@ -1,290 +1,259 @@
-# Zercle Go Fiber Template
+# zercle-go-template
 
-A production-ready Go microservice template using the **Fiber** framework with **Clean Architecture**, **Domain-Driven Design**, **PostgreSQL** (UUIDv7), and **Modular Build System**.
+Production-ready Go REST API template with clean architecture, online booking system, and comprehensive testing.
 
-## ✨ Features
+## Features
 
-### Core Architecture
-- **Clean Architecture**: Strict layered architecture with dependency inversion
-- **Feature-Based Organization**: Modular architecture with feature separation
-- **Build Tags System**: Conditional compilation for modular deployments
-- **Dependency Injection**: `samber/do/v2` with hooks for modular registration
-
-### Database & Storage
-- **PostgreSQL + UUIDv7**: Native support for time-sorted UUIDs for scalable primary keys
-- **Type-Safe Database**: `sqlc` for generating type-safe Go code from SQL
-- **Migrations**: Versioned database migrations with golang-migrate
-
-### API & Web
-- **High Performance**: Fiber framework for ultra-fast HTTP handling
-- **Authentication**: JWT-based middleware with secure token management
-- **JSend Responses**: Standardized JSON API response format `{ status, data, message }`
-- **API Documentation**: Auto-generated Swagger/OpenAPI 2.0 via `swaggo`
-
-### Infrastructure
-- **Configuration**: `viper` for environment-based configuration
-- **Structured Logging**: `slog` for context-aware structured logging
-- **Health Checks**: Readiness and liveness probes with database connectivity
-- **Docker Support**: Multi-stage builds with non-root containers
-
-### Testing & Quality
-- **Comprehensive Testing**: 16 test files covering all layers
-- **Mock-Based Tests**: Unit tests with generated mocks
-- **Integration Tests**: Full stack testing with real database
-- **Code Quality**: golangci-lint integration with strict rules
-- **Race Detection**: Always enabled in test runs
-
-## 🏗️ Project Structure
-
-```
-zercle-go-template/
-├── cmd/server/               # Application entry point
-│   ├── main.go               # Server bootstrap
-│   └── routes_*.go           # Modular route definitions
-├── internal/                 # Private application code
-│   ├── features/             # Feature-based architecture
-│   │   ├── health/           # Health check feature
-│   │   │   ├── domain/       # Health entities
-│   │   │   ├── dto/          # Health DTOs
-│   │   │   ├── handler/      # Health HTTP handlers
-│   │   │   ├── repository/   # Health data access
-│   │   │   └── service/      # Health business logic
-│   │   ├── user/             # User management feature
-│   │   │   ├── domain/       # User entities
-│   │   │   ├── dto/          # User DTOs
-│   │   │   ├── handler/      # User HTTP handlers
-│   │   │   ├── repository/   # User data access
-│   │   │   └── service/      # User business logic
-│   │   └── post/             # Post management feature
-│   │       ├── domain/       # Post entities
-│   │       ├── dto/          # Post DTOs
-│   │       ├── handler/      # Post HTTP handlers
-│   │       ├── repository/   # Post data access
-│   │       └── service/      # Post business logic
-│   ├── core/                 # Core business logic
-│   │   ├── domain/           # Shared domain entities
-│   │   ├── port/             # Input/Output interfaces
-│   │   │   ├── service_*.go  # Service ports
-│   │   │   └── repository_*.go # Repository ports
-│   │   └── service/          # Shared business services
-│   ├── infrastructure/       # Infrastructure wiring
-│   │   ├── config/           # Config loading
-│   │   ├── container/        # DI containers with hooks
-│   │   │   ├── di.go         # Main DI setup
-│   │   │   ├── di_*.go       # Feature-specific DI
-│   │   │   └── di_hooks_*.go # Conditional hooks
-│   │   ├── server/           # Fiber server setup
-│   │   └── sqlc/             # Generated database code
-│   └── shared/               # Shared utilities
-├── pkg/                      # Shared public code
-├── sql/                      # SQL assets
-│   ├── migrations/           # Database migrations
-│   └── queries/              # sqlc query definitions
-├── test/                     # Testing
-│   ├── integration/          # Integration tests
-│   └── mocks/                # Generated mocks
-├── .agents/rules/memory-bank/# Project knowledge base
-├── docs/                     # Swagger documentation
-├── Dockerfile                # Multi-stage build
-├── compose.yml               # Local dev stack
-├── Makefile                  # Task runner
-└── go.mod                    # Dependencies
-```
+- **Architecture**: Clean Architecture with Handler → UseCase → Repository layers
+- **Framework**: Echo - high-performance, minimalist web framework
+- **Database**: PostgreSQL with SQLC for type-safe database access
+- **Security**: JWT authentication, request validation, rate limiting, CORS
+- **Observability**: Structured logging (zerolog), health checks, request tracing
+- **Standards**: JSend response format, graceful shutdown, containerized deployment
+- **Testing**: Table-driven tests, integration tests, 80%+ coverage target
+- **Containers**: Podman-first with Docker compatibility
 
 ## Quick Start
 
 ### Prerequisites
+
 - Go 1.25+
-- Docker & Docker Compose
-- PostgreSQL 18+ (or via Docker)
+- PostgreSQL 18+
+- Podman (recommended) or Docker & Docker Compose
+  - See [PODMAN.md](./PODMAN.md) for Podman setup
 
 ### Installation
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/zercle/zercle-go-template.git
-   cd zercle-go-template
-   ```
-
-2. **Setup Environment**:
-   ```bash
-   cp .env.example .env
-   # Ensure DB_DRIVER=postgres
-   ```
-
-3. **Start Infrastructure**:
-   ```bash
-   make docker-up
-   # Or manually start Postgres
-   ```
-
-4. **Run Migrations**:
-   ```bash
-   make migrate-up
-   ```
-
-5. **Run Application**:
-   ```bash
-   make run
-   # Server: http://localhost:3000
-   # Swagger: http://localhost:3000/swagger/index.html
-   ```
-
-## Development
-
-### Code Generation
-Regenerate SQLC code, Mocks, and Swagger docs:
 ```bash
-make generate
-# or individually:
-# sqlc generate
-# swag init -g cmd/server/main.go
+git clone https://github.com/zercle/zercle-go-template.git
+cd zercle-go-template
+make init       # Install dependencies
+make generate   # Generate SQLC code and mocks
 ```
 
-### Testing
-Run unit and integration tests:
+### Running
+
+#### Podman/Docker (Recommended)
+
 ```bash
-# Run all tests with race detection
-make test
-
-# Generate coverage report
-make test-coverage
-
-# Run specific test
-go test -v ./internal/features/health/service/
-
-# Run with coverage
-go test -v -cover ./...
+make docker-up    # Start API + PostgreSQL
+make docker-down  # Stop services
+podman logs -f zercle-api  # View logs
 ```
 
-### Build Tags System
-Build modular binaries with selective features:
+#### Local Development
+
 ```bash
-# Build with all features (default)
-make build
-
-# Build specific feature combinations
-make build-health    # Health checks only (~35MB)
-make build-user      # User management only (~36MB)
-make build-post      # Post management only (~36MB)
-
-# Custom build tags
-go build -tags "health,user" ./cmd/server
-go build -tags "post" ./cmd/server
+export SERVER_ENV=local DB_HOST=localhost DB_PORT=5432 \
+       DB_USER=postgres DB_PASSWORD=password DB_NAME=zercle_db
+make run           # or: go run ./cmd/server
 ```
 
-**Available Tags**: `health`, `user`, `post`, `all`
+#### Build Binary
 
-### Database
-This template uses **PostgreSQL**.
-- **Migrations**: `sql/migrations` (golang-migrate)
-- **Queries**: `sql/queries` (sqlc)
+```bash
+make build                    # Build for current platform
+GOOS=linux GOARCH=amd64 make build
+./bin/service
+```
 
-## 🚀 API Endpoints
+## API Examples
 
-### Health Checks
-- `GET /health` - System health check (readiness probe)
-- `GET /health/live` - Container liveness check with DB connectivity
+### Health Check
+
+```bash
+curl http://localhost:3000/health
+```
 
 ### Authentication
-- `POST /auth/register` - Register new user
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "securepassword",
-    "name": "John Doe"
-  }
-  ```
-- `POST /auth/login` - Login and get JWT
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "securepassword"
-  }
-  ```
 
-### User Management
-- `GET /users/me` - Get current user profile (requires JWT token)
+```bash
+# Register
+curl -X POST http://localhost:3000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password123","full_name":"John Doe"}'
 
-### Posts
-- `POST /posts` - Create post (requires JWT token)
-  ```json
-  {
-    "title": "My Post",
-    "content": "Post content here"
-  }
-  ```
-- `GET /posts` - List all posts
-- `GET /posts/:id` - Get post by ID
+# Login
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password123"}'
+```
 
-### Response Format
-All endpoints return JSend format:
+### Protected Routes
+
+```bash
+# Get profile
+curl http://localhost:3000/api/v1/users/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Update profile
+curl -X PUT http://localhost:3000/api/v1/users/profile \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"full_name":"John Updated"}'
+```
+
+## Project Structure
+
+```
+zercle-go-template/
+├── cmd/server/              # Application entry point
+├── configs/                 # Environment configs (local/dev/uat/prod)
+├── domain/                  # Business logic layer
+│   ├── user/               # User domain
+│   │   ├── handler/        # HTTP handlers
+│   │   ├── usecase/        # Business logic
+│   │   ├── repository/     # Data access
+│   │   ├── model/          # Domain models
+│   │   ├── request/        # Request DTOs
+│   │   └── response/       # Response DTOs
+│   ├── service/            # Service domain
+│   ├── booking/            # Booking domain
+│   └── payment/            # Payment domain
+├── infrastructure/          # External dependencies
+│   ├── config/             # Configuration
+│   ├── db/                 # Database connection
+│   ├── logger/             # Logging
+│   └── sqlc/db/            # SQLC generated code
+├── pkg/                     # Shared packages
+│   ├── middleware/         # HTTP middleware
+│   ├── response/           # Response utilities
+│   └── health/             # Health checks
+├── sql/                     # Database
+│   ├── migration/          # Migrations
+│   └── query/              # SQLC queries
+└── test/                    # Tests
+    ├── unit/               # Unit tests
+    └── integration/        # Integration tests
+```
+
+## Configuration
+
+Config loaded from `configs/` based on `SERVER_ENV` environment variable.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SERVER_ENV` | Environment | `local` |
+| `SERVER_PORT` | Server port | `3000` |
+| `DB_HOST` | Database host | `localhost` |
+| `DB_PORT` | Database port | `5432` |
+| `DB_USER` | Database user | `postgres` |
+| `DB_PASSWORD` | Database password | `password` |
+| `DB_NAME` | Database name | `zercle_db` |
+| `JWT_SECRET` | JWT signing secret | - |
+| `JWT_EXPIRATION` | JWT expiration (seconds) | `3600` |
+| `LOG_LEVEL` | Log level | `info` |
+
+## Testing
+
+```bash
+make test            # Run all tests
+make test-coverage   # Run with coverage
+open coverage.html   # View report
+```
+
+### Test Structure
+
+- **Unit Tests**: Table-driven tests for handlers, usecases, repositories
+- **Integration Tests**: Full HTTP request/response cycle
+- **Coverage Target**: Minimum 80%
+
+## Makefile Commands
+
+| Command | Description |
+|---------|-------------|
+| `make help` | Show available commands |
+| `make init` | Initialize dependencies |
+| `make generate` | Generate SQLC code and mocks |
+| `make build` | Build application |
+| `make dev` | Run in development mode |
+| `make run` | Run compiled binary |
+| `make test` | Run tests |
+| `make test-coverage` | Run tests with coverage |
+| `make lint` | Run linter |
+| `make fmt` | Format code |
+| `make clean` | Clean build artifacts |
+| `make docker-build` | Build container image |
+| `make docker-up` | Start containers |
+| `make docker-down` | Stop containers |
+
+## API Standards
+
+### Response Format (JSend)
+
 ```json
 {
   "status": "success",
-  "data": { ... },
-  "message": "optional message"
+  "data": { ... }
 }
 ```
 
-### Error Responses
+```json
+{
+  "status": "fail",
+  "message": "Validation failed",
+  "errors": [{ "field": "email", "message": "Must be a valid email address" }]
+}
+```
+
 ```json
 {
   "status": "error",
-  "data": null,
-  "message": "Error description"
+  "message": "Internal server error"
 }
 ```
 
-## 🧪 Testing Coverage
+### HTTP Status Codes
 
-This template includes comprehensive testing across all layers:
+| Code | Description |
+|------|-------------|
+| 200 | Successful request |
+| 201 | Resource created |
+| 204 | Successful request, no response body |
+| 400 | Invalid request data |
+| 401 | Authentication required |
+| 403 | Insufficient permissions |
+| 404 | Resource not found |
+| 429 | Rate limit exceeded |
+| 500 | Server error |
 
-- **16 Test Files** covering:
-  - Health feature (3 tests)
-  - User feature (3 tests)
-  - Post feature (3 tests)
-  - Middleware, Integration, and Utility tests (7 tests)
+### Request Headers
 
-### Test Structure
-```
-test/
-├── integration/          # Integration tests with real DB
-├── mocks/                # Generated mocks for interfaces
-└── *_test.go            # Unit tests for each layer
-```
+- `X-Request-ID` - Unique request identifier for tracing
+- `Authorization` - Bearer token for authenticated requests
 
-### Test Commands
-```bash
-# Run all tests
-make test
+## Development Guidelines
 
-# Run with coverage and race detection
-make test-coverage
+### Clean Architecture
 
-# Run integration tests
-go test -v ./test/integration/
+1. **Handlers**: HTTP request/response handling only
+2. **UseCases**: Business logic and orchestration
+3. **Repositories**: Data access abstraction, interface-based
+4. **No direct database access from handlers**
 
-# Generate mock files
-make generate
-```
+### Coding Standards
 
-## 📚 Documentation
+- Table-driven tests for multiple scenarios
+- Exported functions require godoc comments
+- Descriptive names (no abbreviations)
+- Explicit error handling
+- Contextual error logging (request_id, user_id)
 
-- **Memory Bank**: Project knowledge in `.agents/rules/memory-bank/`
-- **API Docs**: Auto-generated at `/swagger/index.html`
-- **Architecture**: See `internal/features/` for feature-based structure
-- **Build Tags**: See `BUILD_TAGS.md` for modular build documentation
+## Contributing
 
-## 🎯 Project Status
-
-✅ **Production Ready**
-
-- Complete feature implementation (Health, User, Post)
-- Comprehensive test suite (16 test files)
-- Modular build system with conditional compilation
-- Docker support with multi-stage builds
-- Full documentation and examples
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
-MIT
+
+[MIT License](LICENSE)
+
+## Acknowledgments
+
+- [Echo](https://echo.labstack.com/) - High-performance web framework
+- [SQLC](https://sqlc.dev/) - Type-safe SQL builder
+- [zerolog](https://github.com/rs/zerolog) - Zero-allocation logging
+- [go-playground/validator](https://github.com/go-playground/validator) - Struct validation
