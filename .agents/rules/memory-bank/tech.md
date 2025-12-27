@@ -475,7 +475,7 @@ RETURNING *;
 ```sql
 -- 20251226_initialize_schema.up.sql
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -483,6 +483,23 @@ CREATE TABLE users (
 
 -- 20251226_initialize_schema.down.sql
 DROP TABLE users;
+```
+
+#### UUID Generation (PostgreSQL 18+)
+```sql
+-- Use uuidv7() for timestamp-based UUIDs (recommended)
+id UUID PRIMARY KEY DEFAULT uuidv7()
+
+-- Alternative: gen_random_uuid() for PostgreSQL 13+
+id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+```
+
+**Go UUID Generation**:
+```go
+import "github.com/google/uuid"
+
+// UUID v7 - timestamp-based (recommended for new code)
+id := uuid.NewV7()
 ```
 
 ### Query Naming

@@ -203,10 +203,12 @@ func TestServiceHandler_ListServices(t *testing.T) {
 		{
 			name: "successful list with default pagination",
 			setupMock: func() {
+				id1, _ := uuid.NewV7()
+				id2, _ := uuid.NewV7()
 				mockUsecase.EXPECT().ListServices(gomock.Any(), gomock.Any()).Return(&serviceResponse.ListServicesResponse{
 					Services: []serviceResponse.ServiceResponse{
-						{ID: uuid.New(), Name: "Service 1", Price: 100.0},
-						{ID: uuid.New(), Name: "Service 2", Price: 200.0},
+						{ID: id1, Name: "Service 1", Price: 100.0},
+						{ID: id2, Name: "Service 2", Price: 200.0},
 					},
 					Total: 2,
 				}, nil)
@@ -218,9 +220,10 @@ func TestServiceHandler_ListServices(t *testing.T) {
 		{
 			name: "successful list with custom pagination",
 			setupMock: func() {
+				id, _ := uuid.NewV7()
 				mockUsecase.EXPECT().ListServices(gomock.Any(), gomock.Any()).Return(&serviceResponse.ListServicesResponse{
 					Services: []serviceResponse.ServiceResponse{
-						{ID: uuid.New(), Name: "Service 1", Price: 100.0},
+						{ID: id, Name: "Service 1", Price: 100.0},
 					},
 					Total: 1,
 				}, nil)

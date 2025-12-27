@@ -115,7 +115,10 @@ func toInt32Safe(i int) int32 {
 
 func (r *paymentRepository) Create(ctx context.Context, paymentModel *model.Payment) (*model.Payment, error) {
 	now := time.Now()
-	id := uuid.New()
+	id, err := uuid.NewV7()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate UUID: %w", err)
+	}
 
 	params := db.CreatePaymentParams{
 		ID:            toUUID(id),

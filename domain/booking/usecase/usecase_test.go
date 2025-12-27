@@ -123,7 +123,8 @@ func TestBookingUseCase_CreateBooking(t *testing.T) {
 					Price:           100.0,
 					IsActive:        true,
 				}, nil)
-				bookingRepo.EXPECT().CheckConflict(gomock.Any(), serviceID, gomock.Any(), gomock.Any()).Return([]*model.Booking{{ID: uuid.New()}}, nil)
+				conflictID, _ := uuid.NewV7()
+				bookingRepo.EXPECT().CheckConflict(gomock.Any(), serviceID, gomock.Any(), gomock.Any()).Return([]*model.Booking{{ID: conflictID}}, nil)
 			},
 			request: request.CreateBooking{
 				ServiceID: serviceID,
