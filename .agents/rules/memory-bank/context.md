@@ -137,8 +137,9 @@
 ### Database Design Decisions
 
 #### UUID Primary Keys
-**Decision**: Use UUIDs instead of auto-increment integers
+**Decision**: Use UUID v7 instead of auto-increment integers or UUID v4
 **Rationale**:
+- Timestamp-based ordering for better B-tree index performance
 - No sequential ID exposure (security)
 - Easy distributed generation
 - No coordination needed for IDs
@@ -146,8 +147,12 @@
 
 **Trade-offs**:
 - Larger storage size (16 bytes vs 4/8 bytes)
-- Slightly slower indexing
 - Less human-readable
+- Requires PostgreSQL 18+ for native `uuidv7()` or application-level generation
+
+**Implementation**:
+- PostgreSQL: `id UUID PRIMARY KEY DEFAULT uuidv7()`
+- Go: `id := uuid.NewV7()` (github.com/google/uuid)
 
 #### Migration Files
 **Decision**: Use timestamped migration files

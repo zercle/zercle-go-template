@@ -115,7 +115,10 @@ func toInt32Safe(i int) int32 {
 
 func (r *bookingRepository) Create(ctx context.Context, booking *model.Booking) (*model.Booking, error) {
 	now := time.Now()
-	id := uuid.New()
+	id, err := uuid.NewV7()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate UUID: %w", err)
+	}
 
 	params := db.CreateBookingParams{
 		ID:         toUUID(id),

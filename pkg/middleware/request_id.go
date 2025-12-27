@@ -17,7 +17,13 @@ func RequestID() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			reqID := c.Request().Header.Get(headerXRequestID)
 			if reqID == "" {
-				reqID = uuid.New().String()
+				id, err := uuid.NewV7()
+				if err != nil {
+					c.Set(requestIDKey, "")
+					c.Response().Header().Set(headerXRequestID, "")
+					return next(c)
+				}
+				reqID = id.String()
 			}
 
 			c.Set(requestIDKey, reqID)

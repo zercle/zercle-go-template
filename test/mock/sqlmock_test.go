@@ -31,10 +31,11 @@ func TestDBTXMock_DefaultQuery(t *testing.T) {
 }
 
 func TestDBTXMock_CustomQuery(t *testing.T) {
+	id, _ := uuid.NewV7()
 	mock := &DBTXMock{
 		QueryFunc: func(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
 			return NewRowsMock([][]interface{}{
-				{NewUUID(t, uuid.New()), "test@example.com"},
+				{NewUUID(t, id), "test@example.com"},
 			}), nil
 		},
 	}
@@ -46,33 +47,35 @@ func TestDBTXMock_CustomQuery(t *testing.T) {
 }
 
 func TestDBTXMock_CustomQueryRow(t *testing.T) {
+	id, _ := uuid.NewV7()
 	mock := &DBTXMock{
 		QueryRowFunc: func(ctx context.Context, sql string, args ...interface{}) pgx.Row {
 			return NewRowMock([]interface{}{
-				NewUUID(t, uuid.New()),
+				NewUUID(t, id),
 				"test@example.com",
 			})
 		},
 	}
 
-	row := mock.QueryRow(context.Background(), "SELECT * FROM users WHERE id = $1", uuid.New())
+	row := mock.QueryRow(context.Background(), "SELECT * FROM users WHERE id = $1", id)
 	assert.NotNil(t, row)
 }
 
 func TestRowsMock_Scan(t *testing.T) {
+	testUUID, _ := uuid.NewV7()
 	rows := [][]interface{}{
-		{NewUUID(t, uuid.New()), "test@example.com", NewText(t, "Test User")},
+		{NewUUID(t, testUUID), "test@example.com", NewText(t, "Test User")},
 	}
 	rowsMock := NewRowsMock(rows)
 
-	var id pgtype.UUID
+	var resultUUID pgtype.UUID
 	var email string
 	var name pgtype.Text
 
 	assert.True(t, rowsMock.Next())
-	err := rowsMock.Scan(&id, &email, &name)
+	err := rowsMock.Scan(&resultUUID, &email, &name)
 	assert.NoError(t, err)
-	assert.True(t, id.Valid)
+	assert.True(t, resultUUID.Valid)
 	assert.Equal(t, "test@example.com", email)
 	assert.Equal(t, "Test User", name.String)
 }
@@ -87,9 +90,11 @@ func TestRowsMock_EmptyResult(t *testing.T) {
 }
 
 func TestRowsMock_CommandTag(t *testing.T) {
+	id1, _ := uuid.NewV7()
+	id2, _ := uuid.NewV7()
 	rowsMock := NewRowsMock([][]interface{}{
-		{NewUUID(t, uuid.New())},
-		{NewUUID(t, uuid.New())},
+		{NewUUID(t, id1)},
+		{NewUUID(t, id2)},
 	})
 
 	tag := rowsMock.CommandTag()
@@ -105,17 +110,18 @@ func TestRowsMock_FieldDescriptions(t *testing.T) {
 }
 
 func TestRowMock_Scan(t *testing.T) {
+	testUUID, _ := uuid.NewV7()
 	row := NewRowMock([]interface{}{
-		NewUUID(t, uuid.New()),
+		NewUUID(t, testUUID),
 		"test@example.com",
 	})
 
-	var id pgtype.UUID
+	var resultUUID pgtype.UUID
 	var email string
 
-	err := row.Scan(&id, &email)
+	err := row.Scan(&resultUUID, &email)
 	assert.NoError(t, err)
-	assert.True(t, id.Valid)
+	assert.True(t, resultUUID.Valid)
 	assert.Equal(t, "test@example.com", email)
 }
 
@@ -131,7 +137,7 @@ func TestRowMock_ScanWithError(t *testing.T) {
 }
 
 func TestNewPGTypeUUID(t *testing.T) {
-	id := uuid.New()
+	id, _ := uuid.NewV7()
 	pgUUID := NewPGTypeUUID(t, id)
 
 	assert.True(t, pgUUID.Valid)

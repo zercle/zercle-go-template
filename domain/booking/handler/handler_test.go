@@ -340,10 +340,12 @@ func TestBookingHandler_ListBookingsByUser(t *testing.T) {
 		{
 			name: "successful list with default pagination",
 			setupMock: func() {
+				id1, _ := uuid.NewV7()
+				id2, _ := uuid.NewV7()
 				mockUsecase.EXPECT().ListBookingsByUser(gomock.Any(), testUserUUID, 20, 0).Return(&bookingResponse.ListBookingsResponse{
 					Bookings: []bookingResponse.BookingResponse{
-						{ID: uuid.New(), UserID: testUserUUID, Status: model.BookingStatusPending},
-						{ID: uuid.New(), UserID: testUserUUID, Status: model.BookingStatusConfirmed},
+						{ID: id1, UserID: testUserUUID, Status: model.BookingStatusPending},
+						{ID: id2, UserID: testUserUUID, Status: model.BookingStatusConfirmed},
 					},
 					Total: 2,
 				}, nil)
@@ -356,9 +358,10 @@ func TestBookingHandler_ListBookingsByUser(t *testing.T) {
 		{
 			name: "successful list with custom pagination",
 			setupMock: func() {
+				id, _ := uuid.NewV7()
 				mockUsecase.EXPECT().ListBookingsByUser(gomock.Any(), testUserUUID, 10, 5).Return(&bookingResponse.ListBookingsResponse{
 					Bookings: []bookingResponse.BookingResponse{
-						{ID: uuid.New(), UserID: testUserUUID, Status: model.BookingStatusPending},
+						{ID: id, UserID: testUserUUID, Status: model.BookingStatusPending},
 					},
 					Total: 1,
 				}, nil)

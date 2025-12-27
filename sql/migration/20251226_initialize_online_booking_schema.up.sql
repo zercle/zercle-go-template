@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS users (
-	id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	id UUID PRIMARY KEY DEFAULT uuidv7(),
 	email VARCHAR(255) NOT NULL UNIQUE,
 	password_hash VARCHAR(255) NOT NULL,
 	full_name VARCHAR(255) NOT NULL,
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS services (
-	id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	id UUID PRIMARY KEY DEFAULT uuidv7(),
 	name VARCHAR(255) NOT NULL,
 	description TEXT,
 	duration_minutes INT NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS services (
 );
 
 CREATE TABLE IF NOT EXISTS bookings (
-	id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+	id UUID PRIMARY KEY DEFAULT uuidv7(),
 	user_id UUID NOT NULL,
 	service_id UUID NOT NULL,
 	start_time TIMESTAMP WITH TIME ZONE NOT NULL,

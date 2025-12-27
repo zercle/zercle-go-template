@@ -250,9 +250,11 @@ func TestServiceUseCase_ListServices(t *testing.T) {
 		{
 			name: "successful list",
 			setup: func() {
+				id1, _ := uuid.NewV7()
+				id2, _ := uuid.NewV7()
 				mockRepo.EXPECT().List(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return([]*model.Service{
-					{ID: uuid.New(), Name: "Service 1"},
-					{ID: uuid.New(), Name: "Service 2"},
+					{ID: id1, Name: "Service 1"},
+					{ID: id2, Name: "Service 2"},
 				}, nil)
 			},
 			request: request.ListServices{
