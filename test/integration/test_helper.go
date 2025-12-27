@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"os"
 	"strconv"
 	"testing"
@@ -100,9 +101,20 @@ func (h *TestDBHelper) runMigrations(t *testing.T) {
 	}
 
 	migrationDir := "../../sql/migration"
+	migrationFS := os.DirFS(migrationDir)
 
 	for _, file := range migrationFiles {
-		content, err := os.ReadFile(migrationDir + "/" + file)
+		if !fs.ValidPath(file) {
+			msg := fmt.Sprintf("⚠️  Warning: Invalid migration file path %s", file)
+			if t != nil {
+				t.Log(msg)
+			} else {
+				fmt.Println(msg)
+			}
+			continue
+		}
+
+		content, err := fs.ReadFile(migrationFS, file)
 		if err != nil {
 			msg := fmt.Sprintf("⚠️  Warning: Failed to read migration file %s: %v", file, err)
 			if t != nil {
