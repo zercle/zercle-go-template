@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS availability_slots (
-	id UUID PRIMARY KEY DEFAULT uuidv7(),
+	id UUID PRIMARY KEY,
 	service_id UUID NOT NULL,
 	day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
 	start_time TIME NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS availability_slots (
 );
 
 CREATE TABLE IF NOT EXISTS payments (
-	id UUID PRIMARY KEY DEFAULT uuidv7(),
+	id UUID PRIMARY KEY,
 	booking_id UUID NOT NULL,
 	amount DECIMAL(10, 2) NOT NULL,
 	status VARCHAR(50) NOT NULL DEFAULT 'pending',
