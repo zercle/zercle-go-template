@@ -389,7 +389,7 @@ docker-logs:
 # Generate Swagger documentation
 swagger-gen:
 	@printf '$(COLOR_YELLOW)[SWAGGER]$(COLOR_RESET) Generating Swagger documentation...\n'
-	@$(SWAG) init --dir cmd/server -o $(DOCS_DIR) --parseDependency --parseInternal
+	@$(SWAGGER) init --dir cmd/server -o $(DOCS_DIR) --parseDependency --parseInternal
 	@printf '$(COLOR_GREEN)[OK]$(COLOR_RESET) Swagger docs generated in $(DOCS_DIR)/\n'
 
 # Validate Swagger documentation
