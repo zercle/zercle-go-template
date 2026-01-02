@@ -1,5 +1,5 @@
 # Multi-stage build for production-ready Go application
-FROM golang AS builder
+FROM mirror.gcr.io/library/golang AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y git make tini
@@ -21,7 +21,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s -X m
 # Build arguments: BUILD_VERSION=$(git rev-parse --short HEAD) BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # Final stage - distroless minimal runtime
-FROM gcr.io/distroless/static
+FROM gcr.io/distroless/base AS runner
 
 ENV TZ=Asia/Bangkok
 ENV LANG=C.UTF-8
