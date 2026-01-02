@@ -232,7 +232,11 @@ test-all: test
 # Run unit tests only
 test-unit:
 	@printf '$(COLOR_YELLOW)[TEST-UNIT]$(COLOR_RESET) Running unit tests...\n'
-	$(GO) test $(UNIT_TEST_FLAGS) ./test/unit/... ./internal/...
+	@if [ -d ./test/unit ] && [ -n "$(find ./test/unit -name '*_test.go' 2>/dev/null)" ]; then \
+		$(GO) test $(UNIT_TEST_FLAGS) ./test/unit/... ./internal/...; \
+	else \
+		$(GO) test $(UNIT_TEST_FLAGS) ./internal/...; \
+	fi
 	@if [ -f $(COVERAGE_FILE) ]; then \
 		printf '$(COLOR_CYAN)[COVERAGE]$(COLOR_RESET) Unit test coverage: '; \
 		go tool cover -func=$(COVERAGE_FILE) | tail -1; \
@@ -385,7 +389,7 @@ docker-logs:
 # Generate Swagger documentation
 swagger-gen:
 	@printf '$(COLOR_YELLOW)[SWAGGER]$(COLOR_RESET) Generating Swagger documentation...\n'
-	@$(SWAG) init --generalInfo cmd/server/main.go -o $(DOCS_DIR) --parseDependency --parseInternal
+	@$(SWAG) init --dir cmd/server -o $(DOCS_DIR) --parseDependency --parseInternal
 	@printf '$(COLOR_GREEN)[OK]$(COLOR_RESET) Swagger docs generated in $(DOCS_DIR)/\n'
 
 # Validate Swagger documentation
