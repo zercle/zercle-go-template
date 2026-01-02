@@ -1,0 +1,36 @@
+version: '3.8'
+
+# Integration test database configuration
+# Uses Podman-compatible settings with auto-cleanup for test environments
+
+services:
+  test-db:
+    image: postgres:18-alpine
+    container_name: zercle-test-db
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - test-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    # Auto-remove container when it stops (useful for CI/test pipelines)
+    restart: "no"
+    # Podman-specific: use host network for better compatibility
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
+
+volumes:
+  test-db-data:
+    driver: local

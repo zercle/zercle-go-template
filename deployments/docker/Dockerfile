@@ -16,7 +16,7 @@ COPY . .
 # Build the application with optimization flags
 ARG BUILD_VERSION=dev
 ARG BUILD_TIME
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s -X main.Version=${BUILD_VERSION} -X main.BuildTime=${BUILD_TIME}" -o service ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s -X main.Version=${BUILD_VERSION} -X main.BuildTime=${BUILD_TIME}" -o ./dist/go-app ./cmd/server
 
 # Build arguments: BUILD_VERSION=$(git rev-parse --short HEAD) BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
@@ -32,7 +32,7 @@ WORKDIR /opt/app
 COPY --from=builder /usr/bin/tini-static /usr/bin/tini
 
 # Copy binary from builder
-COPY --from=builder /app/service .
+COPY --from=builder /app/dist ./
 
 # Copy config files
 COPY --from=builder /app/configs ./configs
@@ -43,5 +43,5 @@ EXPOSE 3000
 # Run the application
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
-CMD ["service"]
+CMD ["go-app"]
 
