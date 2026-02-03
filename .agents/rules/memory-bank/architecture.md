@@ -1,152 +1,357 @@
-# System Architecture
+# Zercle Go Template - Architecture Documentation
 
-## Architectural Style
-Clean Architecture with Domain-Driven Design (DDD) principles.
+## System Overview
+
+The Zercle Go Template implements **Clean Architecture** (also known as Hexagonal or Ports & Adapters) with clear dependency rules. The architecture ensures:
+
+- **Business logic independence**: Domain layer has zero external dependencies
+- **Testability**: All layers can be tested in isolation with mocks
+- **Flexibility**: Swap infrastructure (database, HTTP framework) without touching business logic
+- **Maintainability**: Changes are localized to specific layers
 
 ## Layer Structure
 
-### 1. Domain Layer (`internal/domain/`)
-**Purpose:** Core business logic and entities, independent of infrastructure.
+```
+┌─────────────────────────────────────────────────────────┐
+│                    External World                       │
+│  (HTTP Requests, Database, External APIs, Logger)      │
+└─────────────────────────────────────────────────────────┘
+                          ▲
+                          │ Depends On
+┌─────────────────────────────────────────────────────────┐
+│  Infrastructure Layer                                    │
+│  • HTTP Handlers (Echo)                                  │
+│  • Database Repositories (PostgreSQL, In-Memory)         │
+│  • Middleware (Logging, Recovery, Auth)                  │
+│  • Configuration (Viper)                                 │
+└─────────────────────────────────────────────────────────┘
+                          ▲
+                          │ Depends On
+┌─────────────────────────────────────────────────────────┐
+│  Use Case Layer                                          │
+│  • Business Orchestration                                │
+│  • Transaction Boundaries                                │
+│  • Authorization Rules                                   │
+└─────────────────────────────────────────────────────────┘
+                          ▲
+                          │ Depends On
+┌─────────────────────────────────────────────────────────┐
+│  Domain Layer                                            │
+│  • Entities (User, Auth)                                 │
+│  • Business Rules                                        │
+│  • Value Objects                                         │
+│  • Domain Errors                                         │
+└─────────────────────────────────────────────────────────┘
+```
 
-**Components per Domain:**
-- `entity/` - Business entities with domain logic
-- `interface.go` - Domain interfaces (Repository, Service, Handler)
-- `repository/` - Repository implementations
-- `usecase/` - Business logic and orchestration
-- `handler/` - HTTP request handlers
-- `request/` - DTOs for incoming requests
-- `response/` - DTOs for outgoing responses
-- `mock/` - Mock implementations for testing
+## Dependency Rule
 
-**Current Domains:**
-- `user/` - User authentication and profile management
-- `task/` - Task management (example domain)
+**Dependencies always point inward.**
 
-### 2. Infrastructure Layer (`internal/infrastructure/`)
-**Purpose:** External concerns and technical implementations.
+- Domain layer knows nothing about use cases, infrastructure, or external frameworks
+- Use cases know about domain but not infrastructure details
+- Infrastructure depends on use cases and domain
+- External frameworks (Echo, pgx, etc.) only exist in infrastructure
 
-**Sub-packages:**
-- `config/` - Configuration management with Viper
-- `db/` - Database abstraction and factory
-- `http/client/` - HTTP client (Resty wrapper)
-- `logger/` - Structured logging (zerolog wrapper)
-- `password/` - Password hashing (Argon2id)
-- `sqlc/db/` - SQLC-generated database code
+## Component Architecture
 
-### 3. Application Layer (`internal/app/`)
-**Purpose:** Application orchestration and dependency injection.
+### Dependency Injection Container
 
-**Key Components:**
-- `app.go` - Main application structure
-- Dependency wiring
-- Middleware setup
-- Route registration
-- Server lifecycle management
+The [`internal/container/container.go`](internal/container/container.go) is the composition root:
 
-### 4. Entry Point (`cmd/server/`)
-**Purpose:** Application bootstrap.
+```
+Container
+├── Config          (*viper.Viper)
+├── Logger          (zerolog.Logger)
+├── DB              (*pgxpool.Pool)
+├── UserRepository  (UserRepository interface)
+└── UserUsecase     (UserUsecase interface)
+```
 
-**Components:**
-- `main.go` - Application initialization and startup
+Uses **functional options pattern** for flexible configuration:
 
-## Component Boundaries
+```go
+container.New(
+    container.WithConfig(cfg),
+    container.WithLogger(logger),
+    container.WithPostgresRepository(db), // or WithMemoryRepository()
+)
+```
 
-### Domain Boundaries
-- Each domain is self-contained with its own interfaces
-- Domains communicate through well-defined interfaces
-- No direct dependencies between domains
-- Shared infrastructure through interfaces only
+### Feature Module Structure
 
-### Infrastructure Boundaries
-- Infrastructure implements domain interfaces
-- Domain layer depends on abstractions, not implementations
-- Database access abstracted through repository pattern
-- External services abstracted through client interfaces
+Each feature is self-contained:
+
+```
+internal/feature/user/
+├── domain/
+│   └── user.go              # User entity, validation rules
+├── dto/
+│   └── user.go              # CreateUserRequest, UpdateUserRequest
+├── handler/
+│   └── user_handler.go      # HTTP handlers, request binding
+├── repository/
+│   ├── user_repository.go   # Interface definition
+│   ├── sqlc_repository.go   # PostgreSQL implementation
+│   └── memory_repository.go # In-memory implementation
+├── usecase/
+│   └── user_usecase.go      # Business logic
+└── user.go                  # Public exports
+```
 
 ## Data Flow
 
-### Request Flow
+### Request Flow (Create User)
+
 ```
-Client → Handler → UseCase → Repository → Database
-         ↓         ↓          ↓
-    Request   Business    Data Access
-    DTO       Logic       Layer
-         ↓         ↓          ↓
-    Response  Entity    SQLC Query
-    DTO       Mapping    Generation
+HTTP Request
+     ↓
+[Echo Router] ──► [Auth Middleware] ──► [UserHandler.CreateUser()]
+                                              ↓
+                                      [Bind & Validate DTO]
+                                              ↓
+                                      [UserUsecase.CreateUser()]
+                                              ↓
+                                      [Business Logic & Validation]
+                                              ↓
+                                      [UserRepository.Create()]
+                                              ↓
+                                      [sqlc.Queries.CreateUser()]
+                                              ↓
+                                      [PostgreSQL]
+                                              ↓
+                                      [Response DTO]
+                                              ↓
+                                      [JSON Response]
 ```
 
 ### Authentication Flow
-1. User submits credentials to `/api/v1/auth/login`
-2. Handler validates request DTO
-3. UseCase retrieves user by email
-4. Password verified using Argon2id
-5. JWT token generated with user ID and email
-6. Token returned in response
 
-### Protected Route Flow
-1. Request includes JWT in Authorization header
-2. JWT middleware validates token
-3. User ID extracted from token context
-4. Handler processes request with user context
-5. UseCase enforces ownership rules
+```
+Login Request
+     ↓
+[AuthHandler.Login()]
+     ↓
+[Validate Credentials]
+     ↓
+[Generate JWT Pair]
+     ├── Access Token (short-lived)
+     └── Refresh Token (long-lived)
+     ↓
+[Return Tokens]
 
-## Module Interactions
+Protected Request
+     ↓
+[Auth Middleware]
+     ↓
+[Extract Bearer Token]
+     ↓
+[Validate JWT]
+     ↓
+[Set User Context]
+     ↓
+[Handler Execution]
+```
 
-### Dependency Injection
-- Application layer creates all dependencies
-- Dependencies passed through constructors
-- Interfaces used for all external dependencies
-- Mock implementations for testing
+## Design Patterns
 
-### Database Access Patterns
-- SQLC generates type-safe queries
-- Repository pattern abstracts database
-- Transactions managed at repository level
-- Connection pooling handled by pgx/v5
+### 1. Repository Pattern
 
-### Error Handling Strategy
-- Domain-specific errors in usecase layer
-- Repository errors wrapped with context
-- HTTP status codes mapped in handler layer
-- Structured error responses to clients
+Abstracts data access behind interfaces:
 
-## Integration Points
+```go
+// Interface in domain layer
+type UserRepository interface {
+    GetByID(ctx context.Context, id string) (*domain.User, error)
+    GetByEmail(ctx context.Context, email string) (*domain.User, error)
+    Create(ctx context.Context, user *domain.User) error
+    Update(ctx context.Context, user *domain.User) error
+    Delete(ctx context.Context, id string) error
+}
+```
 
-### External Services
-- PostgreSQL database (primary data store)
-- Future: Redis (caching)
-- Future: Message queues (async processing)
+**Implementations:**
+- `SqlcUserRepository`: Production PostgreSQL via sqlc
+- `MemoryUserRepository`: In-memory map for testing
 
-### API Integration
-- RESTful API endpoints
-- Swagger documentation at `/swagger/*`
-- Health checks at `/health` and `/readiness`
+### 2. Dependency Injection
+
+Constructor injection throughout:
+
+```go
+// Usecase receives repository interface
+type UserUsecase struct {
+    userRepo UserRepository
+    logger   logger.Logger
+}
+
+func NewUserUsecase(userRepo UserRepository, logger logger.Logger) *UserUsecase {
+    return &UserUsecase{userRepo: userRepo, logger: logger}
+}
+```
+
+### 3. Functional Options
+
+Flexible container configuration:
+
+```go
+func WithPostgresRepository(db *pgxpool.Pool) ContainerOption {
+    return func(c *Container) error {
+        c.userRepo = repository.NewSqlcUserRepository(db)
+        return nil
+    }
+}
+```
+
+### 4. Middleware Chain
+
+Echo middleware for cross-cutting concerns:
+
+```
+Request
+  ↓
+[Recovery]      ← Catch panics, return 500
+  ↓
+[Logging]       ← Structured request logging
+  ↓
+[Auth]          ← JWT validation (protected routes)
+  ↓
+[Rate Limit]    ← Future: request throttling
+  ↓
+Handler
+```
+
+### 5. DTO Pattern
+
+Separate domain entities from API contracts:
+
+```go
+// Domain entity - internal business logic
+type User struct {
+    ID           string
+    Email        string
+    PasswordHash string
+    CreatedAt    time.Time
+}
+
+// DTO - API contract
+type CreateUserRequest struct {
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required,min=8"`
+}
+```
+
+## Technical Decisions
+
+### Why Clean Architecture?
+
+| Alternative | Decision | Rationale |
+|-------------|----------|-----------|
+| MVC | Rejected | Business logic mixed with framework code |
+| Layered (n-tier) | Rejected | Database drives design, hard to test |
+| Clean Architecture | Selected | Framework agnostic, highly testable |
+
+### Why sqlc over ORM?
+
+| Aspect | sqlc | GORM |
+|--------|------|------|
+| Type Safety | Compile-time | Runtime reflection |
+| Performance | Raw SQL speed | Reflection overhead |
+| Complexity | Low | High (magic methods) |
+| SQL Control | Full | Limited |
+
+### Why Echo?
+
+- **Performance**: Faster than Gin in benchmarks
+- **Middleware**: Excellent middleware chain support
+- **Validation**: Built-in request validation
+- **Documentation**: Good Swagger integration
 
 ## Scalability Considerations
 
 ### Horizontal Scaling
-- Stateless application design
-- JWT tokens (no session storage)
-- Database connection pooling
-- Rate limiting per client
 
-### Vertical Scaling
-- Configurable database connections
-- Efficient query generation
-- Connection pooling optimization
-- Memory-efficient data structures
+Current state is stateless:
+- JWT authentication (no server-side sessions)
+- No in-memory state in handlers
+- Database is external
 
-## Deployment Architecture
+**Ready for:**
+- Multiple container instances behind load balancer
+- Kubernetes deployment
+- Auto-scaling based on CPU/memory
 
-### Container Strategy
-- Single container for application
-- Docker Compose for local development
-- Environment-specific configurations
-- Health checks for orchestration
+### Database Scaling
 
-### Configuration Management
-- YAML configuration files per environment
-- Environment variable overrides
-- Viper for configuration loading
-- Type-safe configuration structs
+Current: Single PostgreSQL instance
+
+**Future paths:**
+1. **Read replicas**: Route read queries to replicas
+2. **Connection pooling**: pgx already implements pooling
+3. **Caching layer**: Redis for hot data
+4. **Sharding**: By tenant or user ID ranges
+
+### Caching Strategy (Future)
+
+```
+Request
+  ↓
+[Cache Check] ──► Hit ──► Return cached
+  ↓ Miss
+[Database]
+  ↓
+[Cache Write]
+  ↓
+[Response]
+```
+
+## Security Architecture
+
+### Authentication
+
+```
+┌─────────────────────────────────────┐
+│         Client Application          │
+│  (Web, Mobile, Third-party)         │
+└─────────────────────────────────────┘
+              │
+              ▼ Bearer Token
+┌─────────────────────────────────────┐
+│         API Gateway / LB            │
+│         (SSL Termination)           │
+└─────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────┐
+│         Auth Middleware             │
+│  • Extract JWT from header          │
+│  • Validate signature               │
+│  • Check expiration                 │
+│  • Set user context                 │
+└─────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────┐
+│         Protected Handler           │
+│  • Access user ID from context      │
+│  • Enforce resource ownership       │
+└─────────────────────────────────────┘
+```
+
+### Data Protection
+
+- **Passwords**: bcrypt hashing (adaptive, slow)
+- **Tokens**: JWT with HS256 or RS256
+- **Transport**: TLS 1.3 required
+- **Validation**: Input validation at handler layer
+
+## Monitoring Points
+
+For future observability:
+
+| Layer | Metric | Implementation |
+|-------|--------|----------------|
+| HTTP | Request duration, rate, errors | Echo middleware |
+| Business | Usecase execution time | Span in usecase |
+| Database | Query duration, pool stats | pgx metrics |
+| System | Memory, goroutines | runtime metrics |

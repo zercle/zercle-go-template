@@ -1,697 +1,655 @@
-# Operational Workflows
+# Zercle Go Template - Development Tasks & Workflows
 
-## Test-Driven Development (TDD)
+## Common Development Workflows
 
-### TDD Cycle
-1. **Red:** Write a failing test for the desired behavior
-2. **Green:** Write minimal code to make the test pass
-3. **Refactor:** Improve code while keeping tests green
+### Starting Development
 
-### When to Write Tests
-- **Before implementing:** New features or business logic
-- **Before fixing bugs:** Reproduce the bug with a test
-- **After refactoring:** Ensure behavior unchanged
-- **Critical paths:** Authentication, authorization, data persistence
+```bash
+# 1. Clone and enter repository
+cd zercle-go-template
 
-### Test Organization
+# 2. Copy environment file
+cp .env.example .env
+# Edit .env with your values
 
-**Unit Tests:**
-- Location: Same package as implementation (`*_test.go`)
-- Scope: Single function or method
-- Dependencies: Mock external dependencies
-- Examples: `internal/domain/user/usecase/usecase_test.go`
+# 3. Start development environment
+make docker-up
 
-**Integration Tests:**
-- Location: `test/integration/`
-- Scope: End-to-end API flows
-- Dependencies: Real database (testcontainers)
-- Examples: `test/integration/api_test.go`
+# 4. Verify running
+curl http://localhost:8080/health
+# View Swagger: http://localhost:8080/swagger/index.html
+```
 
-**Mock Tests:**
-- Location: `test/mock/`
-- Scope: Database interactions
-- Dependencies: SQL mocks
-- Examples: `test/mock/sqlmock_test.go`
+### Daily Development Loop
 
-### Test Structure Template
+```bash
+# Pull latest changes
+git pull origin main
+
+# Run tests before making changes
+make test
+
+# Start development server
+make dev
+
+# Make changes to code...
+
+# Run tests after changes
+make test
+
+# Run linter
+make lint
+
+# Commit (pre-commit hooks will run)
+git add .
+git commit -m "feat: description"
+```
+
+## Adding a New Feature
+
+### Step-by-Step Guide
+
+Follow this pattern to add a new feature (e.g., `order`):
+
+#### 1. Create Domain Layer
 
 ```go
-func Test<FunctionName>_<Scenario>_<ExpectedResult>(t *testing.T) {
-    // Arrange
-    ctx := context.Background()
-    mockRepo := NewMockUserRepository(ctrl)
-    useCase := NewUserUseCase(mockRepo, cfg, argon2Cfg, log)
-    
-    // Setup expectations
-    mockRepo.EXPECT().GetByEmail(ctx, email).Return(nil, repository.ErrUserNotFound)
-    
-    // Act
-    result, err := useCase.Register(ctx, request)
-    
-    // Assert
-    assert.NoError(t, err)
-    assert.NotNil(t, result)
-    assert.NotEmpty(t, result.Token)
+// internal/feature/order/domain/order.go
+package domain
+
+import "time"
+
+type Order struct {
+    ID        string
+    UserID    string
+    Total     float64
+    Status    OrderStatus
+    CreatedAt time.Time
+}
+
+type OrderStatus string
+
+const (
+    OrderStatusPending   OrderStatus = "pending"
+    OrderStatusPaid      OrderStatus = "paid"
+    OrderStatusShipped   OrderStatus = "shipped"
+    OrderStatusDelivered OrderStatus = "delivered"
+    OrderStatusCancelled OrderStatus = "cancelled"
+)
+
+func (o *Order) Validate() error {
+    if o.UserID == "" {
+        return errors.New("user_id is required")
+    }
+    if o.Total <= 0 {
+        return errors.New("total must be positive")
+    }
+    return nil
 }
 ```
 
-### Table-Driven Tests
+#### 2. Create DTOs
 
 ```go
-func TestValidateEmail(t *testing.T) {
+// internal/feature/order/dto/order.go
+package dto
+
+type CreateOrderRequest struct {
+    UserID string  `json:"user_id" validate:"required,uuid"`
+    Total  float64 `json:"total" validate:"required,gt=0"`
+}
+
+type OrderResponse struct {
+    ID        string    `json:"id"`
+    UserID    string    `json:"user_id"`
+    Total     float64   `json:"total"`
+    Status    string    `json:"status"`
+    CreatedAt time.Time `json:"created_at"`
+}
+```
+
+#### 3. Define Repository Interface
+
+```go
+// internal/feature/order/repository/order_repository.go
+package repository
+
+import (
+    "context"
+    "github.com/zercle/zercle-go-template/internal/feature/order/domain"
+)
+
+type OrderRepository interface {
+    GetByID(ctx context.Context, id string) (*domain.Order, error)
+    GetByUserID(ctx context.Context, userID string) ([]*domain.Order, error)
+    Create(ctx context.Context, order *domain.Order) error
+    Update(ctx context.Context, order *domain.Order) error
+    Delete(ctx context.Context, id string) error
+}
+```
+
+#### 4. Implement Repository (PostgreSQL)
+
+```go
+// internal/feature/order/repository/sqlc_repository.go
+package repository
+
+import "github.com/jackc/pgx/v5/pgxpool"
+
+type SqlcOrderRepository struct {
+    db *pgxpool.Pool
+}
+
+func NewSqlcOrderRepository(db *pgxpool.Pool) *SqlcOrderRepository {
+    return &SqlcOrderRepository{db: db}
+}
+
+// Implement interface methods...
+```
+
+#### 5. Create Usecase
+
+```go
+// internal/feature/order/usecase/order_usecase.go
+package usecase
+
+type OrderUsecase struct {
+    orderRepo OrderRepository
+    userRepo  user.UserRepository  // Cross-feature dependency
+    logger    logger.Logger
+}
+
+func NewOrderUsecase(
+    orderRepo OrderRepository,
+    userRepo user.UserRepository,
+    logger logger.Logger,
+) *OrderUsecase {
+    return &OrderUsecase{
+        orderRepo: orderRepo,
+        userRepo:  userRepo,
+        logger:    logger,
+    }
+}
+
+func (u *OrderUsecase) CreateOrder(ctx context.Context, req dto.CreateOrderRequest) (*domain.Order, error) {
+    // 1. Validate user exists
+    _, err := u.userRepo.GetByID(ctx, req.UserID)
+    if err != nil {
+        return nil, err
+    }
+    
+    // 2. Create order entity
+    order := &domain.Order{
+        ID:        uuid.New().String(),
+        UserID:    req.UserID,
+        Total:     req.Total,
+        Status:    domain.OrderStatusPending,
+        CreatedAt: time.Now(),
+    }
+    
+    // 3. Validate
+    if err := order.Validate(); err != nil {
+        return nil, errors.ErrInvalidInput.WithMessage(err.Error())
+    }
+    
+    // 4. Save
+    if err := u.orderRepo.Create(ctx, order); err != nil {
+        return nil, err
+    }
+    
+    u.logger.Info().Str("order_id", order.ID).Msg("order created")
+    return order, nil
+}
+```
+
+#### 6. Create Handler
+
+```go
+// internal/feature/order/handler/order_handler.go
+package handler
+
+type OrderHandler struct {
+    orderUsecase usecase.OrderUsecase
+}
+
+func NewOrderHandler(orderUsecase usecase.OrderUsecase) *OrderHandler {
+    return &OrderHandler{orderUsecase: orderUsecase}
+}
+
+// @Summary     Create order
+// @Description Create a new order
+// @Tags        orders
+// @Accept      json
+// @Produce     json
+// @Param       request body dto.CreateOrderRequest true "Order data"
+// @Success     201 {object} dto.OrderResponse
+// @Router      /orders [post]
+func (h *OrderHandler) CreateOrder(c echo.Context) error {
+    var req dto.CreateOrderRequest
+    if err := c.Bind(&req); err != nil {
+        return err
+    }
+    if err := c.Validate(&req); err != nil {
+        return err
+    }
+    
+    order, err := h.orderUsecase.CreateOrder(c.Request().Context(), req)
+    if err != nil {
+        return err
+    }
+    
+    return c.JSON(http.StatusCreated, dto.ToOrderResponse(order))
+}
+```
+
+#### 7. Add SQL Queries
+
+```sql
+-- internal/infrastructure/db/queries/orders.sql
+-- name: GetOrderByID :one
+SELECT * FROM orders WHERE id = $1;
+
+-- name: GetOrdersByUserID :many
+SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC;
+
+-- name: CreateOrder :one
+INSERT INTO orders (id, user_id, total, status, created_at)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING *;
+
+-- name: UpdateOrder :one
+UPDATE orders
+SET status = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: DeleteOrder :exec
+DELETE FROM orders WHERE id = $1;
+```
+
+#### 8. Create Migration
+
+```sql
+-- internal/infrastructure/db/migrations/002_add_orders.sql
+CREATE TABLE orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    total DECIMAL(10, 2) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_orders_user_id ON orders(user_id);
+CREATE INDEX idx_orders_status ON orders(status);
+```
+
+#### 9. Wire Dependencies
+
+Update [`internal/container/container.go`](internal/container/container.go):
+
+```go
+// Add to Container struct
+type Container struct {
+    // ... existing fields ...
+    orderRepo   order.OrderRepository
+    orderUsecase order.OrderUsecase
+}
+
+// Add functional option
+func WithPostgresOrderRepository(db *pgxpool.Pool) ContainerOption {
+    return func(c *Container) error {
+        c.orderRepo = orderRepo.NewSqlcOrderRepository(db)
+        return nil
+    }
+}
+
+// Add to Build()
+func (c *Container) Build() error {
+    // ... existing code ...
+    c.orderUsecase = orderUC.NewOrderUsecase(c.orderRepo, c.userRepo, c.logger)
+    return nil
+}
+```
+
+#### 10. Register Routes
+
+Update [`cmd/api/main.go`](cmd/api/main.go):
+
+```go
+// Add to route registration
+orderHandler := container.GetOrderHandler()
+orders := e.Group("/orders", authMiddleware)
+{
+    orders.POST("", orderHandler.CreateOrder)
+    orders.GET("/:id", orderHandler.GetOrder)
+    orders.GET("", orderHandler.ListOrders)
+}
+```
+
+#### 11. Generate Code & Run Migrations
+
+```bash
+# Generate SQLC code
+make sqlc
+
+# Run migrations
+make migrate-up
+
+# Generate Swagger docs
+make swag
+```
+
+#### 12. Write Tests
+
+```bash
+# Generate mocks
+//go:generate mockgen -source=order_repository.go -destination=mocks/order_repository_mock.go
+
+# Run tests
+make test
+```
+
+## Testing Procedures
+
+### Test Organization
+
+```
+feature/user/
+├── handler/
+│   ├── user_handler.go
+│   └── user_handler_test.go          # Unit tests
+│   └── user_handler_integration_test.go  # Integration tests
+├── repository/
+│   ├── sqlc_repository.go
+│   └── sqlc_repository_integration_test.go
+└── usecase/
+    ├── user_usecase.go
+    └── user_usecase_test.go
+```
+
+### Unit Test Pattern
+
+```go
+func TestUserUsecase_CreateUser(t *testing.T) {
     tests := []struct {
-        name    string
-        email   string
-        wantErr bool
+        name      string
+        input     dto.CreateUserRequest
+        mockSetup func(*mocks.MockUserRepository)
+        wantErr   bool
+        errCode   string
     }{
-        {"valid email", "user@example.com", false},
-        {"invalid format", "invalid", true},
-        {"empty", "", true},
+        {
+            name:  "success",
+            input: dto.CreateUserRequest{Email: "test@example.com", Password: "password123"},
+            mockSetup: func(m *mocks.MockUserRepository) {
+                m.EXPECT().GetByEmail(gomock.Any(), "test@example.com").Return(nil, errors.ErrNotFound)
+                m.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
+            },
+            wantErr: false,
+        },
+        {
+            name:  "email_already_exists",
+            input: dto.CreateUserRequest{Email: "exists@example.com", Password: "password123"},
+            mockSetup: func(m *mocks.MockUserRepository) {
+                m.EXPECT().GetByEmail(gomock.Any(), "exists@example.com").Return(&domain.User{}, nil)
+            },
+            wantErr: true,
+            errCode: "CONFLICT",
+        },
     }
     
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            err := ValidateEmail(tt.email)
-            if (err != nil) != tt.wantErr {
-                t.Errorf("ValidateEmail() error = %v, wantErr %v", err, tt.wantErr)
+            ctrl := gomock.NewController(t)
+            defer ctrl.Finish()
+            
+            mockRepo := mocks.NewMockUserRepository(ctrl)
+            tt.mockSetup(mockRepo)
+            
+            uc := usecase.NewUserUsecase(mockRepo, logger.NewNop())
+            _, err := uc.CreateUser(context.Background(), tt.input)
+            
+            if tt.wantErr {
+                assert.Error(t, err)
+                var appErr *errors.AppError
+                if errors.As(err, &appErr) {
+                    assert.Equal(t, tt.errCode, appErr.Code)
+                }
+            } else {
+                assert.NoError(t, err)
             }
         })
     }
 }
 ```
 
+### Integration Test Pattern
+
+```go
+func TestUserRepositoryIntegration(t *testing.T) {
+    ctx := context.Background()
+    
+    // Setup test database
+    db := setupTestDB(t)
+    defer db.Close()
+    
+    repo := repository.NewSqlcUserRepository(db)
+    
+    t.Run("create_and_get_user", func(t *testing.T) {
+        user := &domain.User{
+            ID:    uuid.New().String(),
+            Email: "test@example.com",
+            Name:  "Test User",
+        }
+        
+        // Create
+        err := repo.Create(ctx, user)
+        require.NoError(t, err)
+        
+        // Get
+        found, err := repo.GetByID(ctx, user.ID)
+        require.NoError(t, err)
+        assert.Equal(t, user.Email, found.Email)
+        assert.Equal(t, user.Name, found.Name)
+    })
+}
+```
+
 ### Running Tests
 
-**All tests:**
 ```bash
-go test ./...
+# All tests
+make test
+
+# Unit tests only
+go test ./... -short
+
+# Integration tests only
+go test ./... -run Integration
+
+# Specific package
+go test ./internal/feature/user/...
+
+# With coverage
+make test-coverage
+
+# Verbose output
+go test -v ./...
 ```
 
-**Specific package:**
+## Build and Deployment
+
+### Local Build
+
 ```bash
-go test ./internal/domain/user/usecase/
+# Build binary
+make build
+# Output: bin/api
+
+# Run binary
+./bin/api
 ```
 
-**With coverage:**
+### Docker Build
+
 ```bash
-go test -cover ./...
+# Build image
+docker build -t zercle-go-template:latest .
+
+# Run container
+docker run -p 8080:8080 --env-file .env zercle-go-template:latest
 ```
 
-**Coverage report:**
+### Docker Compose
+
 ```bash
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+# Start all services
+make docker-up
+# or
+docker-compose up -d
+
+# View logs
+docker-compose logs -f api
+
+# Stop services
+make docker-down
+# or
+docker-compose down
+
+# Full reset (volumes)
+docker-compose down -v
 ```
 
-**Integration tests:**
+### Database Migrations
+
 ```bash
-go test -tags=integration ./test/integration/
-```
+# Run migrations
+make migrate-up
 
-### Test Coverage Goals
-- **Critical business logic:** >90%
-- **Domain use cases:** >80%
-- **Handlers:** >70%
-- **Infrastructure:** >60%
-- **Overall:** >70%
+# Rollback last migration
+make migrate-down
 
-## Refactoring Procedures
+# Create new migration
+migrate create -ext sql -dir internal/infrastructure/db/migrations -seq add_orders
 
-### When to Refactor
-- Code duplication detected
-- Complex functions (>50 lines)
-- God objects with too many responsibilities
-- Poor naming or unclear intent
-- Performance bottlenecks identified
-- Adding new features becomes difficult
-
-### Refactoring Checklist
-- [ ] Ensure tests exist and pass
-- [ ] Identify the smell/problem
-- [ ] Plan the refactoring approach
-- [ ] Make small, incremental changes
-- [ ] Run tests after each change
-- [ ] Verify behavior unchanged
-- [ ] Update documentation if needed
-- [ ] Commit with clear message
-
-### Common Refactorings
-
-**Extract Method:**
-- Move code to a new function
-- Give it a descriptive name
-- Replace original code with function call
-
-**Extract Interface:**
-- Identify common behavior
-- Create interface with methods
-- Implement interface in concrete types
-- Update dependencies to use interface
-
-**Replace Magic Numbers:**
-- Identify constants in code
-- Create named constants
-- Replace numbers with constants
-- Add documentation
-
-**Simplify Conditional:**
-- Use guard clauses
-- Replace nested if-else with switch
-- Extract complex conditions to named functions
-
-**Remove Dead Code:**
-- Identify unused code
-- Remove or comment out
-- Run tests to verify
-- Commit removal
-
-### Refactoring Example
-
-**Before:**
-```go
-func (h *UserHandler) Register(c echo.Context) error {
-    var req request.RegisterUser
-    if err := c.Bind(&req); err != nil {
-        return c.JSON(http.StatusBadRequest, ErrorResponse{Message: err.Error()})
-    }
-    if err := h.validator.Struct(req); err != nil {
-        return c.JSON(http.StatusBadRequest, ErrorResponse{Message: err.Error()})
-    }
-    // ... more code
-}
-```
-
-**After:**
-```go
-func (h *UserHandler) Register(c echo.Context) error {
-    req, err := h.bindAndValidateRequest(c)
-    if err != nil {
-        return h.errorResponse(c, http.StatusBadRequest, err)
-    }
-    // ... more code
-}
-
-func (h *UserHandler) bindAndValidateRequest(c echo.Context) (*request.RegisterUser, error) {
-    var req request.RegisterUser
-    if err := c.Bind(&req); err != nil {
-        return nil, err
-    }
-    if err := h.validator.Struct(req); err != nil {
-        return nil, err
-    }
-    return &req, nil
-}
+# Check version
+migrate -path internal/infrastructure/db/migrations -database $DB_URL version
 ```
 
 ## Code Review Checklist
 
-### General Review
-- [ ] Code follows project coding standards
-- [ ] Naming is clear and descriptive
-- [ ] Functions are small and focused
-- [ ] No code duplication
-- [ ] Comments explain "why", not "what"
-- [ ] No commented-out code left behind
-- [ ] Proper error handling throughout
-- [ ] Logging at appropriate levels
+### Before Creating PR
+
+- [ ] Tests pass: `make test`
+- [ ] Linter passes: `make lint`
+- [ ] Code formatted: `go fmt ./...`
+- [ ] Swagger updated: `make swag`
+- [ ] SQLC generated: `make sqlc` (if queries changed)
+- [ ] Migrations tested: `make migrate-up` works
 
 ### Architecture Review
-- [ ] Follows clean architecture principles
-- [ ] Dependencies point inward
-- [ ] Domain logic isolated from infrastructure
-- [ ] Interfaces used for external dependencies
-- [ ] No circular dependencies
-- [ ] Proper separation of concerns
 
-### Security Review
-- [ ] Input validation on all user inputs
-- [ ] SQL injection prevention (SQLC handles this)
-- [ ] Authentication/authorization enforced
-- [ ] Sensitive data not logged
-- [ ] Secrets not hardcoded
-- [ ] CORS properly configured
-- [ ] Rate limiting applied
+- [ ] Domain layer has no external dependencies
+- [ ] Interfaces defined by consumer (usecase defines repo interface)
+- [ ] Errors use custom error types from `internal/errors`
+- [ ] Context passed through all layers
+- [ ] No business logic in handlers
 
-### Performance Review
-- [ ] No N+1 query problems
-- [ ] Database queries optimized
-- [ ] Connection pooling configured
-- [ ] No unnecessary allocations
-- [ ] Efficient data structures used
-- [ ] Caching considered where appropriate
+### Code Quality
 
-### Testing Review
-- [ ] Tests added for new functionality
-- [ ] Tests cover edge cases
-- [ ] Tests are readable and maintainable
-- [ ] Mocks used appropriately
-- [ ] Test coverage adequate
-- [ ] Integration tests included for API changes
+- [ ] Functions are focused and small (< 50 lines)
+- [ ] Variable names are descriptive
+- [ ] Exported functions have documentation comments
+- [ ] No magic numbers/strings (use constants)
+- [ ] Proper error wrapping with context
 
-### Documentation Review
-- [ ] Godoc comments on exported functions
-- [ ] API documentation updated (Swagger)
-- [ ] README updated if needed
-- [ ] Architecture docs updated if major change
-- [ ] Migration files documented
+### Testing
 
-### Specific Domain Reviews
+- [ ] Unit tests for usecase layer
+- [ ] Table-driven tests where appropriate
+- [ ] Mock generation with `//go:generate mockgen`
+- [ ] Integration tests for repository layer
+- [ ] Edge cases covered
 
-**User Domain:**
-- [ ] Password hashing with Argon2id
-- [ ] Email uniqueness enforced
-- [ ] JWT token properly generated
-- [ ] User ownership verified
+### Security
 
-**Task Domain:**
-- [ ] Task ownership verified
-- [ ] Status values validated
-- [ ] Priority values validated
-- [ ] Due date handling correct
+- [ ] Input validation at handler layer
+- [ ] SQL queries use parameterized statements (via sqlc)
+- [ ] Passwords hashed with bcrypt
+- [ ] No secrets logged
+- [ ] Authorization checks in usecase
 
-**Database:**
-- [ ] Migration files created
-- [ ] SQLC queries updated
-- [ ] Indexes added if needed
-- [ ] Foreign keys defined
+### API Design
 
-## Debugging Protocols
+- [ ] RESTful endpoint naming
+- [ ] Proper HTTP status codes
+- [ ] Consistent response structure
+- [ ] Swagger annotations complete
+- [ ] Error responses follow standard format
 
-### Debugging Workflow
+## Troubleshooting
 
-1. **Reproduce the Issue**
-   - Get exact steps to reproduce
-   - Identify affected environment
-   - Gather error messages and logs
-   - Note request/response data
+### Common Issues
 
-2. **Gather Information**
-   - Check application logs
-   - Review database state
-   - Examine request/response
-   - Check configuration values
-
-3. **Formulate Hypothesis**
-   - Based on symptoms
-   - Consider recent changes
-   - Review related code
-   - Check known issues
-
-4. **Test Hypothesis**
-   - Add logging to verify
-   - Write reproduction test
-   - Use debugger if needed
-   - Isolate the problem
-
-5. **Implement Fix**
-   - Write minimal fix
-   - Add tests for fix
-   - Verify fix works
-   - Check for side effects
-
-### Debugging Tools
-
-**Logging:**
-```go
-log.Debug("Processing request", "user_id", userID, "task_id", taskID)
-log.Error("Failed to update task", "error", err, "task_id", taskID)
-```
-
-**Structured Logging:**
-- Include request ID in all logs
-- Use consistent field names
-- Log at appropriate levels
-- Include context for errors
-
-**Error Inspection:**
-```go
-if err != nil {
-    log.Error("Operation failed", 
-        "error", err,
-        "operation", "createUser",
-        "email", req.Email)
-    // Use errors.Is() and errors.As() for error checking
-}
-```
-
-**Database Debugging:**
+**Tests failing with "connection refused"**
 ```bash
-# Connect to database
-psql -h localhost -U postgres -d postgres
-
-# Check recent queries
-SELECT * FROM pg_stat_statements ORDER BY total_time DESC LIMIT 10;
-
-# Check connection pool
-SELECT * FROM pg_stat_activity;
+# Database not running
+make docker-up
+# or for unit tests only
+go test ./... -short
 ```
 
-**HTTP Debugging:**
+**SQLC generation errors**
 ```bash
-# Check API endpoint
-curl -X GET http://localhost:3000/health
-
-# With authentication
-curl -X GET http://localhost:3000/api/v1/users \
-  -H "Authorization: Bearer <token>"
-
-# Verbose output
-curl -v http://localhost:3000/api/v1/tasks
+# Ensure schema is valid
+make migrate-up
+# Regenerate
+make sqlc
 ```
 
-### Common Issues & Solutions
-
-**Database Connection Issues:**
-- Check database is running
-- Verify connection string
-- Check connection pool settings
-- Review firewall rules
-
-**Authentication Failures:**
-- Verify JWT secret matches
-- Check token expiration
-- Validate token format
-- Review middleware configuration
-
-**Performance Issues:**
-- Check database query performance
-- Review connection pool settings
-- Profile with pprof
-- Check for N+1 queries
-
-**Test Failures:**
-- Run tests with verbose output
-- Check test data setup
-- Verify mock expectations
-- Review test isolation
-
-### Adding Debug Logging
-
-**Before Production:**
-```go
-func (uc *userUseCase) Login(ctx context.Context, req request.LoginUser) (*userResponse.LoginResponse, error) {
-    log.Debug("Login attempt", "email", req.Email)
-    
-    userModel, err := uc.repo.GetByEmail(ctx, req.Email)
-    if err != nil {
-        log.Error("User not found", "email", req.Email, "error", err)
-        return nil, ErrInvalidCredentials
-    }
-    
-    // ... rest of code
-}
-```
-
-**Remove Before Production:**
-- Remove debug-level logs
-- Keep error and warn logs
-- Ensure no sensitive data in logs
-
-### Performance Debugging
-
-**Enable Profiling:**
-```go
-import _ "net/http/pprof"
-
-// Add to routes
-e.GET("/debug/pprof/*", echo.WrapHandler(http.DefaultServeMux))
-```
-
-**Profile CPU:**
+**Linting errors**
 ```bash
-go tool pprof http://localhost:3000/debug/pprof/profile
-```
-
-**Profile Memory:**
-```bash
-go tool pprof http://localhost:3000/debug/pprof/heap
-```
-
-**Profile Goroutines:**
-```bash
-go tool pprof http://localhost:3000/debug/pprof/goroutine
-```
-
-### Integration Testing Debugging
-
-**Run Single Test:**
-```bash
-go test -v -run TestLogin ./test/integration/
-```
-
-**Keep Database Running:**
-```bash
-# Add this to test
-testcontainers.CleanupContainer(t, container)
-```
-
-**View Test Database:**
-```bash
-# Get container ID
-docker ps
-
-# Connect to test database
-docker exec -it <container_id> psql -U postgres -d postgres
-```
-
-## Adding a New Domain
-
-### Step-by-Step Process
-
-1. **Create Domain Structure**
-   ```
-   internal/domain/<domain>/
-     entity/
-     handler/
-     repository/
-     usecase/
-     request/
-     response/
-     mock/
-     interface.go
-   ```
-
-2. **Define Entity**
-   - Create entity in `entity/<domain>.go`
-   - Add UUID primary key
-   - Add timestamps (created_at, updated_at)
-   - Add business logic methods
-
-3. **Create Interface**
-   - Define Repository, Service, Handler interfaces
-   - Follow existing patterns
-   - Use domain-specific types
-
-4. **Implement Repository**
-   - Create SQL queries in `sqlc/queries/<domain>.sql`
-   - Run `sqlc generate` to create types
-   - Implement repository interface
-   - Handle errors appropriately
-
-5. **Implement UseCase**
-   - Create business logic
-   - Define domain-specific errors
-   - Implement validation rules
-   - Add logging
-
-6. **Implement Handler**
-   - Create HTTP handlers
-   - Map request/response DTOs
-   - Handle errors
-   - Register routes
-
-7. **Add Tests**
-   - Unit tests for usecase
-   - Integration tests for API
-   - Mock tests for repository
-
-8. **Update Application**
-   - Wire dependencies in `app.go`
-   - Register routes
-   - Update Swagger documentation
-
-9. **Update Documentation**
-   - Add to architecture.md
-   - Update context.md
-   - Add API examples
-
-## Database Migration Workflow
-
-### Creating a Migration
-
-1. **Create Migration File**
-   ```bash
-   # Format: YYYYMMDD_NNN_description
-   touch sqlc/migrations/20260101_003_add_orders_table.up.sql
-   touch sqlc/migrations/20260101_003_add_orders_table.down.sql
-   ```
-
-2. **Write Up Migration**
-   ```sql
-   CREATE TABLE orders (
-       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-       total DECIMAL(10,2) NOT NULL,
-       status VARCHAR(50) NOT NULL DEFAULT 'pending',
-       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-   );
-   
-   CREATE INDEX idx_orders_user_id ON orders(user_id);
-   ```
-
-3. **Write Down Migration**
-   ```sql
-   DROP INDEX IF EXISTS idx_orders_user_id;
-   DROP TABLE IF EXISTS orders;
-   ```
-
-4. **Apply Migration**
-   ```bash
-   # Using migration tool (add to project)
-   migrate -path sqlc/migrations -database "postgres://..." up
-   ```
-
-5. **Regenerate SQLC**
-   ```bash
-   sqlc generate
-   ```
-
-### Migration Best Practices
-- Always write both up and down migrations
-- Use transactions for complex changes
-- Add indexes for foreign keys
-- Consider data migration for schema changes
-- Test migrations on development first
-- Never modify existing migrations
-
-## Running the Application
-
-### Development
-```bash
-# Set environment
-export SERVER_ENV=local
-
-# Run with hot reload (add air to project)
-air
-
-# Or standard run
-go run cmd/server/main.go
-```
-
-### Production
-```bash
-# Build
-go build -o bin/server cmd/server/main.go
-
-# Run
-./bin/server
-```
-
-### Docker
-```bash
-# Build image
-docker build -t zercle-go-template .
-
-# Run container
-docker run -p 3000:3000 \
-  -e SERVER_ENV=prod \
-  -e DATABASE_URL=... \
-  zercle-go-template
-```
-
-### Docker Compose
-```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
-
-## Common Commands
-
-### Linting
-```bash
-# Run linter
-golangci-lint run
-
-# Fix issues
+# Auto-fix where possible
 golangci-lint run --fix
 ```
 
-### Formatting
+**Port already in use**
 ```bash
-# Format code
-go fmt ./...
-
-# Check formatting
-go vet ./...
+# Find and kill process
+lsof -ti:8080 | xargs kill -9
+# or change port in .env
 ```
 
-### Dependencies
+## Git Workflow
+
 ```bash
-# Tidy dependencies
-go mod tidy
+# Create feature branch
+git checkout -b feature/order-management
 
-# Update dependencies
-go get -u ./...
+# Regular commits
+git add .
+git commit -m "feat: add order domain model"
 
-# Verify dependencies
-go mod verify
+# Push branch
+git push -u origin feature/order-management
+
+# Create PR via GitHub/GitLab
+# After review and approval...
+
+# Merge to main
+git checkout main
+git pull origin main
 ```
 
-### Documentation
-```bash
-# Generate Swagger docs
-swag init -g cmd/server/main.go
+### Commit Message Convention
 
-# View Swagger UI
-# Navigate to http://localhost:3000/swagger/index.html
 ```
-
-### SQLC
-```bash
-# Generate SQLC code
-sqlc generate
-
-# Validate SQLC configuration
-sqlc validate
-```
-
-## Environment Setup
-
-### Prerequisites
-- Go 1.24.0+
-- PostgreSQL 12+
-- Docker (optional, for containerized deployment)
-
-### Local Development
-1. Clone repository
-2. Copy `.env.example` to `.env`
-3. Configure database connection
-4. Run migrations
-5. Start application
-
-### Database Setup
-```bash
-# Start PostgreSQL with Docker
-docker run --name postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=postgres \
-  -p 5432:5432 \
-  -d postgres:15
-
-# Run migrations
-# (Add migration tool to project)
-```
-
-### Seed Data
-```bash
-# Run seed script
-./scripts/seed-db.sh
+feat:     New feature
+fix:      Bug fix
+docs:     Documentation changes
+style:    Code style (formatting, no logic change)
+refactor: Code refactoring
+test:     Test changes
+chore:    Build/config/tooling changes
 ```

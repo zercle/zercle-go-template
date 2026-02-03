@@ -1,320 +1,337 @@
-# Technical Standards & Guidelines
+# Zercle Go Template - Technology Stack
 
-## Language & Runtime
-- **Go Version:** 1.24.0
-- **Module:** github.com/zercle/zercle-go-template
+## Core Technologies
 
-## Core Dependencies
+### Language & Runtime
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| Go | 1.24+ | Primary language |
+| Module System | Go Modules | Dependency management |
+
+**Go Features Used:**
+- Generics (where appropriate)
+- Context for cancellation
+- Interfaces for abstraction
+- Struct embedding for composition
 
 ### Web Framework
-- **Echo v4** - HTTP server framework
-- **Labstack middleware** - Request ID, logger, recovery, CORS
+
+**Echo v4** ([`labstack/echo`](https://github.com/labstack/echo))
+
+```go
+e := echo.New()
+e.Use(middleware.Recover())
+e.Use(middleware.Logger())
+e.GET("/users/:id", userHandler.GetUser)
+```
+
+**Features used:**
+- Routing with path parameters
+- Middleware chain
+- Request binding and validation
+- Custom error handling
+- Static file serving (Swagger UI)
 
 ### Database
-- **pgx/v5** - PostgreSQL driver
-- **SQLC** - Type-safe SQL query generation
-- **Testcontainers** - Integration testing with real databases
+
+**PostgreSQL 13+** with **pgx/v5**
+
+| Component | Package | Purpose |
+|-----------|---------|---------|
+| Driver | `github.com/jackc/pgx/v5/pgxpool` | Connection pooling |
+| SQL Builder | `sqlc` | Type-safe query generation |
+| Migrations | `golang-migrate/migrate` | Schema versioning |
+
+**Why pgx over lib/pq:**
+- Better performance
+- Native Go (no CGO)
+- Connection pool management
+- Support for advanced PostgreSQL features
 
 ### Authentication
-- **golang-jwt/jwt/v5** - JWT token generation and validation
-- **Argon2id** - Password hashing (golang.org/x/crypto)
 
-### Configuration
-- **Viper** - Configuration management
-- **YAML** - Configuration file format
+**JWT** with `github.com/golang-jwt/jwt/v5`
 
-### Logging
-- **Zerolog** - Structured, zero-allocation logging
-
-### Validation
-- **go-playground/validator/v10** - Request validation
-
-### Documentation
-- **Swaggo** - Swagger/OpenAPI documentation generation
-
-### Testing
-- **testify** - Assertions and mocking
-- **go.uber.org/mock** - Mock generation
-- **testcontainers** - Integration testing
-
-## Coding Standards
-
-### Naming Conventions
-- **Files:** lowercase with underscores (e.g., `user_handler.go`)
-- **Packages:** lowercase, single word (e.g., `handler`, `usecase`)
-- **Interfaces:** Simple names describing capability (e.g., `UserRepository`)
-- **Implementations:** Descriptive names (e.g., `userUseCase`, `UserHandler`)
-- **Constants:** UPPER_SNAKE_CASE
-- **Private variables:** camelCase
-- **Public variables:** PascalCase
-
-### Code Organization
-- **Package structure:** One responsibility per package
-- **File size:** Keep files focused and under 300 lines when possible
-- **Function length:** Prefer functions under 50 lines
-- **Exported functions:** Must have godoc comments
-- **Error handling:** Always handle errors, never ignore
-
-### Design Patterns
-
-**Repository Pattern:**
-- Abstract data access behind interfaces
-- Domain entities mapped to database models
-- Repository implementations in infrastructure layer
-
-**Use Case Pattern:**
-- Business logic encapsulated in use cases
-- Coordinate between repositories and handlers
-- Domain-specific error definitions
-
-**Factory Pattern:**
-- Database factory for creating connections
-- Configuration-based instantiation
-
-**Middleware Pattern:**
-- Request/response processing pipeline
-- Cross-cutting concerns (auth, logging, CORS)
-
-### SOLID Principles
-
-**Single Responsibility:**
-- Each package has one clear purpose
-- Functions do one thing well
-- Classes/interfaces focused on single capability
-
-**Open/Closed:**
-- Interfaces for extensibility
-- New features through new implementations
-- Avoid modifying existing, stable code
-
-**Liskov Substitution:**
-- Interface contracts honored by implementations
-- Mock implementations behave like real ones
-
-**Interface Segregation:**
-- Small, focused interfaces
-- Clients depend only on needed methods
-
-**Dependency Inversion:**
-- Depend on abstractions (interfaces)
-- High-level modules don't depend on low-level
-- Inversion of Control through DI
-
-## Testing Guidelines
-
-### Test Structure
-- **Unit tests:** Test individual functions/methods
-- **Integration tests:** Test component interactions
-- **Table-driven tests:** Multiple test cases in one function
-- **Mock tests:** Use generated mocks for dependencies
-
-### Test Organization
-```
-domain/
-  user/
-    handler/
-      handler.go
-      handler_test.go
-    usecase/
-      usecase.go
-      usecase_test.go
-test/
-  integration/
-    api_test.go
-  mock/
-    sqlmock_test.go
-```
-
-### Testing Best Practices
-- Write tests for critical business logic
-- Aim for >80% coverage on core paths
-- Use table-driven tests for multiple scenarios
-- Mock external dependencies (database, HTTP clients)
-- Use testcontainers for real database integration tests
-- Test error paths, not just happy paths
-
-### Test Naming
-- `Test<FunctionName>_<Scenario>_<ExpectedResult>`
-- Example: `TestLogin_ValidCredentials_ReturnsToken`
-
-## Security Standards
-
-### Password Storage
-- Always use Argon2id for password hashing
-- Configurable memory, iterations, parallelism
-- Never store plaintext passwords
-
-### Authentication
-- JWT tokens for stateless authentication
-- Token expiration configurable
-- Secret key must be environment-specific
-- Validate tokens on protected routes
-
-### Input Validation
-- Validate all user inputs
-- Use validator/v10 for request DTOs
-- Sanitize database queries (SQLC prevents SQL injection)
-- Validate file uploads (size, type)
-
-### CORS Configuration
-- Whitelist allowed origins per environment
-- Configure allowed methods and headers
-- Use secure defaults for production
-
-### Rate Limiting
-- Configurable requests per time window
-- Apply to API endpoints
-- Prevent abuse and DoS attacks
-
-## Database Standards
-
-### Migrations
-- Use SQLC migration format
-- Up and down migrations required
-- Version with timestamp format: `YYYYMMDD_NNN_description`
-- Place in `sqlc/migrations/` directory
-
-### Queries
-- Use SQLC for type-safe queries
-- SQL files in `sqlc/queries/` directory
-- Named queries for clarity
-- Parameterized queries (SQLC handles this)
-
-### Connection Pooling
-- Configure min/max connections
-- Set connection lifetime and idle timeout
-- Health check period for stale connections
-- Adjust based on application load
-
-## Error Handling
-
-### Error Types
-- **Domain errors:** Business rule violations (e.g., `ErrUserNotFound`)
-- **Repository errors:** Data access failures
-- **Infrastructure errors:** External service failures
-- **Validation errors:** Input validation failures
-
-### Error Wrapping
-- Wrap errors with context using `fmt.Errorf`
-- Use `errors.Is()` and `errors.As()` for error checking
-- Log errors with sufficient context
-- Return appropriate HTTP status codes
-
-### HTTP Status Codes
-- 200 OK - Successful GET/PUT/PATCH
-- 201 Created - Successful POST
-- 400 Bad Request - Validation errors
-- 401 Unauthorized - Missing/invalid JWT
-- 404 Not Found - Resource not found
-- 409 Conflict - Duplicate resources
-- 500 Internal Server Error - Unexpected errors
-
-## Logging Standards
-
-### Log Levels
-- **Debug:** Detailed diagnostic information
-- **Info:** General informational messages
-- **Warn:** Warning messages for potential issues
-- **Error:** Error events that might still allow continued operation
-- **Fatal:** Severe errors requiring immediate attention
-
-### Log Format
-- Structured JSON logging
-- Include request ID for tracing
-- Contextual fields (user_id, action, resource)
-- Timestamps in ISO 8601 format
-
-### What to Log
-- Application startup/shutdown
-- Request/response for API calls (with request ID)
-- Errors with stack traces
-- Business events (user registration, task creation)
-- Performance metrics (slow queries, long-running operations)
-
-## API Standards
-
-### RESTful Design
-- Use appropriate HTTP methods (GET, POST, PUT, PATCH, DELETE)
-- Resource-based URLs (e.g., `/api/v1/users/:id`)
-- Query parameters for filtering and pagination
-- Consistent response format
-
-### Response Format
-```json
-{
-  "data": { ... },
-  "error": null,
-  "meta": { "total": 100, "page": 1 }
+```go
+// Token structure
+type Claims struct {
+    UserID string `json:"user_id"`
+    jwt.RegisteredClaims
 }
 ```
 
-### Versioning
-- URL-based versioning: `/api/v1/`
-- Backward compatibility within major versions
-- Deprecation notices for breaking changes
-
-### Documentation
-- Swagger/OpenAPI documentation
-- Auto-generated from code annotations
-- Example requests/responses
-- Authentication requirements documented
-
-## Deployment Guidelines
-
-### Docker
-- Multi-stage builds for optimization
-- Alpine-based images for smaller size
-- Non-root user for security
-- Health checks defined in Dockerfile
+**Token Strategy:**
+- Access tokens: 15 minutes, in-memory only
+- Refresh tokens: 7 days, stored in httpOnly cookies
 
 ### Configuration
-- Environment-specific configs (local, dev, uat, prod)
-- Sensitive data via environment variables
-- Never commit secrets to repository
 
-### Health Checks
-- `/health` - Application health
-- `/readiness` - Readiness for traffic
-- Database connectivity check
-- Dependency service checks
+**Viper** (`github.com/spf13/viper`)
 
-## Performance Guidelines
+Configuration precedence (highest to lowest):
+1. Runtime environment variables (`APP_*` prefix)
+2. `.env` file
+3. YAML config file (`configs/config.yaml`)
+4. Default values
 
-### Database
-- Use connection pooling
-- Optimize queries with proper indexes
-- Batch operations when possible
-- Use prepared statements (SQLC handles this)
+```yaml
+# Example structure
+app:
+  name: "zercle-api"
+  port: 8080
+  env: "development"
 
-### HTTP
-- Enable compression for large responses
-- Use appropriate cache headers
-- Implement rate limiting
-- Monitor response times
+database:
+  host: "localhost"
+  port: 5432
+  name: "zercle"
 
-### Memory
-- Reuse objects where possible
-- Avoid allocations in hot paths
-- Use value types for small structs
-- Profile before optimizing
+jwt:
+  secret: "your-secret-key"
+  expiry: 900  # seconds
+```
 
-## Code Quality
+### Logging
 
-### Linting
-- Use golangci-lint
-- Configure in `.golangci.yml`
-- Run in CI/CD pipeline
+**Zerolog** (`github.com/rs/zerolog`)
 
-### Code Review Checklist
-- Follows coding standards
-- Tests included and passing
-- Error handling complete
-- Documentation updated
-- No security vulnerabilities
-- Performance considered
+Structured JSON logging with levels:
+- `debug`: Development details
+- `info`: General operations
+- `warn`: Recoverable issues
+- `error`: Failures requiring attention
+- `fatal`: Application cannot continue
+
+```go
+logger.Info().
+    Str("user_id", userID).
+    Str("method", c.Request().Method).
+    Str("path", c.Path()).
+    Msg("user created")
+```
+
+### Validation
+
+**go-playground/validator/v10**
+
+```go
+type CreateUserRequest struct {
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required,min=8,max=64"`
+    Name     string `json:"name" validate:"required,max=100"`
+}
+```
+
+Built-in validators: `required`, `email`, `min`, `max`, `uuid`, `url`, `datetime`
 
 ### Documentation
-- Godoc comments for exported functions
-- README with setup instructions
-- API documentation (Swagger)
-- Architecture documentation (Memory Bank)
+
+**Swagger/OpenAPI** with `swaggo/swag`
+
+- Annotations in handler code
+- Auto-generated `api/docs/` files
+- Interactive UI at `/swagger/index.html`
+
+```go
+// @Summary     Create user
+// @Description Create a new user account
+// @Tags        users
+// @Accept      json
+// @Produce     json
+// @Param       request body dto.CreateUserRequest true "User data"
+// @Success     201 {object} dto.UserResponse
+// @Failure     400 {object} dto.ErrorResponse
+// @Router      /users [post]
+```
+
+## Development Tools
+
+### Linting
+
+**golangci-lint** ([`.golangci.yml`](.golangci.yml))
+
+Enabled linters:
+- `errcheck`: Unchecked errors
+- `gosimple`: Code simplification suggestions
+- `govet`: Go vet analysis
+- `ineffassign`: Ineffective assignments
+- `staticcheck`: Advanced static analysis
+- `unused`: Dead code detection
+
+Run: `make lint` or `golangci-lint run`
+
+### Testing
+
+| Tool | Purpose |
+|------|---------|
+| `testing` (stdlib) | Unit test framework |
+| `testify` | Assertions and test suites |
+| `go.uber.org/mock` | Mock generation |
+| `testcontainers-go` | Integration test DB |
+
+**Test Commands:**
+```bash
+make test              # All tests
+make test-unit         # Unit tests only
+make test-integration  # Integration tests only
+make test-coverage     # With coverage report
+```
+
+### Pre-commit Hooks
+
+**pre-commit** ([`.pre-commit-config.yaml`](.pre-commit-config.yaml))
+
+Runs on every commit:
+1. `trailing-whitespace`
+2. `end-of-file-fixer`
+3. `check-yaml`
+4. `golangci-lint`
+5. `go-fmt`
+
+### Build Tools
+
+**Makefile** targets:
+
+```makefile
+build          # Build binary to bin/
+dev            # Run with hot reload (air)
+test           # Run all tests
+lint           # Run golangci-lint
+sqlc           # Generate SQLC code
+swag           # Generate Swagger docs
+docker-up      # Start with Docker Compose
+docker-down    # Stop Docker Compose
+migrate-up     # Run migrations
+migrate-down   # Rollback migrations
+```
+
+## Security Practices
+
+### Password Hashing
+
+**bcrypt** (`golang.org/x/crypto/bcrypt`)
+
+```go
+hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
+// Cost: 10 (adjustable based on hardware)
+```
+
+### JWT Security
+
+- Algorithm: HS256 (HMAC-SHA256) or RS256 (RSA)
+- Secret: 32+ byte random string
+- Expiration: Short-lived access tokens (15 min)
+- Validation: `iat`, `exp`, `sub` claims
+
+### Input Validation
+
+- Handler layer: Request struct validation
+- Domain layer: Business rule validation
+- Repository: Parameterized queries (SQL injection safe)
+
+### Secrets Management
+
+- Development: `.env` file (gitignored)
+- Production: Environment variables or secrets manager
+- Never commit secrets to repository
+
+## Deployment
+
+### Docker
+
+**Multi-stage Dockerfile:**
+
+1. **Builder stage**: Compile with Go toolchain
+2. **Final stage**: Minimal image (distroless or alpine)
+
+```dockerfile
+FROM golang:1.24-alpine AS builder
+# ... build steps ...
+
+FROM gcr.io/distroless/static:nonroot
+COPY --from=builder /app/bin/api /api
+ENTRYPOINT ["/api"]
+```
+
+### Docker Compose
+
+**Services:**
+- `api`: Go application
+- `postgres`: PostgreSQL database
+- (Future) `redis`: Caching layer
+- (Future) `prometheus`: Metrics collection
+
+### Health Checks
+
+```yaml
+healthcheck:
+  test: ["CMD", "/api", "health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+```
+
+## Environment Configuration
+
+### Required Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `APP_ENV` | Environment name | `production` |
+| `APP_PORT` | HTTP server port | `8080` |
+| `DB_HOST` | Database host | `postgres` |
+| `DB_PORT` | Database port | `5432` |
+| `DB_USER` | Database user | `zercle` |
+| `DB_PASSWORD` | Database password | `secret` |
+| `DB_NAME` | Database name | `zercle` |
+| `JWT_SECRET` | JWT signing key | `random-string-32-chars` |
+| `JWT_EXPIRY` | Token expiry (seconds) | `900` |
+
+### Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `configs/config.yaml` | Default configuration values |
+| `.env.example` | Template for environment variables |
+| `.env` | Local environment (gitignored) |
+
+## Monitoring & Observability (Future)
+
+| Tool | Purpose |
+|------|---------|
+| Prometheus | Metrics collection |
+| Grafana | Metrics visualization |
+| Jaeger/Zipkin | Distributed tracing |
+| ELK/Loki | Log aggregation |
+
+## Technology Constraints
+
+### Compatibility
+
+- **Go**: 1.24 minimum (uses modern features)
+- **PostgreSQL**: 13+ (for JSONB, CTE support)
+- **Docker**: 20.10+ (for BuildKit features)
+
+### Resource Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| CPU | 0.5 cores | 1+ cores |
+| Memory | 256 MB | 512 MB |
+| Disk | 100 MB | 1 GB |
+
+## Dependency Update Strategy
+
+1. **Security patches**: Immediate update
+2. **Minor versions**: Monthly review
+3. **Major versions**: Quarterly evaluation with testing
+4. **Go version**: Follow official release schedule (6 months)
+
+## Technology References
+
+- [Echo Documentation](https://echo.labstack.com/)
+- [sqlc Documentation](https://docs.sqlc.dev/)
+- [pgx Documentation](https://github.com/jackc/pgx)
+- [Viper Documentation](https://github.com/spf13/viper)
+- [Zerolog Documentation](https://github.com/rs/zerolog)
