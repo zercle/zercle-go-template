@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	appErr "zercle-go-template/internal/errors"
 	"zercle-go-template/internal/feature/auth/domain"
@@ -23,7 +23,7 @@ const (
 // JWTAuth returns a middleware that validates JWT tokens.
 func JWTAuth(jwtUsecase usecase.JWTUsecase, log logger.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			// Extract token from Authorization header
 			authHeader := c.Request().Header.Get(AuthorizationHeader)
 			if authHeader == "" {
@@ -31,9 +31,9 @@ func JWTAuth(jwtUsecase usecase.JWTUsecase, log logger.Logger) echo.MiddlewareFu
 					logger.String("path", c.Path()),
 					logger.String("client_ip", c.RealIP()),
 				)
-				return c.JSON(http.StatusUnauthorized, map[string]interface{}{
+				return c.JSON(http.StatusUnauthorized, map[string]any{
 					"success": false,
-					"error": map[string]interface{}{
+					"error": map[string]any{
 						"code":    string(appErr.ErrCodeUnauthorized),
 						"message": "Authorization header is required",
 					},
@@ -46,9 +46,9 @@ func JWTAuth(jwtUsecase usecase.JWTUsecase, log logger.Logger) echo.MiddlewareFu
 					logger.String("path", c.Path()),
 					logger.String("client_ip", c.RealIP()),
 				)
-				return c.JSON(http.StatusUnauthorized, map[string]interface{}{
+				return c.JSON(http.StatusUnauthorized, map[string]any{
 					"success": false,
-					"error": map[string]interface{}{
+					"error": map[string]any{
 						"code":    string(appErr.ErrCodeUnauthorized),
 						"message": "Invalid authorization header format. Expected 'Bearer <token>'",
 					},
@@ -62,9 +62,9 @@ func JWTAuth(jwtUsecase usecase.JWTUsecase, log logger.Logger) echo.MiddlewareFu
 					logger.String("path", c.Path()),
 					logger.String("client_ip", c.RealIP()),
 				)
-				return c.JSON(http.StatusUnauthorized, map[string]interface{}{
+				return c.JSON(http.StatusUnauthorized, map[string]any{
 					"success": false,
-					"error": map[string]interface{}{
+					"error": map[string]any{
 						"code":    string(appErr.ErrCodeUnauthorized),
 						"message": "Token is required",
 					},
@@ -79,9 +79,9 @@ func JWTAuth(jwtUsecase usecase.JWTUsecase, log logger.Logger) echo.MiddlewareFu
 					logger.String("client_ip", c.RealIP()),
 					logger.Error(err),
 				)
-				return c.JSON(http.StatusUnauthorized, map[string]interface{}{
+				return c.JSON(http.StatusUnauthorized, map[string]any{
 					"success": false,
-					"error": map[string]interface{}{
+					"error": map[string]any{
 						"code":    string(appErr.ErrCodeUnauthorized),
 						"message": "Invalid or expired token",
 					},
@@ -110,7 +110,7 @@ func JWTAuth(jwtUsecase usecase.JWTUsecase, log logger.Logger) echo.MiddlewareFu
 
 // GetUserID retrieves the user ID from the echo context.
 // Returns empty string if not found.
-func GetUserID(c echo.Context) string {
+func GetUserID(c *echo.Context) string {
 	if userID, ok := c.Get("user_id").(string); ok {
 		return userID
 	}
@@ -119,7 +119,7 @@ func GetUserID(c echo.Context) string {
 
 // GetEmail retrieves the email from the echo context.
 // Returns empty string if not found.
-func GetEmail(c echo.Context) string {
+func GetEmail(c *echo.Context) string {
 	if email, ok := c.Get("email").(string); ok {
 		return email
 	}
@@ -128,7 +128,7 @@ func GetEmail(c echo.Context) string {
 
 // GetClaims retrieves the JWT claims from the echo context.
 // Returns nil if not found.
-func GetClaims(c echo.Context) *domain.JWTClaims {
+func GetClaims(c *echo.Context) *domain.JWTClaims {
 	if claims, ok := c.Get("claims").(*domain.JWTClaims); ok {
 		return claims
 	}
@@ -146,7 +146,7 @@ func RequireAuth(jwtUsecase usecase.JWTUsecase, log logger.Logger) echo.Middlewa
 // This is useful for endpoints that have different behavior for authenticated users.
 func OptionalAuth(jwtUsecase usecase.JWTUsecase, log logger.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			authHeader := c.Request().Header.Get(AuthorizationHeader)
 			if authHeader == "" {
 				return next(c)

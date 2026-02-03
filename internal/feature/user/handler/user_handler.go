@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	appErr "zercle-go-template/internal/errors"
 	authusecase "zercle-go-template/internal/feature/auth/usecase"
@@ -23,6 +23,49 @@ var (
 	validateInstance *validator.Validate
 	validateOnce     sync.Once
 )
+
+// errorMapPool is a sync.Pool for reusing validation error maps to reduce GC pressure.
+// This reduces allocations during request validation by reusing map structures.
+var errorMapPool = sync.Pool{
+	New: func() any {
+		return make(map[string]string)
+	},
+}
+
+// getErrorMap retrieves a map[string]string from the pool.
+func getErrorMap() map[string]string {
+	return errorMapPool.Get().(map[string]string)
+}
+
+// putErrorMap returns a map to the pool after clearing it.
+func putErrorMap(m map[string]string) {
+	// Clear the map to prevent data leakage between uses
+	for k := range m {
+		delete(m, k)
+	}
+	errorMapPool.Put(m)
+}
+
+// responseBufferPool is a sync.Pool for reusing byte slices for JSON marshaling.
+// This reduces allocations during response encoding.
+var responseBufferPool = sync.Pool{
+	New: func() any {
+		buf := make([]byte, 0, 512) // Pre-allocate 512 bytes as typical response size
+		return &buf
+	},
+}
+
+// getResponseBuffer retrieves a byte slice from the pool.
+func getResponseBuffer() *[]byte {
+	return responseBufferPool.Get().(*[]byte)
+}
+
+// putResponseBuffer returns a byte slice to the pool after clearing it.
+func putResponseBuffer(buf *[]byte) {
+	// Reset the slice to empty but keep capacity
+	*buf = (*buf)[:0]
+	responseBufferPool.Put(buf)
+}
 
 // getValidator returns the singleton validator instance.
 // Uses sync.Once for thread-safe lazy initialization.
@@ -78,7 +121,7 @@ func (h *UserHandler) RegisterRoutes(router *echo.Group) {
 //	@Failure		401		{object}	Response
 //	@Failure		500		{object}	Response
 //	@Router			/auth/login [post]
-func (h *UserHandler) Login(c echo.Context) error {
+func (h *UserHandler) Login(c *echo.Context) error {
 	var req dto.UserLoginRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, Response{
@@ -150,7 +193,7 @@ func (h *UserHandler) Login(c echo.Context) error {
 //	@Failure		409		{object}	Response
 //	@Failure		500		{object}	Response
 //	@Router			/users [post]
-func (h *UserHandler) CreateUser(c echo.Context) error {
+func (h *UserHandler) CreateUser(c *echo.Context) error {
 	var req dto.CreateUserRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, Response{
@@ -197,7 +240,7 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 //	@Failure		404	{object}	Response
 //	@Failure		500	{object}	Response
 //	@Router			/users/{id} [get]
-func (h *UserHandler) GetUser(c echo.Context) error {
+func (h *UserHandler) GetUser(c *echo.Context) error {
 	id := c.Param("id")
 	if id == "" {
 		return c.JSON(http.StatusBadRequest, Response{
@@ -231,7 +274,7 @@ func (h *UserHandler) GetUser(c echo.Context) error {
 //	@Success		200		{object}	Response{data=dto.ListUsersResponse,meta=MetaInfo}
 //	@Failure		500		{object}	Response
 //	@Router			/users [get]
-func (h *UserHandler) ListUsers(c echo.Context) error {
+func (h *UserHandler) ListUsers(c *echo.Context) error {
 	// Parse pagination parameters with defaults
 	pageStr := c.QueryParam("page")
 	if pageStr == "" {
@@ -288,7 +331,7 @@ func (h *UserHandler) ListUsers(c echo.Context) error {
 //	@Failure		404		{object}	Response
 //	@Failure		500		{object}	Response
 //	@Router			/users/{id} [put]
-func (h *UserHandler) UpdateUser(c echo.Context) error {
+func (h *UserHandler) UpdateUser(c *echo.Context) error {
 	id := c.Param("id")
 	if id == "" {
 		return c.JSON(http.StatusBadRequest, Response{
@@ -345,7 +388,7 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 //	@Failure		404	{object}	Response
 //	@Failure		500	{object}	Response
 //	@Router			/users/{id} [delete]
-func (h *UserHandler) DeleteUser(c echo.Context) error {
+func (h *UserHandler) DeleteUser(c *echo.Context) error {
 	id := c.Param("id")
 	if id == "" {
 		return c.JSON(http.StatusBadRequest, Response{
@@ -378,7 +421,7 @@ func (h *UserHandler) DeleteUser(c echo.Context) error {
 //	@Failure		404		{object}	Response
 //	@Failure		500		{object}	Response
 //	@Router			/users/{id}/password [put]
-func (h *UserHandler) UpdatePassword(c echo.Context) error {
+func (h *UserHandler) UpdatePassword(c *echo.Context) error {
 	id := c.Param("id")
 	if id == "" {
 		return c.JSON(http.StatusBadRequest, Response{
@@ -421,7 +464,7 @@ func (h *UserHandler) UpdatePassword(c echo.Context) error {
 }
 
 // handleError converts an error to an appropriate HTTP response.
-func (h *UserHandler) handleError(c echo.Context, err error) error {
+func (h *UserHandler) handleError(c *echo.Context, err error) error {
 	status := appErr.GetStatusCode(err)
 
 	var errorInfo *ErrorInfo
@@ -448,7 +491,8 @@ func (h *UserHandler) handleError(c echo.Context, err error) error {
 // validateStruct validates a struct using the shared validator instance.
 func validateStruct(obj any) map[string]string {
 	if err := getValidator().Struct(obj); err != nil {
-		result := make(map[string]string)
+		result := getErrorMap()
+		defer putErrorMap(result)
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
 			for _, e := range validationErrors {
 				field := e.Field()

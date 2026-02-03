@@ -1,6 +1,6 @@
 # System Architecture
 
-**Last Updated:** 2026-02-10
+**Last Updated:** 2026-02-21
 
 ## Architecture Patterns
 
@@ -177,7 +177,12 @@ sequenceDiagram
     Handler-->>Client: 201 Created with user data
 ```
 
-## Integration Points
+6. Authenticated Request
+   - Client sends Authorization: Bearer <token>
+   - Auth middleware validates JWT signature and expiry
+   - Extracts user ID from claims
+   - Request proceeds to handler
+```
 
 ### External Integrations
 - **PostgreSQL:** Primary data store via pgx v5

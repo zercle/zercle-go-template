@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	appErr "zercle-go-template/internal/errors"
 	"zercle-go-template/internal/logger"
@@ -15,7 +15,7 @@ import (
 // It logs the panic details and returns a 500 Internal Server Error response.
 func Recovery(log logger.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			defer func() {
 				if r := recover(); r != nil {
 					// Log the panic with stack trace
@@ -46,7 +46,7 @@ func Recovery(log logger.Logger) echo.MiddlewareFunc {
 // ErrorHandler returns a middleware that handles application errors.
 func ErrorHandler() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			err := next(c)
 
 			// Check if there are any errors
@@ -81,7 +81,7 @@ func ErrorHandler() echo.MiddlewareFunc {
 
 // NotFoundHandler handles requests to undefined routes.
 func NotFoundHandler() echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		return c.JSON(http.StatusNotFound, map[string]any{
 			"success": false,
 			"error": map[string]string{
@@ -94,7 +94,7 @@ func NotFoundHandler() echo.HandlerFunc {
 
 // MethodNotAllowedHandler handles requests with unsupported HTTP methods.
 func MethodNotAllowedHandler() echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		return c.JSON(http.StatusMethodNotAllowed, map[string]any{
 			"success": false,
 			"error": map[string]string{

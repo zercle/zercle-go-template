@@ -107,10 +107,7 @@ func (r *MemoryUserRepository) GetAll(ctx context.Context, offset, limit int) ([
 		return []*domain.User{}, nil
 	}
 
-	end := offset + limit
-	if end > len(allUsers) {
-		end = len(allUsers)
-	}
+	end := min(offset+limit, len(allUsers))
 
 	return allUsers[offset:end], nil
 }

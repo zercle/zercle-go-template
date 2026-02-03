@@ -1,13 +1,13 @@
 # Project Brief
 
-**Last Updated:** 2026-02-10
+**Last Updated:** 2026-02-21
 
 ## Project Identity
 
 - **Name:** zercle-go-template
 - **Module:** zercle-go-template
 - **Type:** Production-ready Go web application template
-- **Go Version:** 1.25.7
+- **Go Version:** 1.26
 
 ## Purpose
 
@@ -31,7 +31,7 @@ This project provides a comprehensive, production-ready Go web application templ
    - Repository pattern for data access abstraction
 
 4. **API Design**
-   - RESTful API with Echo v4 framework
+   - RESTful API with Echo v5 framework
    - Swagger/OpenAPI documentation
    - Standardized response format
 
@@ -54,6 +54,7 @@ This project provides a comprehensive, production-ready Go web application templ
 - User CRUD operations with validation
 - Email/password authentication
 - JWT token generation and validation
+- **JWT token caching for reduced latency**
 - Password hashing with Argon2id
 - Configurable repository implementations
 - Graceful shutdown handling

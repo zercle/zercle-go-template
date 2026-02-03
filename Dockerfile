@@ -12,7 +12,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Builder
 # -----------------------------------------------------------------------------
-FROM golang:1.25-bookworm AS builder
+FROM golang AS builder
 
 # Build arguments for versioning (passed via --build-arg)
 ARG APP_NAME=zercle-go-template
@@ -62,7 +62,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime (Distroless)
 # -----------------------------------------------------------------------------
-FROM gcr.io/distroless/static:nonroot AS runtime
+FROM gcr.io/distroless/base:nonroot AS runtime
 
 # Build argument for app name (must match builder stage)
 ARG APP_NAME=zercle-go-template

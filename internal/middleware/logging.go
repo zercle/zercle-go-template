@@ -4,7 +4,7 @@ package middleware
 import (
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"zercle-go-template/internal/logger"
 )
@@ -12,7 +12,7 @@ import (
 // RequestLogger returns a middleware that logs HTTP requests.
 func RequestLogger(log logger.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			start := time.Now()
 			path := c.Path()
 			query := c.QueryString()
@@ -29,7 +29,8 @@ func RequestLogger(log logger.Logger) echo.MiddlewareFunc {
 			duration := time.Since(start)
 			clientIP := c.RealIP()
 			method := c.Request().Method
-			statusCode := c.Response().Status
+			// Get status code from response - type assert to get Echo's Response struct
+			statusCode := c.Response().(*echo.Response).Status
 
 			if len(query) > 0 {
 				path = path + "?" + query
@@ -67,7 +68,7 @@ func RequestLogger(log logger.Logger) echo.MiddlewareFunc {
 // LoggerContext adds the logger to the request context.
 func LoggerContext(log logger.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			ctx := logger.WithContext(c.Request().Context(), log)
 			c.Set("logger", log)
 			c.SetRequest(c.Request().WithContext(ctx))

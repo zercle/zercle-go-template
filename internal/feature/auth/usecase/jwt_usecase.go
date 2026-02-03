@@ -6,6 +6,7 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -15,6 +16,82 @@ import (
 	"zercle-go-template/internal/feature/auth/domain"
 	"zercle-go-template/internal/logger"
 )
+
+// TokenCache stores validated JWT tokens with TTL-based expiration.
+// It uses sync.Map for thread-safe concurrent access.
+type TokenCache struct {
+	tokens sync.Map // map[string]*cachedToken
+}
+
+// cachedToken represents a cached token with its claims and expiration time.
+type cachedToken struct {
+	claims    *domain.JWTClaims
+	expiresAt time.Time
+}
+
+// Get retrieves a cached token if it exists and hasn't expired.
+// Returns the claims and true if found and valid, otherwise nil and false.
+func (c *TokenCache) Get(token string) (*domain.JWTClaims, bool) {
+	if val, ok := c.tokens.Load(token); ok {
+		ct := val.(*cachedToken)
+		if time.Now().Before(ct.expiresAt) {
+			return ct.claims, true
+		}
+		// Token expired, remove from cache
+		c.tokens.Delete(token)
+	}
+	return nil, false
+}
+
+// Set stores a token in the cache with the specified TTL.
+func (c *TokenCache) Set(token string, claims *domain.JWTClaims, ttl time.Duration) {
+	c.tokens.Store(token, &cachedToken{
+		claims:    claims,
+		expiresAt: time.Now().Add(ttl),
+	})
+}
+
+// Delete removes a token from the cache.
+func (c *TokenCache) Delete(token string) {
+	c.tokens.Delete(token)
+}
+
+// Size returns the approximate number of cached tokens.
+func (c *TokenCache) Size() int {
+	var count int
+	c.tokens.Range(func(key, value any) bool {
+		count++
+		return true
+	})
+	return count
+}
+
+// Clear removes all tokens from the cache.
+func (c *TokenCache) Clear() {
+	c.tokens = sync.Map{}
+}
+
+// jwtClaimsPool is a sync.Pool for reusing JWTClaims objects to reduce GC pressure.
+// This reduces allocations during token generation by reusing claim structures.
+var jwtClaimsPool = sync.Pool{
+	New: func() any {
+		return &domain.JWTClaims{}
+	},
+}
+
+// getJWTClaims retrieves a JWTClaims object from the pool.
+func getJWTClaims() *domain.JWTClaims {
+	return jwtClaimsPool.Get().(*domain.JWTClaims)
+}
+
+// putJWTClaims returns a JWTClaims object to the pool after resetting its fields.
+func putJWTClaims(c *domain.JWTClaims) {
+	// Reset all fields to prevent data leakage between uses
+	c.UserID = ""
+	c.Email = ""
+	c.RegisteredClaims = jwt.RegisteredClaims{}
+	jwtClaimsPool.Put(c)
+}
 
 // JWTUsecase defines the interface for JWT token operations.
 type JWTUsecase interface {
@@ -32,6 +109,10 @@ type jwtUsecase struct {
 	accessTokenTTL  time.Duration
 	refreshTokenTTL time.Duration
 	logger          logger.Logger
+	// cache is the token validation cache for performance optimization
+	cache        *TokenCache
+	cacheEnabled bool
+	cacheTTL     time.Duration
 }
 
 // NewJWTUsecase creates a new JWT usecase instance.
@@ -41,6 +122,9 @@ func NewJWTUsecase(cfg *config.JWTConfig, log logger.Logger) JWTUsecase {
 		accessTokenTTL:  cfg.AccessTokenTTL,
 		refreshTokenTTL: cfg.RefreshTokenTTL,
 		logger:          log,
+		cache:           &TokenCache{},
+		cacheEnabled:    cfg.CacheEnabled,
+		cacheTTL:        cfg.CacheTTL,
 	}
 }
 
@@ -48,18 +132,17 @@ func NewJWTUsecase(cfg *config.JWTConfig, log logger.Logger) JWTUsecase {
 func (s *jwtUsecase) GenerateTokenPair(user domain.TokenUser) (*domain.TokenPair, error) {
 	now := time.Now()
 
-	// Create access token claims
-	accessClaims := &domain.JWTClaims{
-		UserID: user.GetID(),
-		Email:  user.GetEmail(),
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(s.accessTokenTTL)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-			Issuer:    "zercle-go-template",
-			Subject:   user.GetID(),
-			ID:        uuid.New().String(),
-		},
+	// Get pooled access token claims
+	accessClaims := getJWTClaims()
+	accessClaims.UserID = user.GetID()
+	accessClaims.Email = user.GetEmail()
+	accessClaims.RegisteredClaims = jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(now.Add(s.accessTokenTTL)),
+		IssuedAt:  jwt.NewNumericDate(now),
+		NotBefore: jwt.NewNumericDate(now),
+		Issuer:    "zercle-go-template",
+		Subject:   user.GetID(),
+		ID:        uuid.New().String(),
 	}
 
 	// Generate access token
@@ -67,21 +150,21 @@ func (s *jwtUsecase) GenerateTokenPair(user domain.TokenUser) (*domain.TokenPair
 	accessTokenString, err := accessToken.SignedString(s.secret)
 	if err != nil {
 		s.logger.Error("failed to sign access token", logger.Error(err))
+		putJWTClaims(accessClaims)
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	// Create refresh token claims
-	refreshClaims := &domain.JWTClaims{
-		UserID: user.GetID(),
-		Email:  user.GetEmail(),
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(s.refreshTokenTTL)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-			Issuer:    "zercle-go-template",
-			Subject:   user.GetID(),
-			ID:        uuid.New().String(),
-		},
+	// Get pooled refresh token claims
+	refreshClaims := getJWTClaims()
+	refreshClaims.UserID = user.GetID()
+	refreshClaims.Email = user.GetEmail()
+	refreshClaims.RegisteredClaims = jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(now.Add(s.refreshTokenTTL)),
+		IssuedAt:  jwt.NewNumericDate(now),
+		NotBefore: jwt.NewNumericDate(now),
+		Issuer:    "zercle-go-template",
+		Subject:   user.GetID(),
+		ID:        uuid.New().String(),
 	}
 
 	// Generate refresh token
@@ -89,24 +172,41 @@ func (s *jwtUsecase) GenerateTokenPair(user domain.TokenUser) (*domain.TokenPair
 	refreshTokenString, err := refreshToken.SignedString(s.secret)
 	if err != nil {
 		s.logger.Error("failed to sign refresh token", logger.Error(err))
+		putJWTClaims(accessClaims)
+		putJWTClaims(refreshClaims)
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
 	}
 
+	expiresAt := accessClaims.ExpiresAt.Time
+
+	// Return claims to pool after successful token generation
+	putJWTClaims(accessClaims)
+	putJWTClaims(refreshClaims)
+
 	s.logger.Info("token pair generated successfully",
 		logger.String("user_id", user.GetID()),
-		logger.Time("expires_at", accessClaims.ExpiresAt.Time),
+		logger.Time("expires_at", expiresAt),
 	)
 
 	return &domain.TokenPair{
 		AccessToken:  accessTokenString,
 		RefreshToken: refreshTokenString,
-		ExpiresAt:    accessClaims.ExpiresAt.Time,
+		ExpiresAt:    expiresAt,
 	}, nil
 }
 
 // ValidateToken validates a JWT token and returns the claims.
+// It checks the cache first if caching is enabled.
 func (s *jwtUsecase) ValidateToken(tokenString string) (*domain.JWTClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &domain.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+	// Check cache first if enabled
+	if s.cacheEnabled {
+		if claims, ok := s.cache.Get(tokenString); ok {
+			return claims, nil
+		}
+	}
+
+	// Parse and validate the token
+	token, err := jwt.ParseWithClaims(tokenString, &domain.JWTClaims{}, func(token *jwt.Token) (any, error) {
 		// Validate signing method
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -122,6 +222,11 @@ func (s *jwtUsecase) ValidateToken(tokenString string) (*domain.JWTClaims, error
 	if !ok || !token.Valid {
 		s.logger.Warn("invalid token claims")
 		return nil, fmt.Errorf("invalid token claims")
+	}
+
+	// Cache the validated token if enabled
+	if s.cacheEnabled {
+		s.cache.Set(tokenString, claims, s.cacheTTL)
 	}
 
 	return claims, nil

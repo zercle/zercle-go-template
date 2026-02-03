@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	appErr "zercle-go-template/internal/errors"
 	"zercle-go-template/internal/logger"
@@ -43,7 +43,7 @@ func TestRecovery(t *testing.T) {
 			e := echo.New()
 			e.Use(Recovery(log))
 
-			e.GET("/panic", func(c echo.Context) error {
+			e.GET("/panic", func(c *echo.Context) error {
 				panic(tt.panicMessage)
 			})
 
@@ -62,7 +62,7 @@ func TestRecovery(t *testing.T) {
 			}
 
 			// Verify JSON response
-			var response map[string]interface{}
+			var response map[string]any
 			if err := json.Unmarshal([]byte(body), &response); err != nil {
 				t.Errorf("expected valid JSON response, got error: %v", err)
 			}
@@ -84,7 +84,7 @@ func TestRecovery_NoPanic(t *testing.T) {
 	e := echo.New()
 	e.Use(Recovery(log))
 
-	e.GET("/normal", func(c echo.Context) error {
+	e.GET("/normal", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"message": "success"})
 	})
 
@@ -129,7 +129,7 @@ func TestErrorHandler(t *testing.T) {
 			e := echo.New()
 			e.Use(ErrorHandler())
 
-			e.GET("/test", func(c echo.Context) error {
+			e.GET("/test", func(c *echo.Context) error {
 				if tt.addError {
 					return appErr.InternalError("test error")
 				}
@@ -167,7 +167,7 @@ func TestNotFoundHandler(t *testing.T) {
 	}
 
 	// Verify JSON response structure
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.Unmarshal([]byte(body), &response); err != nil {
 		t.Errorf("expected valid JSON response, got error: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestMethodNotAllowedHandler(t *testing.T) {
 	e := echo.New()
 
 	// Register a handler for GET only
-	e.GET("/test", func(c echo.Context) error {
+	e.GET("/test", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "")
 	})
 
@@ -198,8 +198,8 @@ func TestMethodNotAllowedHandler(t *testing.T) {
 		return
 	}
 
-	if c.Response().Status != http.StatusMethodNotAllowed {
-		t.Logf("Note: MethodNotAllowedHandler status code. Got: %d", c.Response().Status)
+	if c.Response().(*echo.Response).Status != http.StatusMethodNotAllowed {
+		t.Logf("Note: MethodNotAllowedHandler status code. Got: %d", c.Response().(*echo.Response).Status)
 	}
 }
 
@@ -209,7 +209,7 @@ func TestRecovery_PanicWithError(t *testing.T) {
 	e := echo.New()
 	e.Use(Recovery(log))
 
-	e.GET("/panic", func(c echo.Context) error {
+	e.GET("/panic", func(c *echo.Context) error {
 		panic(errors.New("panic with error type"))
 	})
 
@@ -229,7 +229,7 @@ func TestRecovery_PanicWithInt(t *testing.T) {
 	e := echo.New()
 	e.Use(Recovery(log))
 
-	e.GET("/panic", func(c echo.Context) error {
+	e.GET("/panic", func(c *echo.Context) error {
 		panic(42)
 	})
 
@@ -249,7 +249,7 @@ func TestRecovery_PanicWithNil(t *testing.T) {
 	e := echo.New()
 	e.Use(Recovery(log))
 
-	e.GET("/panic", func(c echo.Context) error {
+	e.GET("/panic", func(c *echo.Context) error {
 		panic(nil)
 	})
 
@@ -269,12 +269,12 @@ func TestRecovery_MultipleRequests(t *testing.T) {
 	e := echo.New()
 	e.Use(Recovery(log))
 
-	e.GET("/panic", func(c echo.Context) error {
+	e.GET("/panic", func(c *echo.Context) error {
 		panic("test panic")
 	})
 
 	// Send multiple requests to ensure recovery works consistently
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		req := httptest.NewRequest(http.MethodGet, "/panic", nil)
 		rec := httptest.NewRecorder()
 
@@ -290,7 +290,7 @@ func TestErrorHandler_MultipleErrors(t *testing.T) {
 	e := echo.New()
 	e.Use(ErrorHandler())
 
-	e.GET("/test", func(c echo.Context) error {
+	e.GET("/test", func(c *echo.Context) error {
 		// Return validation error directly
 		return appErr.ValidationError("test error")
 	})
@@ -328,7 +328,7 @@ func TestMethodNotAllowedHandler_AllMethods(t *testing.T) {
 	e := echo.New()
 
 	// Register only GET handler
-	e.GET("/resource", func(c echo.Context) error {
+	e.GET("/resource", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "")
 	})
 
@@ -348,7 +348,7 @@ func TestMethodNotAllowedHandler_AllMethods(t *testing.T) {
 		}
 
 		// The handler should return 405
-		_ = c.Response().Status
+		_ = c.Response().(*echo.Response).Status
 	}
 }
 
@@ -359,7 +359,7 @@ func TestRecovery_AbortAfterPanic(t *testing.T) {
 	e := echo.New()
 	e.Use(Recovery(log))
 
-	e.GET("/panic", func(c echo.Context) error {
+	e.GET("/panic", func(c *echo.Context) error {
 		panic("test panic")
 	})
 

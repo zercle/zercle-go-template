@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"zercle-go-template/internal/config"
+	"zercle-go-template/internal/feature/auth/domain"
 	"zercle-go-template/internal/logger"
 )
 
@@ -237,4 +238,39 @@ func BenchmarkGenerateTokenPairNoLogging(b *testing.B) {
 			b.Fatalf("GenerateTokenPair failed: %v", err)
 		}
 	}
+}
+
+// BenchmarkJWTClaimsPoolGet measures the performance of getting a claims object from the pool.
+func BenchmarkJWTClaimsPoolGet(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		claims := getJWTClaims()
+		putJWTClaims(claims)
+	}
+}
+
+// BenchmarkJWTClaimsDirectAllocation measures the performance of direct JWTClaims allocation.
+func BenchmarkJWTClaimsDirectAllocation(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		claims := &domain.JWTClaims{}
+		_ = claims
+	}
+}
+
+// BenchmarkJWTClaimsPoolParallel measures the pool under concurrent load.
+func BenchmarkJWTClaimsPoolParallel(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			claims := getJWTClaims()
+			putJWTClaims(claims)
+		}
+	})
 }

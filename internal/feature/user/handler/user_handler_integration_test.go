@@ -20,7 +20,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -382,8 +382,7 @@ func TestUserHandler_GetUser(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/users/"+tt.id, nil)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
-			c.SetParamNames("id")
-			c.SetParamValues(tt.id)
+			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.id}})
 
 			err := handler.GetUser(c)
 			if err != nil {
@@ -599,8 +598,7 @@ func TestUserHandler_UpdateUser(t *testing.T) {
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
-			c.SetParamNames("id")
-			c.SetParamValues(tt.id)
+			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.id}})
 
 			err := handler.UpdateUser(c)
 			if err != nil {
@@ -683,8 +681,7 @@ func TestUserHandler_DeleteUser(t *testing.T) {
 			req := httptest.NewRequest(http.MethodDelete, "/users/"+tt.id, nil)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
-			c.SetParamNames("id")
-			c.SetParamValues(tt.id)
+			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.id}})
 
 			err := handler.DeleteUser(c)
 			if err != nil {
@@ -892,8 +889,7 @@ func TestUserHandler_UpdatePassword(t *testing.T) {
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
-			c.SetParamNames("id")
-			c.SetParamValues(tt.id)
+			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.id}})
 
 			err := handler.UpdatePassword(c)
 			if err != nil {
@@ -916,7 +912,7 @@ func TestUserHandler_RegisterRoutes(t *testing.T) {
 	handler.RegisterRoutes(api)
 
 	// Test that routes are registered by checking the echo router
-	routes := e.Routes()
+	routes := e.Router().Routes()
 	require.Greater(t, len(routes), 0)
 
 	// Check for expected routes
@@ -1007,8 +1003,7 @@ func TestUserHandler_FullWorkflow(t *testing.T) {
 	getReq := httptest.NewRequest(http.MethodGet, "/users/"+userID, nil)
 	getRec := httptest.NewRecorder()
 	getCtx := e.NewContext(getReq, getRec)
-	getCtx.SetParamNames("id")
-	getCtx.SetParamValues(userID)
+	getCtx.SetPathValues(echo.PathValues{{Name: "id", Value: userID}})
 
 	err = handler.GetUser(getCtx)
 	if err != nil {
@@ -1029,8 +1024,7 @@ func TestUserHandler_FullWorkflow(t *testing.T) {
 	updateReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	updateRec := httptest.NewRecorder()
 	updateCtx := e.NewContext(updateReq, updateRec)
-	updateCtx.SetParamNames("id")
-	updateCtx.SetParamValues(userID)
+	updateCtx.SetPathValues(echo.PathValues{{Name: "id", Value: userID}})
 
 	err = handler.UpdateUser(updateCtx)
 	if err != nil {
@@ -1055,8 +1049,7 @@ func TestUserHandler_FullWorkflow(t *testing.T) {
 	passwordReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	passwordRec := httptest.NewRecorder()
 	passwordCtx := e.NewContext(passwordReq, passwordRec)
-	passwordCtx.SetParamNames("id")
-	passwordCtx.SetParamValues(userID)
+	passwordCtx.SetPathValues(echo.PathValues{{Name: "id", Value: userID}})
 
 	err = handler.UpdatePassword(passwordCtx)
 	if err != nil {
@@ -1084,8 +1077,7 @@ func TestUserHandler_FullWorkflow(t *testing.T) {
 	deleteReq := httptest.NewRequest(http.MethodDelete, "/users/"+userID, nil)
 	deleteRec := httptest.NewRecorder()
 	deleteCtx := e.NewContext(deleteReq, deleteRec)
-	deleteCtx.SetParamNames("id")
-	deleteCtx.SetParamValues(userID)
+	deleteCtx.SetPathValues(echo.PathValues{{Name: "id", Value: userID}})
 
 	err = handler.DeleteUser(deleteCtx)
 	if err != nil {
@@ -1097,8 +1089,7 @@ func TestUserHandler_FullWorkflow(t *testing.T) {
 	getReq2 := httptest.NewRequest(http.MethodGet, "/users/"+userID, nil)
 	getRec2 := httptest.NewRecorder()
 	getCtx2 := e.NewContext(getReq2, getRec2)
-	getCtx2.SetParamNames("id")
-	getCtx2.SetParamValues(userID)
+	getCtx2.SetPathValues(echo.PathValues{{Name: "id", Value: userID}})
 
 	err = handler.GetUser(getCtx2)
 	if err != nil {
