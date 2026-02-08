@@ -38,7 +38,7 @@ permissions:
 
 # Environment variables used across all jobs
 env:
-  GO_VERSION: "1.25"      # Go version for builds
+  GO_VERSION: "stable"    # Go version for builds
   POSTGRES_VERSION: "18"  # PostgreSQL version for integration tests
 
 jobs:
@@ -62,7 +62,7 @@ jobs:
         uses: golangci/golangci-lint-action@v7
         with:
           version: latest
-          args: --timeout=5m --out-format=github-actions
+          args: --timeout=5m
           skip-cache: false
 
       - name: Check code formatting
@@ -101,7 +101,7 @@ jobs:
           cache: true
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@vmaster
+        uses: securego/gosec@master
         with:
           args: "-no-fail -fmt sarif -out results.sarif ./..."
 
