@@ -171,8 +171,8 @@ func loadFromYAML(v *viper.Viper, configPath string) error {
 func loadFromEnvFile(v *viper.Viper) error {
 	// List of possible .env file locations (in order of priority)
 	envPaths := []string{
-		".env",		  // Current directory
-		"../.env",	  // Parent directory (for tests)
+		".env",       // Current directory
+		"../.env",    // Parent directory (for tests)
 		"../../.env", // Two levels up
 	}
 
@@ -220,9 +220,7 @@ func transformEnvKey(key string) string {
 	// Viper keeps the keys as-is from .env (e.g., app_server_port)
 	// Strip the "app_" prefix which corresponds to the APP_ env prefix
 	prefix := strings.ToLower(envPrefix) + "_"
-	if strings.HasPrefix(key, prefix) {
-		key = key[len(prefix):]
-	}
+	key = strings.TrimPrefix(key, prefix)
 	// Replace remaining underscores with dots for nested keys
 	return strings.ReplaceAll(key, "_", ".")
 }
