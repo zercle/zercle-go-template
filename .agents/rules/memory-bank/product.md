@@ -1,86 +1,121 @@
-# Product Goals & Features
+# Zercle Go Template - Product Documentation
 
-## Product Vision
-To provide a production-ready, well-architected Go template that accelerates API development while maintaining code quality, security, and scalability.
+## Purpose
 
-## Core Features
+Zercle Go Template solves the **boilerplate problem** for Go backend development. Every new Go project requires setting up the same foundational components: HTTP routing, authentication, database connections, configuration management, and testing infrastructure. This template eliminates that repetitive setup work, allowing developers to focus on business logic from day one.
 
-### Authentication & Authorization
-- JWT-based authentication with configurable expiration
-- Argon2id password hashing for secure storage
-- User registration, login, and profile management
-- Protected routes with JWT middleware
+## Target Users
 
-### User Management
-- User registration with email validation
-- Profile retrieval and updates
-- User listing with pagination
-- Account deletion
+### Primary Audience
+- **Backend developers** building REST APIs in Go
+- **Engineering teams** establishing new microservices
+- **Technical leads** standardizing project structures
+- **Developers learning** Clean Architecture in Go
 
-### Task Management (Example Domain)
-- CRUD operations for tasks
-- Task ownership verification
-- Status tracking (pending, in_progress, completed, cancelled)
-- Priority levels (low, medium, high, urgent)
-- Due date management
-- Pagination support
+### Use Cases
+1. **Startup MVPs**: Rapidly prototype with production-ready foundations
+2. **Enterprise microservices**: Consistent patterns across service boundaries
+3. **Educational projects**: Learn Clean Architecture with working examples
+4. **Hackathon submissions**: Skip setup, focus on features
 
-### API Features
-- RESTful API design
-- OpenAPI/Swagger documentation
-- Request validation using validator/v10
-- Structured error responses
-- Health check endpoints
+## Key Features
 
-## Non-Functional Requirements
+### Core Capabilities
 
-### Security
-- Password hashing with Argon2id
-- JWT token-based authentication
-- CORS configuration
-- Rate limiting (configurable requests per window)
-- Input validation and sanitization
-
-### Performance
-- Database connection pooling
-- Efficient query generation via SQLC
-- Structured logging with zerolog
-- Graceful shutdown handling
-
-### Observability
-- Structured JSON logging
-- Request ID tracking
-- Health check endpoints
-- Configurable log levels
+| Feature | Description |
+|---------|-------------|
+| **JWT Authentication** | Complete auth flow with access/refresh tokens, secure middleware |
+| **User Management** | Full CRUD with validation, password hashing, profile operations |
+| **Type-Safe Database** | sqlc-generated code eliminates SQL injection and runtime errors |
+| **Clean Architecture** | Clear separation: Domain → Use Case → Repository → Handler |
+| **Dual Repository Support** | In-memory for testing, PostgreSQL for production |
+| **Structured Logging** | Zerolog with configurable levels and formats |
+| **Configuration Management** | Multi-layer config: env vars → .env → YAML → defaults |
+| **API Documentation** | Auto-generated Swagger/OpenAPI specs |
 
 ### Developer Experience
-- Clear project structure
-- Type-safe database operations
-- Comprehensive test coverage
-- Docker support for development and deployment
-- Makefile for common operations
 
-## Roadmap
+- **Zero-config startup**: Works out of the box with sensible defaults
+- **Hot reload**: Docker Compose for development
+- **Pre-commit hooks**: Automated linting and formatting
+- **Comprehensive tests**: Unit and integration test patterns
+- **Makefile commands**: Common tasks abstracted to simple commands
 
-### Current (v1.0)
-- User authentication and management
-- Task management as example domain
-- Basic infrastructure (config, logging, database)
-- Testing infrastructure
+## UX Goals
 
-### Future Enhancements
-- Additional example domains
-- Redis caching layer
-- Message queue integration (RabbitMQ/Kafka)
-- Metrics collection (Prometheus)
-- Distributed tracing (OpenTelemetry)
-- API versioning strategy
-- GraphQL support option
+### Easy to Use
+- Single command to start: `make docker-up`
+- Clear directory structure following Go conventions
+- Extensive inline code documentation
+- Working examples for all patterns
+
+### Well-Documented
+- README with setup instructions
+- Swagger UI at `/swagger/index.html`
+- Architecture decision records
+- This Memory Bank for AI context
+
+### Extensible
+- Feature-based organization: add new features by copying `user/` pattern
+- Interface-based design: swap implementations without changing business logic
+- Configuration-driven: behavior changes via config, not code
+
+## Roadmap Suggestions
+
+### Phase 1: Foundation (Current)
+- [x] Clean Architecture structure
+- [x] User authentication
+- [x] PostgreSQL integration
+- [x] Docker containerization
+- [x] Testing infrastructure
+
+### Phase 2: Enhanced Security
+- [ ] Rate limiting middleware
+- [ ] CORS configuration
+- [ ] Request validation middleware
+- [ ] Audit logging
+- [ ] Role-based access control (RBAC)
+
+### Phase 3: Operational Excellence
+- [ ] Health check endpoints
+- [ ] Metrics endpoint (Prometheus)
+- [ ] Distributed tracing
+- [ ] Graceful shutdown handling
+- [ ] Request ID propagation
+
+### Phase 4: Developer Tools
+- [ ] Code generation for new features
+- [ ] Database seeding scripts
+- [ ] Migration rollback utilities
+- [ ] Load testing setup (k6)
+- [ ] CI/CD pipeline examples
+
+### Phase 5: Advanced Features
+- [ ] WebSocket support
+- [ ] Background job processing
+- [ ] File upload handling
+- [ ] Multi-tenancy support
+- [ ] API versioning strategy
 
 ## Acceptance Criteria
-- All endpoints must have proper error handling
-- Database migrations must be idempotent
-- Tests must cover critical business logic
-- API documentation must be accurate
-- Configuration must be environment-specific
-- Security best practices must be followed
+
+A project built from this template should:
+
+1. **Compile without warnings** at `go build ./...`
+2. **Pass all tests** with `go test ./...`
+3. **Pass linting** with `golangci-lint run`
+4. **Start successfully** with `make docker-up`
+5. **Serve requests** at `http://localhost:8080`
+6. **Show Swagger UI** at `http://localhost:8080/swagger/index.html`
+7. **Authenticate users** via JWT tokens
+8. **Perform CRUD** on user resources
+9. **Log structured output** to stdout
+10. **Connect to PostgreSQL** for data persistence
+
+## Success Metrics
+
+- New feature can be added in under 30 minutes
+- 100% test coverage for domain layer
+- Zero security vulnerabilities in dependency scan
+- p99 latency < 10ms for simple requests
+- Memory usage < 100MB at idle

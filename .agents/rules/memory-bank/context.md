@@ -1,392 +1,148 @@
-# Context & Decisions
+# Zercle Go Template - Context & Current State
 
-## Architectural Decisions
+## Current Work Focus
 
-### Clean Architecture Choice
-**Decision:** Adopted Clean Architecture with DDD principles
-**Rationale:** Separates business logic from infrastructure, improves testability, enables independent evolution of layers
-**Impact:** All new domains must follow the established layer structure
+**Initial template setup and documentation completion**
 
-### SQLC for Database Access
-**Decision:** Use SQLC instead of raw SQL or ORM
-**Rationale:** Type-safe queries, compile-time safety, better performance than ORMs, explicit SQL control
-**Impact:** All database queries must be SQLC-generated, placed in `sqlc/queries/`
+The project foundation is established with Clean Architecture patterns implemented. Current priorities:
 
-### JWT Stateless Authentication
-**Decision:** JWT tokens without server-side session storage
-**Rationale:** Stateless design enables horizontal scaling, simpler architecture, no session management overhead
-**Impact:** All protected routes require JWT middleware, tokens stored client-side
+1. **Memory Bank completion**: Creating comprehensive documentation (this file set)
+2. **README creation**: User-facing setup and usage guide
+3. **Integration verification**: Ensuring all components work together
 
-### Argon2id for Password Hashing
-**Decision:** Argon2id algorithm for password hashing
-**Rationale:** Memory-hard, resistant to GPU/ASIC attacks, recommended by security experts
-**Impact:** All password operations must use the password.Hasher wrapper
+## Recent Changes
 
-### Echo Framework
-**Decision:** Echo v4 as HTTP framework
-**Rationale:** High performance, minimal boilerplate, excellent middleware support, active community
-**Impact:** All HTTP handlers use Echo context and patterns
+*No recent changes - initial project creation phase*
 
-## Domain Rules
+### Committed Decisions
 
-### User Domain
-**Business Rules:**
-- Email must be unique across all users
-- Password must be hashed before storage
-- Users can only update their own profiles
-- Email cannot be changed after registration
-- Minimum full name length: 2 characters
+| Decision | Rationale | Date |
+|----------|-----------|------|
+| Echo framework | Balance of performance and simplicity vs Gin/Fiber | Initial |
+| sqlc over GORM | Compile-time type safety, raw SQL control | Initial |
+| pgx/v5 over lib/pq | Modern driver with better performance | Initial |
+| Feature-based structure | Clear boundaries, team scalability | Initial |
+| Dual repository pattern | Testing without database dependency | Initial |
+| Zerolog over logrus | Better performance, cleaner API | Initial |
+| Viper for config | Supports multiple sources natively | Initial |
 
-**Validation Rules:**
-- Email format validated by validator/v10
-- Password strength enforced by Argon2id parameters
-- Phone number is optional
-- Full name required for registration
+## Next Steps
 
-**Ownership Rules:**
-- Users can only access their own profile
-- Admin endpoints (if added) can access all users
-- User ID extracted from JWT token for authorization
+### Immediate (This Week)
+1. [ ] Create README.md with quickstart guide
+2. [ ] Add example environment files (.env.example comprehensive)
+3. [ ] Verify Docker Compose works end-to-end
+4. [ ] Add integration test for auth flow
 
-### Task Domain
-**Business Rules:**
-- Tasks must have an owner (user_id)
-- Users can only access their own tasks
-- Task status must be one of: pending, in_progress, completed, cancelled
-- Task priority must be one of: low, medium, high, urgent
-- Completed tasks automatically set completed_at timestamp
+### Short-term (Next 2 Weeks)
+1. [ ] Add health check endpoint
+2. [ ] Implement rate limiting
+3. [ ] Add request ID middleware
+4. [ ] Create seed data script
+5. [ ] Add pagination helpers
 
-**Validation Rules:**
-- Title is required
-- Description is optional
-- Due date is optional
-- Status defaults to "pending"
-- Priority defaults to "medium" if not specified
+### Medium-term (Next Month)
+1. [ ] RBAC implementation
+2. [ ] Audit logging
+3. [ ] Metrics endpoint (Prometheus)
+4. [ ] CI/CD pipeline examples
+5. [ ] Load testing setup
 
-**Ownership Rules:**
-- All task operations verify user ownership
-- Cannot access/modify tasks owned by other users
-- Task list filtered by user_id
+## Active Considerations
 
-## File & Component Summaries
+### Under Evaluation
 
-### Core Application Files
+| Topic | Options | Leaning Towards | Notes |
+|-------|---------|-----------------|-------|
+| ORM addition | sqlc only / GORM / ent | Stay with sqlc | Type safety is priority |
+| Caching layer | Redis / in-memory / none | Redis for prod | Needs investigation |
+| Message queue | NATS / RabbitMQ / none | NATS | Lightweight, Go-native |
+| API format | REST only / add gRPC | REST for now | Complexity vs benefit |
+| Config format | YAML / TOML / JSON | Keep YAML | Widely understood |
 
-**cmd/server/main.go**
-- Application entry point
-- Loads environment-specific configuration
-- Initializes logger and application
-- Handles graceful shutdown
+### Technical Debt Tracking
 
-**internal/app/app.go**
-- Main application structure
-- Dependency injection container
-- Middleware setup (RequestID, Logger, Recovery, CORS, RateLimit)
-- Route registration
-- Server lifecycle management
+*None currently identified*
 
-### Configuration
+## Important Patterns to Remember
 
-**internal/infrastructure/config/config.go**
-- Configuration structs for all components
-- Viper-based configuration loading
-- Environment variable support
-- Type-safe configuration access
+### 1. Dependency Injection Container
 
-**configs/*.yaml**
-- Environment-specific configurations
-- local, dev, uat, prod environments
-- Database, JWT, logging, CORS, rate limit settings
+All dependencies are wired in [`internal/container/container.go`](internal/container/container.go). When adding new features:
 
-### Database Layer
-
-**internal/infrastructure/db/postgres.go**
-- PostgreSQL database implementation
-- Connection pooling configuration
-- Health check implementation
-- SQLC queries integration
-
-**internal/infrastructure/db/factory.go**
-- Database factory for creating connections
-- Abstracts database type selection
-- Currently supports PostgreSQL only
-
-**internal/infrastructure/sqlc/db/**
-- SQLC-generated code
-- Type-safe database queries
-- Models and querier interfaces
-- Auto-generated from SQL files
-
-### Domain: User
-
-**internal/domain/user/entity/user.go**
-- User entity definition
-- UUID-based primary key
-- Fields: id, email, password, full_name, phone, timestamps
-
-**internal/domain/user/repository/repository.go**
-- SQLC-based repository implementation
-- CRUD operations for users
-- Email uniqueness check
-- Pagination support
-
-**internal/domain/user/usecase/usecase.go**
-- Business logic for user operations
-- Register, Login, GetProfile, UpdateProfile, DeleteAccount, ListUsers
-- Password hashing and verification
-- JWT token generation
-- Domain-specific error definitions
-
-**internal/domain/user/handler/handler.go**
-- HTTP handlers for user endpoints
-- Request/response DTO mapping
-- Error handling and HTTP status codes
-- Route registration
-
-### Domain: Task
-
-**internal/domain/task/entity/task.go**
-- Task entity definition
-- UUID-based primary key
-- Fields: id, user_id, title, description, status, priority, due_date, completed_at, timestamps
-
-**internal/domain/task/repository/repository.go**
-- pgx-based repository implementation
-- CRUD operations for tasks
-- User filtering for list operations
-- Ownership verification
-
-**internal/domain/task/usecase/usecase.go**
-- Business logic for task operations
-- CreateTask, GetTask, ListTasks, UpdateTask, DeleteTask
-- Status and priority validation
-- Ownership enforcement
-- Domain-specific error definitions
-
-**internal/domain/task/handler/handler.go**
-- HTTP handlers for task endpoints
-- Request/response DTO mapping
-- Error handling and HTTP status codes
-- Protected routes only
-
-### Infrastructure Components
-
-**internal/infrastructure/logger/logger.go**
-- Zerolog-based structured logger
-- Configurable log levels and format
-- Request ID integration
-- Context-aware logging
-
-**internal/infrastructure/password/passworder.go**
-- Argon2id password hashing wrapper
-- Configurable parameters
-- Hash and verify operations
-
-**internal/infrastructure/http/client/resty.go**
-- Resty HTTP client wrapper
-- For making external HTTP requests
-- Configurable timeouts and retries
-
-**pkg/middleware/**
-- Custom middleware implementations
-- JWT authentication
-- Request ID generation
-- Structured logging
-- CORS handling
-- Rate limiting
-
-**pkg/health/**
-- Health check handler
-- Database connectivity check
-- Readiness probe
-
-## Dependency Mapping
-
-### Domain Dependencies
-- **User Domain:** Depends on config, logger, password, middleware (JWT)
-- **Task Domain:** Depends on logger only (uses pgx directly for DB)
-
-### Infrastructure Dependencies
-- **Database:** pgx/v5 driver
-- **Config:** Viper
-- **Logging:** Zerolog
-- **Validation:** validator/v10
-- **Auth:** golang-jwt/jwt/v5
-- **Password:** golang.org/x/crypto
-
-### External Dependencies
-- **PostgreSQL:** Primary database
-- **Testcontainers:** Integration testing
-- **Swagger:** API documentation
-
-## Key Implementation Details
-
-### JWT Token Structure
-- Contains user ID and email in claims
-- Configurable expiration time
-- Secret key from configuration
-- Bearer token format in Authorization header
-
-### Database Connection Pool
-- Min connections: 5
-- Max connections: 25
-- Connection lifetime: 1 hour
-- Idle timeout: 10 minutes
-- Health check period: 1 minute
-
-### Rate Limiting
-- Configurable requests per time window
-- Default: 100 requests per 60 seconds
-- Applied at middleware level
-- Per-client tracking
-
-### CORS Configuration
-- Allowed origins configurable per environment
-- Local: localhost:3000, localhost:8080
-- Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
-- Headers: Authorization, Content-Type, X-Request-ID
-
-### Error Handling Pattern
 ```go
-// UseCase layer: Domain errors
-if user == nil {
-    return nil, ErrUserNotFound
-}
-
-// Repository layer: Wrap with context
-if err != nil {
-    return fmt.Errorf("failed to create user: %w", err)
-}
-
-// Handler layer: Map to HTTP status
-if errors.Is(err, ErrUserNotFound) {
-    return c.JSON(http.StatusNotFound, ErrorResponse{...})
-}
+// 1. Add repository interface implementation choice
+// 2. Update Container struct
+// 3. Add functional option
+// 4. Include in Build() method
 ```
 
-### Request Validation
-- Use validator/v10 struct tags
-- Validate before business logic
-- Return validation errors with field details
-- Example: `validate:"required,email"`
+### 2. Feature Module Structure
 
-### Pagination Pattern
-```go
-// Standard pagination parameters
-limit, offset := getPaginationParams(c)
+Every feature follows this exact structure:
 
-// Repository returns data + total count
-users, total, err := repo.List(ctx, limit, offset)
-
-// Response includes pagination metadata
-return c.JSON(http.StatusOK, ListResponse{
-    Users: users,
-    Total: total,
-    Limit: limit,
-    Offset: offset,
-})
+```
+internal/feature/{name}/
+├── domain/          # Entities and business rules (zero deps)
+├── dto/             # Request/response structs
+├── handler/         # HTTP handlers ( Echo context)
+├── repository/      # Data access interface + implementations
+├── usecase/         # Business logic orchestration
+└── {name}.go        # Public exports
 ```
 
-## Testing Strategy
+### 3. Error Handling Pattern
 
-### Unit Tests
-- Test usecase business logic
-- Mock repository dependencies
-- Test error paths and edge cases
-- Located in same package as implementation
+Always use custom error types from [`internal/errors/errors.go`](internal/errors/errors.go):
 
-### Integration Tests
-- Test API endpoints end-to-end
-- Use testcontainers for real database
-- Test authentication flow
-- Located in test/integration/
+```go
+return nil, errors.ErrInvalidInput.WithMessage("email is required")
+```
 
-### Mock Generation
-- Use go.uber.org/mock
-- Generate mocks from domain interfaces
-- Located in domain/*/mock/ directories
-- Regenerate when interfaces change
+Handlers translate to HTTP status codes automatically.
 
-### Test Helpers
-- test/mock/sqlmock.go - SQL mock utilities
-- test/integration/test_helper.go - Integration test setup
-- Common test fixtures and utilities
+### 4. Testing Strategy
 
-## Migration Strategy
+- **Unit tests**: Mock dependencies with `//go:generate mockgen`
+- **Integration tests**: Use `TestMain` with database setup
+- **Table-driven**: All tests use table-driven pattern
+- **Naming**: `TestFunctionName_Scenario` convention
 
-### Database Migrations
-- SQLC migration format
-- Up and down migrations required
-- Version naming: YYYYMMDD_NNN_description
-- Apply migrations in order
-- Rollback support with down migrations
+### 5. Database Workflow
 
-### Schema Changes
-- Add new migrations for schema changes
-- Never modify existing migrations
-- Use SQLC to regenerate queries after schema changes
-- Test migrations in all environments
-
-## Configuration Management
-
-### Environment Hierarchy
-1. Base config from YAML file
-2. Environment variable overrides
-3. Default values in struct tags
-
-### Configuration Files
-- `configs/local.yaml` - Local development
-- `configs/dev.yaml` - Development environment
-- `configs/uat.yaml` - User acceptance testing
-- `configs/prod.yaml` - Production
-
-### Environment Variables
-- `SERVER_ENV` - Environment selector (default: local)
-- Database credentials via env vars in production
-- JWT secret via env vars in production
-- Never commit secrets to repository
-
-## Deployment Considerations
-
-### Docker Deployment
-- Multi-stage build for optimization
-- Alpine-based final image
-- Non-root user for security
-- Health checks configured
-- Port 3000 exposed
-
-### Database Requirements
-- PostgreSQL 12+ required
-- Connection pool configuration important
-- Migrations must be applied before startup
-- Health check verifies connectivity
-
-### Monitoring Points
-- Health check endpoints
-- Request/response logging
-- Error logging with context
-- Performance metrics (future)
-- Database query performance (future)
+1. Write SQL in [`internal/infrastructure/db/queries/`](internal/infrastructure/db/queries/)
+2. Update schema in [`internal/infrastructure/db/migrations/`](internal/infrastructure/db/migrations/)
+3. Run `sqlc generate` (via Makefile)
+4. Use generated code in repository layer
 
 ## Known Constraints
 
-### Current Limitations
-- Only PostgreSQL supported (no MySQL, SQLite)
-- No caching layer implemented
-- No message queue integration
-- No distributed tracing
-- No metrics collection
-- Single-region deployment only
+1. **Go 1.24+ required**: Uses modern Go features
+2. **PostgreSQL 13+**: For JSONB and CTE support
+3. **Docker required**: For consistent development environment
+4. **Make required**: For build automation
 
-### Technical Debt
-- Task domain uses pgx directly instead of SQLC
-- Mixed database access patterns (SQLC vs pgx)
-- Consider standardizing on one approach
+## Communication Notes
 
-### Future Considerations
-- Add Redis caching layer
-- Implement message queue for async operations
-- Add Prometheus metrics
-- Implement distributed tracing with OpenTelemetry
-- Add GraphQL support as alternative to REST
-- Consider gRPC for internal service communication
+- **Project owner**: Zercle organization
+- **License**: Check repository for license details
+- **Contributing**: Follow existing patterns, add tests for new features
+- **Questions**: Refer to Memory Bank first, then code comments
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Start development | `make docker-up` |
+| Run tests | `make test` |
+| Run linter | `make lint` |
+| Generate SQLC | `make sqlc` |
+| Swagger docs | `make swag` |
+| Build binary | `make build` |
+
+## Documentation Cross-References
+
+- Architecture decisions: [`architecture.md`](architecture.md)
+- Technology details: [`tech.md`](tech.md)
+- Development workflows: [`tasks.md`](tasks.md)
+- Project overview: [`brief.md`](brief.md)

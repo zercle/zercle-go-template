@@ -1,0 +1,260 @@
+# =============================================================================
+# Docker Compose for Integration Testing
+# =============================================================================
+# This compose file sets up the infrastructure for running integration tests.
+# It is compatible with both Docker and Podman.
+#
+# Usage:
+#   docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+#   podman-compose -f docker-compose.test.yml up --abort-on-container-exit
+#
+# Services:
+#   - postgres: PostgreSQL database for tests
+#   - migrations: Database migration runner
+#   - app: Application service for integration testing
+#   - test-runner: Service to execute integration tests
+# =============================================================================
+
+version: "3.9"
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database Service
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: docker.io/postgres:18-alpine
+    container_name: zercle-test-postgres
+    restart: "no"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: zercle_template_test
+      PGUSER: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./internal/infrastructure/db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zercle_template_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - test-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  # ---------------------------------------------------------------------------
+  # Database Migration Service
+  # ---------------------------------------------------------------------------
+  migrations:
+    image: docker.io/postgres:18-alpine
+    container_name: zercle-test-migrations
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: postgres
+      PGUSER: postgres
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: zercle_template_test
+    volumes:
+      - ./internal/infrastructure/db/migrations:/migrations:ro
+    entrypoint: >
+      sh -c "
+        echo 'Waiting for PostgreSQL to be ready...' &&
+        sleep 2 &&
+        for file in /migrations/*.sql; do
+          echo \"Running migration: $$file\" &&
+          psql -h postgres -U postgres -d zercle_template_test -f \"$$file\" || exit 1;
+        done &&
+        echo 'All migrations completed successfully'
+      "
+    networks:
+      - test-network
+    profiles:
+      - manual-migrations
+
+  # ---------------------------------------------------------------------------
+  # Application Service (for integration testing)
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_NAME: zercle-go-template
+        VERSION: test
+        BUILD_TIME: ${BUILD_TIME:-}
+        GIT_COMMIT: ${GIT_COMMIT:-}
+    container_name: zercle-test-app
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Application settings
+      APP_APP_NAME: zercle-go-template-test
+      APP_APP_VERSION: test
+      APP_APP_ENVIRONMENT: test
+      # Server settings
+      APP_SERVER_HOST: 0.0.0.0
+      APP_SERVER_PORT: 8080
+      # Database settings
+      APP_DATABASE_HOST: postgres
+      APP_DATABASE_PORT: 5432
+      APP_DATABASE_DATABASE: zercle_template_test
+      APP_DATABASE_USERNAME: postgres
+      APP_DATABASE_PASSWORD: postgres
+      APP_DATABASE_SSL_MODE: disable
+      # JWT settings (use a test secret)
+      APP_JWT_SECRET: test-secret-key-for-integration-tests-only
+      APP_JWT_ACCESS_TOKEN_TTL: 15m
+      APP_JWT_REFRESH_TOKEN_TTL: 168h
+      # Logging settings
+      APP_LOG_LEVEL: debug
+      APP_LOG_FORMAT: json
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "/app/server", "--health-check"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - test-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+
+  # ---------------------------------------------------------------------------
+  # Test Runner Service
+  # ---------------------------------------------------------------------------
+  test-runner:
+    image: docker.io/golang:1.25-bookworm
+    container_name: zercle-test-runner
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      app:
+        condition: service_started
+    environment:
+      # Go settings
+      GO111MODULE: "on"
+      CGO_ENABLED: "0"
+      # Test database settings (for config package)
+      APP_DATABASE_HOST: postgres
+      APP_DATABASE_PORT: 5432
+      APP_DATABASE_DATABASE: zercle_template_test
+      APP_DATABASE_USERNAME: postgres
+      APP_DATABASE_PASSWORD: postgres
+      APP_DATABASE_SSL_MODE: disable
+      # Test database settings (for integration tests - without APP_ prefix)
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: zercle_template_test
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_SSL_MODE: disable
+      # Test JWT settings
+      APP_JWT_SECRET: test-secret-key-for-integration-tests-only
+      APP_JWT_ACCESS_TOKEN_TTL: 15m
+      APP_JWT_REFRESH_TOKEN_TTL: 168h
+      # Test app endpoint
+      TEST_APP_BASE_URL: http://app:8080
+      # Logging
+      APP_LOG_LEVEL: debug
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:ro
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+    entrypoint: >
+      sh -c "
+        echo 'Installing postgresql-client...' &&
+        apt-get update -qq && apt-get install -y -qq postgresql-client &&
+        echo 'Running database migrations...' &&
+        for file in /workspace/internal/infrastructure/db/migrations/*.sql; do
+          echo \"Applying migration: $$file\" &&
+          PGPASSWORD=postgres psql -h postgres -U postgres -d zercle_template_test -f \"$$file\" || exit 1;
+        done &&
+        echo '' &&
+        echo 'Waiting for application to be ready...' &&
+        sleep 5 &&
+        echo '' &&
+        echo 'Running integration tests...' &&
+        go test -v -tags=integration ./... -count=1 || exit 1
+      "
+    networks:
+      - test-network
+    profiles:
+      - test
+
+  # ---------------------------------------------------------------------------
+  # Database Seeder (optional, for test data)
+  # ---------------------------------------------------------------------------
+  db-seed:
+    image: docker.io/postgres:18-alpine
+    container_name: zercle-test-seed
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: postgres
+      PGUSER: postgres
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: zercle_template_test
+    volumes:
+      - ./scripts/seed:/seed:ro
+    entrypoint: >
+      sh -c "
+        if [ -d /seed ] && [ \"\$$(ls -A /seed/*.sql 2>/dev/null)\" ]; then
+          echo 'Seeding test data...' &&
+          for file in /seed/*.sql; do
+            echo \"Applying seed: \$$file\" &&
+            psql -h postgres -U postgres -d zercle_template_test -f \"\$$file\";
+          done;
+        else
+          echo 'No seed files found, skipping...';
+        fi
+      "
+    networks:
+      - test-network
+    profiles:
+      - seed
+
+# -----------------------------------------------------------------------------
+# Networks
+# -----------------------------------------------------------------------------
+networks:
+  test-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# -----------------------------------------------------------------------------
+# Volumes
+# -----------------------------------------------------------------------------
+volumes:
+  postgres_test_data:
+    driver: local
+  go_mod_cache:
+    driver: local
+  go_build_cache:
+    driver: local

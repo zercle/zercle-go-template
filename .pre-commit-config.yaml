@@ -1,0 +1,59 @@
+# Pre-commit hooks configuration
+# Install pre-commit: pip install pre-commit or brew install pre-commit
+# Install hooks: make hooks-install
+# Run manually: make hooks-run
+
+repos:
+  - repo: local
+    hooks:
+      - id: go-fmt
+        name: Go Format
+        description: Format Go code with gofmt
+        entry: gofmt -s -w
+        language: system
+        types: [go]
+        pass_filenames: true
+
+      - id: go-imports
+        name: Go Imports
+        description: Fix and format Go imports
+        entry: goimports -w
+        language: system
+        types: [go]
+        pass_filenames: true
+
+      - id: go-mod-tidy
+        name: Go Mod Tidy
+        description: Ensure go.mod is tidy
+        entry: go mod tidy
+        language: system
+        types: [go]
+        pass_filenames: false
+        always_run: true
+
+      - id: go-vet
+        name: Go Vet
+        description: Run go vet for static analysis
+        entry: go vet ./...
+        language: system
+        types: [go]
+        pass_filenames: false
+        always_run: true
+
+      - id: golangci-lint
+        name: Golangci-lint
+        description: Run comprehensive linting
+        entry: golangci-lint run --timeout=5m --fix
+        language: system
+        types: [go]
+        pass_filenames: false
+        always_run: true
+
+      - id: go-test
+        name: Go Test
+        description: Run unit tests
+        entry: go test -v -race -count=1 ./...
+        language: system
+        types: [go]
+        pass_filenames: false
+        always_run: true

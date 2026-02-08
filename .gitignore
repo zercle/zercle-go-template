@@ -62,3 +62,21 @@ Thumbs.db
 coverage.html
 coverage.out
 *.coverprofile
+
+# Air live reload
+.air.toml
+.air/
+
+# Environment files (except example)
+.env
+.env.*
+!.env.example
+
+# Local configuration overrides
+config.local.yaml
+config.development.yaml
+config.staging.yaml
+
+# Test artifacts
+results.sarif
+trivy-results.sarif
