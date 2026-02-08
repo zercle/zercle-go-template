@@ -349,10 +349,17 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
             BUILD_TIME=${{ github.event.head_commit.timestamp }}
 
+      - name: Extract short SHA tag
+        id: sha-tag
+        run: |
+          # Extract the sha- tag from the metadata output
+          sha_tag=$(echo '${{ steps.meta.outputs.json }}' | jq -r '.tags[] | select(startswith("ghcr.io/${{ github.repository }}:sha-"))' | head -1)
+          echo "sha-tag=$sha_tag" >> $GITHUB_OUTPUT
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.29.0
         with:
-          image-ref: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+          image-ref: ${{ steps.sha-tag.outputs.sha-tag }}
           format: 'sarif'
           output: 'trivy-results.sarif'
         continue-on-error: true
