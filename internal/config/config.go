@@ -91,14 +91,14 @@ type SecurityConfig struct {
 func (c *Config) GetArgon2Params() (memory, iterations int, parallelism uint8, saltLength, keyLength int) {
 	// Set defaults based on environment
 	if c.IsProduction() {
-		memory = 64 * 1024  // 64 MB
+		memory = 64 * 1024 // 64 MB
 		iterations = 3
 		parallelism = 4
 		saltLength = 16
 		keyLength = 32
 	} else {
 		// Development/Test: lower memory for faster tests
-		memory = 16 * 1024  // 16 MB
+		memory = 16 * 1024 // 16 MB
 		iterations = 3
 		parallelism = 4
 		saltLength = 16

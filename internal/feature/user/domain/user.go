@@ -26,31 +26,31 @@ import (
 // Key length: 32 bytes
 // Algorithm: Argon2id
 const (
-	argon2idVersion   = argon2.Version
-	defaultMemory     = 64 * 1024 // 64 MB in KB
-	defaultIterations = 3
+	argon2idVersion    = argon2.Version
+	defaultMemory      = 64 * 1024 // 64 MB in KB
+	defaultIterations  = 3
 	defaultParallelism = 4
-	defaultSaltLength = 16
-	defaultKeyLength  = 32
+	defaultSaltLength  = 16
+	defaultKeyLength   = 32
 )
 
 // argon2Params holds the current Argon2id parameters for password hashing.
 // Use atomic operations for thread-safe access to the parallelism value.
 type argon2Params struct {
-	memory     uint32
-	iterations uint32
+	memory      uint32
+	iterations  uint32
 	parallelism uint8
-	saltLength uint32
-	keyLength  uint32
+	saltLength  uint32
+	keyLength   uint32
 }
 
 // defaultParams holds the default Argon22id parameters.
 var defaultParams = argon2Params{
-	memory:     defaultMemory,
-	iterations: defaultIterations,
+	memory:      defaultMemory,
+	iterations:  defaultIterations,
 	parallelism: defaultParallelism,
-	saltLength: defaultSaltLength,
-	keyLength:  defaultKeyLength,
+	saltLength:  defaultSaltLength,
+	keyLength:   defaultKeyLength,
 }
 
 // currentParams holds the current Argon2id parameters (can be changed via SetArgon2Params).
@@ -87,11 +87,11 @@ func SetArgon2Params(memory, iterations int, parallelism uint8, saltLength, keyL
 	}
 
 	currentParams.Store(argon2Params{
-		memory:     uint32(memory),
-		iterations: uint32(iterations),
+		memory:      uint32(memory),
+		iterations:  uint32(iterations),
 		parallelism: parallelism,
-		saltLength: uint32(saltLength),
-		keyLength:  uint32(keyLength),
+		saltLength:  uint32(saltLength),
+		keyLength:   uint32(keyLength),
 	})
 }
 
