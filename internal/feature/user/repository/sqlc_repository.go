@@ -17,6 +17,25 @@ import (
 	"zercle-go-template/internal/infrastructure/db/sqlc"
 )
 
+// Default query timeouts to prevent hanging database operations.
+const (
+	// defaultQueryTimeout is the default timeout for most database queries.
+	defaultQueryTimeout = 5 * time.Second
+	// writeOperationTimeout is the timeout for write operations (create, update, delete).
+	writeOperationTimeout = 10 * time.Second
+	// listOperationTimeout is the timeout for list operations that may scan many rows.
+	listOperationTimeout = 10 * time.Second
+)
+
+// withTimeout wraps a context with a timeout for database operations.
+// If the parent context already has a deadline, it is used as-is.
+func withTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if _, hasDeadline := ctx.Deadline(); hasDeadline {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, timeout)
+}
+
 // SqlcUserRepository is a PostgreSQL-based implementation of UserRepository using sqlc.
 // It provides type-safe database access for user operations.
 type SqlcUserRepository struct {
@@ -44,6 +63,9 @@ func toDomainUser(u sqlc.User) *domain.User {
 
 // Create creates a new user in the repository.
 func (r *SqlcUserRepository) Create(ctx context.Context, user *domain.User) error {
+	ctx, cancel := withTimeout(ctx, writeOperationTimeout)
+	defer cancel()
+
 	id, err := uuid.Parse(user.ID)
 	if err != nil {
 		return appErr.ValidationError("invalid user ID format")
@@ -74,6 +96,9 @@ func (r *SqlcUserRepository) Create(ctx context.Context, user *domain.User) erro
 
 // GetByID retrieves a user by their unique ID.
 func (r *SqlcUserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
+	ctx, cancel := withTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
 	uid, err := uuid.Parse(id)
 	if err != nil {
 		return nil, appErr.ValidationError("invalid user ID format")
@@ -92,6 +117,9 @@ func (r *SqlcUserRepository) GetByID(ctx context.Context, id string) (*domain.Us
 
 // GetByEmail retrieves a user by their email address.
 func (r *SqlcUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	ctx, cancel := withTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
 	user, err := r.querier.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -105,6 +133,9 @@ func (r *SqlcUserRepository) GetByEmail(ctx context.Context, email string) (*dom
 
 // GetAll retrieves all users with pagination support.
 func (r *SqlcUserRepository) GetAll(ctx context.Context, offset, limit int) ([]*domain.User, error) {
+	ctx, cancel := withTimeout(ctx, listOperationTimeout)
+	defer cancel()
+
 	if offset < 0 {
 		offset = 0
 	}
@@ -136,6 +167,9 @@ func (r *SqlcUserRepository) GetAll(ctx context.Context, offset, limit int) ([]*
 
 // Count returns the total number of users.
 func (r *SqlcUserRepository) Count(ctx context.Context) (int, error) {
+	ctx, cancel := withTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
 	count, err := r.querier.CountUsers(ctx)
 	if err != nil {
 		return 0, appErr.InternalError("failed to count users").WithCause(err)
@@ -145,6 +179,9 @@ func (r *SqlcUserRepository) Count(ctx context.Context) (int, error) {
 
 // Update updates an existing user.
 func (r *SqlcUserRepository) Update(ctx context.Context, user *domain.User) error {
+	ctx, cancel := withTimeout(ctx, writeOperationTimeout)
+	defer cancel()
+
 	id, err := uuid.Parse(user.ID)
 	if err != nil {
 		return appErr.ValidationError("invalid user ID format")
@@ -178,6 +215,9 @@ func (r *SqlcUserRepository) Update(ctx context.Context, user *domain.User) erro
 
 // Delete removes a user by their ID.
 func (r *SqlcUserRepository) Delete(ctx context.Context, id string) error {
+	ctx, cancel := withTimeout(ctx, writeOperationTimeout)
+	defer cancel()
+
 	uid, err := uuid.Parse(id)
 	if err != nil {
 		return appErr.ValidationError("invalid user ID format")
@@ -203,6 +243,9 @@ func (r *SqlcUserRepository) Delete(ctx context.Context, id string) error {
 
 // Exists checks if a user with the given email exists.
 func (r *SqlcUserRepository) Exists(ctx context.Context, email string) (bool, error) {
+	ctx, cancel := withTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
 	exists, err := r.querier.CheckUserExists(ctx, email)
 	if err != nil {
 		return false, appErr.InternalError("failed to check user existence").WithCause(err)

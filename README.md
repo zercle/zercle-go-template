@@ -55,6 +55,7 @@
 - **Pre-commit Hooks** - Automated code quality checks
 - **Mock Generation** - Auto-generate mocks for testing
 - **Database Migrations** - Version-controlled schema changes
+- **Comprehensive Benchmarks** - Performance benchmarks for critical paths
 
 ---
 
@@ -180,6 +181,29 @@ make sqlc
 | `APP_DATABASE_SSL_MODE` | SSL mode | `disable` |
 | `APP_LOG_LEVEL` | Log level | `info` |
 | `APP_LOG_FORMAT` | Log format | `json` |
+| `APP_SECURITY_BCRYPT_COST` | Bcrypt cost for password hashing | `10` (prod), `4` (dev) |
+
+### Security Configuration
+
+The template includes configurable security settings:
+
+#### Bcrypt Password Hashing
+
+The bcrypt cost factor can be configured via `APP_SECURITY_BCRYPT_COST`:
+
+- **Production**: Cost 10 (bcrypt.DefaultCost) - ~100ms per hash
+- **Development/Test**: Cost 4 (bcrypt.MinCost) - ~1ms per hash (faster tests)
+
+```yaml
+# configs/config.yaml
+security:
+  bcrypt_cost: 10  # Set to 4 for faster tests/development
+```
+
+Or via environment variable:
+```bash
+export APP_SECURITY_BCRYPT_COST=4
+```
 
 ### Example: Production Configuration
 
@@ -198,6 +222,9 @@ log:
 
 database:
   ssl_mode: "require"
+
+security:
+  bcrypt_cost: 10  # Production bcrypt cost
 ```
 
 Run with:
@@ -290,16 +317,53 @@ make test-integration
 make benchmark
 ```
 
+### Benchmarks
+
+The project includes comprehensive benchmarks for performance-critical operations:
+
+#### User Domain Benchmarks
+- `BenchmarkSetPassword*` - Password hashing with different bcrypt costs
+- `BenchmarkVerifyPassword*` - Password verification performance
+- `BenchmarkNewUser` - User creation with password hashing
+- `BenchmarkIsValidEmail*` - Email validation performance
+- `BenchmarkPasswordComparison` - Compare bcrypt costs (4, 6, 8, 10, 12)
+
+#### JWT Benchmarks
+- `BenchmarkGenerateTokenPair*` - JWT token generation
+- `BenchmarkValidateToken*` - JWT token validation
+- `BenchmarkTokenRoundTrip` - Full generate + validate cycle
+
+#### Handler Benchmarks
+- `BenchmarkValidateStruct*` - Request validation performance
+- `BenchmarkFormatValidationErrors*` - Error formatting
+
+Run specific benchmarks:
+```bash
+# Run all benchmarks
+go test -bench=. -benchmem ./...
+
+# Run specific benchmark
+go test -bench=BenchmarkSetPassword -benchmem ./internal/feature/user/domain/...
+
+# Run with different bcrypt costs
+go test -bench=BenchmarkPasswordComparison -benchmem ./internal/feature/user/domain/...
+```
+
 ### Test Structure
 
 ```
 internal/feature/user/
 ├── handler/
-│   └── user_handler_test.go        # HTTP handler tests
+│   ├── user_handler_test.go              # HTTP handler tests
+│   ├── user_handler_integration_test.go  # Integration tests
+│   └── user_handler_benchmark_test.go    # Benchmark tests
 ├── repository/
-│   └── sqlc_repository_test.go     # Repository tests
-└── usecase/
-    └── user_usecase_test.go        # Business logic tests
+│   ├── sqlc_repository_test.go           # Repository tests
+│   └── sqlc_repository_integration_test.go
+├── usecase/
+│   └── user_usecase_test.go              # Business logic tests
+└── domain/
+    └── user_benchmark_test.go            # Domain benchmarks
 ```
 
 ### Writing Tests
@@ -342,7 +406,8 @@ zercle-go-template/
 │       └── main.go                 # Application entry point
 ├── internal/
 │   ├── config/                     # Configuration management
-│   │   └── config.go
+│   │   ├── config.go               # Main configuration with security settings
+│   │   └── config_test.go
 │   ├── container/                  # Dependency injection
 │   │   └── container.go
 │   ├── errors/                     # Custom error types
@@ -352,10 +417,13 @@ zercle-go-template/
 │   │   │   ├── domain/
 │   │   │   ├── middleware/
 │   │   │   └── usecase/
+│   │   │       └── jwt_usecase_benchmark_test.go
 │   │   └── user/                   # User management feature
 │   │       ├── domain/
+│   │       │   └── user_benchmark_test.go
 │   │       ├── dto/
 │   │       ├── handler/
+│   │       │   └── user_handler_benchmark_test.go
 │   │       ├── repository/
 │   │       └── usecase/
 │   ├── infrastructure/             # External dependencies

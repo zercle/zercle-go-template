@@ -24,6 +24,7 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	Log      LogConfig      `mapstructure:"log"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
+	Security SecurityConfig `mapstructure:"security"`
 }
 
 // AppConfig contains general application settings.
@@ -63,6 +64,65 @@ type JWTConfig struct {
 	Secret          string        `mapstructure:"secret"`
 	AccessTokenTTL  time.Duration `mapstructure:"access_token_ttl"`
 	RefreshTokenTTL time.Duration `mapstructure:"refresh_token_ttl"`
+}
+
+// SecurityConfig contains security-related settings.
+type SecurityConfig struct {
+	// Argon2Memory is the memory cost for Argon2id in KB.
+	// Default: 65536 (64 MB) for production, 16384 (16 MB) for development/test.
+	Argon2Memory int `mapstructure:"argon2_memory"`
+	// Argon2Iterations is the number of iterations for Argon2id.
+	// Default: 3 (OWASP recommended minimum).
+	Argon2Iterations int `mapstructure:"argon2_iterations"`
+	// Argon2Parallelism is the parallelism factor for Argon2id.
+	// Default: 4 (number of threads).
+	Argon2Parallelism int `mapstructure:"argon2_parallelism"`
+	// Argon2SaltLength is the salt length in bytes.
+	// Default: 16 bytes.
+	Argon2SaltLength int `mapstructure:"argon2_salt_length"`
+	// Argon2KeyLength is the key length in bytes.
+	// Default: 32 bytes.
+	Argon2KeyLength int `mapstructure:"argon2_key_length"`
+}
+
+// GetArgon2Params returns the configured Argon2id parameters.
+// Production defaults: Memory=64MB, Iterations=3, Parallelism=4, SaltLength=16, KeyLength=32
+// Development/Test defaults: Memory=16MB for faster tests
+func (c *Config) GetArgon2Params() (memory, iterations int, parallelism uint8, saltLength, keyLength int) {
+	// Set defaults based on environment
+	if c.IsProduction() {
+		memory = 64 * 1024  // 64 MB
+		iterations = 3
+		parallelism = 4
+		saltLength = 16
+		keyLength = 32
+	} else {
+		// Development/Test: lower memory for faster tests
+		memory = 16 * 1024  // 16 MB
+		iterations = 3
+		parallelism = 4
+		saltLength = 16
+		keyLength = 32
+	}
+
+	// Override with explicit configuration if set
+	if c.Security.Argon2Memory > 0 {
+		memory = c.Security.Argon2Memory
+	}
+	if c.Security.Argon2Iterations > 0 {
+		iterations = c.Security.Argon2Iterations
+	}
+	if c.Security.Argon2Parallelism > 0 {
+		parallelism = uint8(c.Security.Argon2Parallelism)
+	}
+	if c.Security.Argon2SaltLength > 0 {
+		saltLength = c.Security.Argon2SaltLength
+	}
+	if c.Security.Argon2KeyLength > 0 {
+		keyLength = c.Security.Argon2KeyLength
+	}
+
+	return memory, iterations, parallelism, saltLength, keyLength
 }
 
 const envPrefix = "APP"
@@ -264,6 +324,15 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.secret", "your-secret-key-change-in-production")
 	v.SetDefault("jwt.access_token_ttl", "15m")
 	v.SetDefault("jwt.refresh_token_ttl", "168h")
+
+	// Security defaults - Argon2id parameters
+	// Production: Memory=64MB, Iterations=3, Parallelism=4
+	// Development/Test: Memory=16MB for faster tests
+	v.SetDefault("security.argon2_memory", 0)      // 0 means use environment-based default
+	v.SetDefault("security.argon2_iterations", 0)  // 0 means use environment-based default
+	v.SetDefault("security.argon2_parallelism", 0) // 0 means use environment-based default
+	v.SetDefault("security.argon2_salt_length", 0) // 0 means use environment-based default
+	v.SetDefault("security.argon2_key_length", 0)  // 0 means use environment-based default
 }
 
 // Validate checks if the configuration is valid.

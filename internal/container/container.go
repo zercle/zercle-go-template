@@ -7,6 +7,7 @@ import (
 
 	"zercle-go-template/internal/config"
 	"zercle-go-template/internal/feature/auth/usecase"
+	"zercle-go-template/internal/feature/user/domain"
 	userrepository "zercle-go-template/internal/feature/user/repository"
 	userusecase "zercle-go-template/internal/feature/user/usecase"
 	"zercle-go-template/internal/infrastructure/db"
@@ -57,6 +58,10 @@ func New(cfg *config.Config, opts ...ContainerOption) (*Container, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("configuration is required")
 	}
+
+	// Initialize Argon2id parameters from configuration
+	memory, iterations, parallelism, saltLength, keyLength := cfg.GetArgon2Params()
+	domain.SetArgon2Params(memory, iterations, parallelism, saltLength, keyLength)
 
 	// Initialize logger
 	log := logger.New(cfg.App.Name, cfg.App.Environment)

@@ -5,6 +5,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -15,6 +16,22 @@ import (
 	"zercle-go-template/internal/feature/user/usecase"
 	"zercle-go-template/internal/logger"
 )
+
+// Package-level validator instance with lazy initialization.
+// validator.New() is safe for concurrent use, so we can share one instance.
+var (
+	validateInstance *validator.Validate
+	validateOnce     sync.Once
+)
+
+// getValidator returns the singleton validator instance.
+// Uses sync.Once for thread-safe lazy initialization.
+func getValidator() *validator.Validate {
+	validateOnce.Do(func() {
+		validateInstance = validator.New()
+	})
+	return validateInstance
+}
 
 // UserHandler handles HTTP requests related to users.
 type UserHandler struct {
@@ -428,10 +445,9 @@ func (h *UserHandler) handleError(c echo.Context, err error) error {
 	})
 }
 
-// validateStruct validates a struct using validator.
+// validateStruct validates a struct using the shared validator instance.
 func validateStruct(obj any) map[string]string {
-	validate := validator.New()
-	if err := validate.Struct(obj); err != nil {
+	if err := getValidator().Struct(obj); err != nil {
 		result := make(map[string]string)
 		if validationErrors, ok := err.(validator.ValidationErrors); ok {
 			for _, e := range validationErrors {
