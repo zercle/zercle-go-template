@@ -359,9 +359,10 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.29.0
         with:
-          image-ref: ${{ steps.sha-tag.outputs.sha-tag }}
+          scan-type: 'fs'
           format: 'sarif'
           output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
         continue-on-error: true
 
       - name: Upload Trivy scan results
