@@ -1,70 +1,129 @@
-# Zercle Go Template - Development Tasks & Workflows
+# Task Workflows: Zercle Go Template
+
+**Last Updated:** 2026-02-08  
+**Status:** Production-Ready  
+**Audience:** Developers using this template
+
+---
 
 ## Common Development Workflows
-
-### Starting Development
-
-```bash
-# 1. Clone and enter repository
-cd zercle-go-template
-
-# 2. Copy environment file
-cp .env.example .env
-# Edit .env with your values
-
-# 3. Start development environment
-make docker-up
-
-# 4. Verify running
-curl http://localhost:8080/health
-# View Swagger: http://localhost:8080/swagger/index.html
-```
 
 ### Daily Development Loop
 
 ```bash
-# Pull latest changes
-git pull origin main
+# 1. Start the day - ensure everything is working
+make check                    # Run all quality checks
 
-# Run tests before making changes
-make test
+# 2. Start development server
+make dev                      # Hot reload with Air
+# OR
+make run                      # Standard run
 
-# Start development server
-make dev
+# 3. Make changes, then verify
+make test                     # Run tests
+make lint                     # Check code quality
 
-# Make changes to code...
-
-# Run tests after changes
-make test
-
-# Run linter
-make lint
-
-# Commit (pre-commit hooks will run)
-git add .
-git commit -m "feat: description"
+# 4. Before committing
+make check                    # Full verification
+make fmt                      # Format code
 ```
 
-## Adding a New Feature
+### Setting Up a New Development Environment
 
-### Step-by-Step Guide
+```bash
+# 1. Clone and setup
+git clone https://github.com/zercle/zercle-go-template.git
+cd zercle-go-template
 
-Follow this pattern to add a new feature (e.g., `order`):
+# 2. Install Go dependencies
+make deps
 
-#### 1. Create Domain Layer
+# 3. Install development tools
+make install-tools
+
+# 4. Set up pre-commit hooks
+make hooks-install
+
+# 5. Configure application
+cp configs/config.yaml configs/config.local.yaml
+# Edit configs/config.local.yaml with your database settings
+
+# 6. Start PostgreSQL
+docker run -d \
+  --name postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=zercle_template \
+  -p 5432:5432 \
+  postgres:14-alpine
+
+# 7. Run database migrations
+export DB_USER=postgres
+export DB_PASSWORD=postgres
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=zercle_template
+export DB_SSLMODE=disable
+make migrate
+
+# 8. Generate SQLC code
+make sqlc
+
+# 9. Run the application
+make run
+
+# 10. Verify installation
+curl http://localhost:8080/health
+```
+
+---
+
+## How to Add New Features
+
+### Adding a New Feature Module
+
+This template uses **feature-based organization**. Follow this pattern:
+
+```
+internal/feature/<featurename>/
+├── domain/
+│   └── <feature>.go          # Domain entities and business rules
+├── dto/
+│   └── <feature>.go          # Request/response DTOs
+├── handler/
+│   ├── <feature>_handler.go  # HTTP handlers
+│   └── <feature>_handler_test.go
+├── repository/
+│   ├── <feature>_repository.go      # Interface
+│   ├── sqlc_repository.go           # SQLC implementation
+│   ├── memory_repository.go         # In-memory implementation
+│   └── mocks/                       # Generated mocks
+└── usecase/
+    ├── <feature>_usecase.go         # Business logic
+    ├── <feature>_usecase_test.go
+    └── mocks/                       # Generated mocks
+```
+
+### Step-by-Step Feature Implementation
+
+#### 1. Define the Domain Model
 
 ```go
 // internal/feature/order/domain/order.go
 package domain
 
-import "time"
+import (
+    "time"
+    "github.com/google/uuid"
+)
 
 type Order struct {
-    ID        string
-    UserID    string
-    Total     float64
+    ID        uuid.UUID
+    UserID    uuid.UUID
     Status    OrderStatus
+    Total     float64
     CreatedAt time.Time
+    UpdatedAt time.Time
 }
 
 type OrderStatus string
@@ -78,11 +137,11 @@ const (
 )
 
 func (o *Order) Validate() error {
-    if o.UserID == "" {
-        return errors.New("user_id is required")
+    if o.UserID == uuid.Nil {
+        return errors.New("user ID is required")
     }
-    if o.Total <= 0 {
-        return errors.New("total must be positive")
+    if o.Total < 0 {
+        return errors.New("total cannot be negative")
     }
     return nil
 }
@@ -94,17 +153,35 @@ func (o *Order) Validate() error {
 // internal/feature/order/dto/order.go
 package dto
 
+import "zercle-go-template/internal/feature/order/domain"
+
 type CreateOrderRequest struct {
-    UserID string  `json:"user_id" validate:"required,uuid"`
-    Total  float64 `json:"total" validate:"required,gt=0"`
+    UserID uuid.UUID       `json:"user_id" validate:"required"`
+    Items  []OrderItemDTO  `json:"items" validate:"required,min=1"`
 }
 
 type OrderResponse struct {
-    ID        string    `json:"id"`
-    UserID    string    `json:"user_id"`
-    Total     float64   `json:"total"`
-    Status    string    `json:"status"`
-    CreatedAt time.Time `json:"created_at"`
+    ID        string      `json:"id"`
+    UserID    string      `json:"user_id"`
+    Status    string      `json:"status"`
+    Total     float64     `json:"total"`
+    CreatedAt time.Time   `json:"created_at"`
+}
+
+type OrderItemDTO struct {
+    ProductID uuid.UUID `json:"product_id" validate:"required"`
+    Quantity  int       `json:"quantity" validate:"required,min=1"`
+    Price     float64   `json:"price" validate:"required,gt=0"`
+}
+
+func ToOrderResponse(o *domain.Order) OrderResponse {
+    return OrderResponse{
+        ID:        o.ID.String(),
+        UserID:    o.UserID.String(),
+        Status:    string(o.Status),
+        Total:     o.Total,
+        CreatedAt: o.CreatedAt,
+    }
 }
 ```
 
@@ -116,540 +193,646 @@ package repository
 
 import (
     "context"
-    "github.com/zercle/zercle-go-template/internal/feature/order/domain"
+    "zercle-go-template/internal/feature/order/domain"
 )
 
+//go:generate mockgen -source=order_repository.go -destination=mocks/order_repository.go -package=mocks
+
 type OrderRepository interface {
-    GetByID(ctx context.Context, id string) (*domain.Order, error)
-    GetByUserID(ctx context.Context, userID string) ([]*domain.Order, error)
     Create(ctx context.Context, order *domain.Order) error
+    GetByID(ctx context.Context, id string) (*domain.Order, error)
+    GetByUserID(ctx context.Context, userID string, page, limit int) ([]*domain.Order, int, error)
     Update(ctx context.Context, order *domain.Order) error
     Delete(ctx context.Context, id string) error
 }
 ```
 
-#### 4. Implement Repository (PostgreSQL)
-
-```go
-// internal/feature/order/repository/sqlc_repository.go
-package repository
-
-import "github.com/jackc/pgx/v5/pgxpool"
-
-type SqlcOrderRepository struct {
-    db *pgxpool.Pool
-}
-
-func NewSqlcOrderRepository(db *pgxpool.Pool) *SqlcOrderRepository {
-    return &SqlcOrderRepository{db: db}
-}
-
-// Implement interface methods...
+Generate mocks:
+```bash
+cd internal/feature/order/repository
+go generate ./...
+# OR
+make mock
 ```
 
-#### 5. Create Usecase
+#### 4. Implement Use Case
 
 ```go
 // internal/feature/order/usecase/order_usecase.go
 package usecase
 
-type OrderUsecase struct {
-    orderRepo OrderRepository
-    userRepo  user.UserRepository  // Cross-feature dependency
-    logger    logger.Logger
+import (
+    "context"
+    "zercle-go-template/internal/feature/order/domain"
+    "zercle-go-template/internal/feature/order/dto"
+    "zercle-go-template/internal/feature/order/repository"
+)
+
+//go:generate mockgen -source=order_usecase.go -destination=mocks/order_usecase.go -package=mocks
+
+type OrderUsecase interface {
+    CreateOrder(ctx context.Context, req dto.CreateOrderRequest) (*domain.Order, error)
+    GetOrder(ctx context.Context, id string) (*domain.Order, error)
+    ListUserOrders(ctx context.Context, userID string, page, limit int) ([]*domain.Order, int, error)
 }
 
-func NewOrderUsecase(
-    orderRepo OrderRepository,
-    userRepo user.UserRepository,
-    logger logger.Logger,
-) *OrderUsecase {
-    return &OrderUsecase{
-        orderRepo: orderRepo,
-        userRepo:  userRepo,
-        logger:    logger,
-    }
+type orderUsecase struct {
+    orderRepo repository.OrderRepository
 }
 
-func (u *OrderUsecase) CreateOrder(ctx context.Context, req dto.CreateOrderRequest) (*domain.Order, error) {
-    // 1. Validate user exists
-    _, err := u.userRepo.GetByID(ctx, req.UserID)
-    if err != nil {
-        return nil, err
+func NewOrderUsecase(orderRepo repository.OrderRepository) OrderUsecase {
+    return &orderUsecase{orderRepo: orderRepo}
+}
+
+func (uc *orderUsecase) CreateOrder(ctx context.Context, req dto.CreateOrderRequest) (*domain.Order, error) {
+    // Calculate total
+    var total float64
+    for _, item := range req.Items {
+        total += item.Price * float64(item.Quantity)
     }
-    
-    // 2. Create order entity
+
     order := &domain.Order{
-        ID:        uuid.New().String(),
+        ID:        uuid.New(),
         UserID:    req.UserID,
-        Total:     req.Total,
         Status:    domain.OrderStatusPending,
+        Total:     total,
         CreatedAt: time.Now(),
+        UpdatedAt: time.Now(),
     }
-    
-    // 3. Validate
+
     if err := order.Validate(); err != nil {
-        return nil, errors.ErrInvalidInput.WithMessage(err.Error())
-    }
-    
-    // 4. Save
-    if err := u.orderRepo.Create(ctx, order); err != nil {
         return nil, err
     }
-    
-    u.logger.Info().Str("order_id", order.ID).Msg("order created")
+
+    if err := uc.orderRepo.Create(ctx, order); err != nil {
+        return nil, err
+    }
+
     return order, nil
 }
 ```
 
-#### 6. Create Handler
+#### 5. Create Handler
 
 ```go
 // internal/feature/order/handler/order_handler.go
 package handler
 
+import (
+    "net/http"
+    "github.com/labstack/echo/v4"
+    "zercle-go-template/internal/feature/order/dto"
+    "zercle-go-template/internal/feature/order/usecase"
+)
+
 type OrderHandler struct {
     orderUsecase usecase.OrderUsecase
 }
 
-func NewOrderHandler(orderUsecase usecase.OrderUsecase) *OrderHandler {
-    return &OrderHandler{orderUsecase: orderUsecase}
+func NewOrderHandler(uc usecase.OrderUsecase) *OrderHandler {
+    return &OrderHandler{orderUsecase: uc}
 }
 
-// @Summary     Create order
+func (h *OrderHandler) RegisterRoutes(router *echo.Group) {
+    orders := router.Group("/orders")
+    orders.POST("", h.CreateOrder)
+    orders.GET("/:id", h.GetOrder)
+    orders.GET("/user/:user_id", h.ListUserOrders)
+}
+
+// CreateOrder handles POST /orders
+// @Summary Create order
 // @Description Create a new order
-// @Tags        orders
-// @Accept      json
-// @Produce     json
-// @Param       request body dto.CreateOrderRequest true "Order data"
-// @Success     201 {object} dto.OrderResponse
-// @Router      /orders [post]
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param request body dto.CreateOrderRequest true "Order data"
+// @Success 201 {object} Response{data=dto.OrderResponse}
+// @Router /orders [post]
 func (h *OrderHandler) CreateOrder(c echo.Context) error {
     var req dto.CreateOrderRequest
     if err := c.Bind(&req); err != nil {
-        return err
+        return c.JSON(http.StatusBadRequest, errorResponse(err))
     }
-    if err := c.Validate(&req); err != nil {
-        return err
-    }
-    
+
     order, err := h.orderUsecase.CreateOrder(c.Request().Context(), req)
     if err != nil {
-        return err
+        return handleError(c, err)
     }
-    
-    return c.JSON(http.StatusCreated, dto.ToOrderResponse(order))
+
+    return c.JSON(http.StatusCreated, successResponse(dto.ToOrderResponse(order)))
 }
 ```
 
-#### 7. Add SQL Queries
+#### 6. Wire in Container
 
-```sql
--- internal/infrastructure/db/queries/orders.sql
--- name: GetOrderByID :one
-SELECT * FROM orders WHERE id = $1;
+```go
+// internal/container/container.go
 
--- name: GetOrdersByUserID :many
-SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC;
+type Container struct {
+    // ... existing fields ...
+    
+    // Order feature
+    OrderRepo    orderRepo.OrderRepository
+    OrderUsecase orderUsecase.OrderUsecase
+}
 
--- name: CreateOrder :one
-INSERT INTO orders (id, user_id, total, status, created_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING *;
-
--- name: UpdateOrder :one
-UPDATE orders
-SET status = $2, updated_at = NOW()
-WHERE id = $1
-RETURNING *;
-
--- name: DeleteOrder :exec
-DELETE FROM orders WHERE id = $1;
+func New(cfg *config.Config) (*Container, error) {
+    // ... existing initialization ...
+    
+    // Initialize order feature
+    c.OrderRepo = orderRepo.NewSQLCRepository(c.DB)
+    c.OrderUsecase = orderUsecase.NewOrderUsecase(c.OrderRepo)
+    
+    return c, nil
+}
 ```
 
-#### 8. Create Migration
+#### 7. Register Routes
+
+```go
+// cmd/api/main.go
+
+func setupRouter(e *echo.Echo, container *container.Container, log logger.Logger) {
+    // ... existing routes ...
+    
+    // Order routes
+    orderHandler := orderHandler.NewOrderHandler(container.OrderUsecase)
+    orderHandler.RegisterRoutes(api)
+}
+```
+
+#### 8. Add Database Migration
+
+```bash
+# Create migration
+make migrate-create name=create_orders_table
+```
+
+Edit the generated files:
 
 ```sql
--- internal/infrastructure/db/migrations/002_add_orders.sql
+-- internal/infrastructure/db/migrations/002_create_orders_table.up.sql
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    total DECIMAL(10, 2) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    total DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_orders_user_id ON orders(user_id);
 CREATE INDEX idx_orders_status ON orders(status);
 ```
 
-#### 9. Wire Dependencies
-
-Update [`internal/container/container.go`](internal/container/container.go):
-
-```go
-// Add to Container struct
-type Container struct {
-    // ... existing fields ...
-    orderRepo   order.OrderRepository
-    orderUsecase order.OrderUsecase
-}
-
-// Add functional option
-func WithPostgresOrderRepository(db *pgxpool.Pool) ContainerOption {
-    return func(c *Container) error {
-        c.orderRepo = orderRepo.NewSqlcOrderRepository(db)
-        return nil
-    }
-}
-
-// Add to Build()
-func (c *Container) Build() error {
-    // ... existing code ...
-    c.orderUsecase = orderUC.NewOrderUsecase(c.orderRepo, c.userRepo, c.logger)
-    return nil
-}
+```sql
+-- internal/infrastructure/db/migrations/002_create_orders_table.down.sql
+DROP INDEX IF EXISTS idx_orders_status;
+DROP INDEX IF EXISTS idx_orders_user_id;
+DROP TABLE IF EXISTS orders;
 ```
 
-#### 10. Register Routes
-
-Update [`cmd/api/main.go`](cmd/api/main.go):
-
-```go
-// Add to route registration
-orderHandler := container.GetOrderHandler()
-orders := e.Group("/orders", authMiddleware)
-{
-    orders.POST("", orderHandler.CreateOrder)
-    orders.GET("/:id", orderHandler.GetOrder)
-    orders.GET("", orderHandler.ListOrders)
-}
-```
-
-#### 11. Generate Code & Run Migrations
-
+Run migration:
 ```bash
-# Generate SQLC code
+make migrate
+```
+
+#### 9. Add SQLC Queries
+
+```sql
+-- internal/infrastructure/db/queries/orders.sql
+-- name: CreateOrder :one
+INSERT INTO orders (id, user_id, status, total, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING *;
+
+-- name: GetOrderByID :one
+SELECT * FROM orders WHERE id = $1;
+
+-- name: GetOrdersByUserID :many
+SELECT * FROM orders 
+WHERE user_id = $1 
+ORDER BY created_at DESC 
+LIMIT $2 OFFSET $3;
+
+-- name: CountOrdersByUserID :one
+SELECT COUNT(*) FROM orders WHERE user_id = $1;
+```
+
+Generate code:
+```bash
 make sqlc
-
-# Run migrations
-make migrate-up
-
-# Generate Swagger docs
-make swag
 ```
 
-#### 12. Write Tests
-
-```bash
-# Generate mocks
-//go:generate mockgen -source=order_repository.go -destination=mocks/order_repository_mock.go
-
-# Run tests
-make test
-```
-
-## Testing Procedures
-
-### Test Organization
-
-```
-feature/user/
-├── handler/
-│   ├── user_handler.go
-│   └── user_handler_test.go          # Unit tests
-│   └── user_handler_integration_test.go  # Integration tests
-├── repository/
-│   ├── sqlc_repository.go
-│   └── sqlc_repository_integration_test.go
-└── usecase/
-    ├── user_usecase.go
-    └── user_usecase_test.go
-```
-
-### Unit Test Pattern
+#### 10. Write Tests
 
 ```go
-func TestUserUsecase_CreateUser(t *testing.T) {
+// internal/feature/order/usecase/order_usecase_test.go
+package usecase
+
+import (
+    "context"
+    "testing"
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/mock"
+    "zercle-go-template/internal/feature/order/domain"
+    "zercle-go-template/internal/feature/order/dto"
+    "zercle-go-template/internal/feature/order/repository/mocks"
+)
+
+func TestOrderUsecase_CreateOrder(t *testing.T) {
     tests := []struct {
-        name      string
-        input     dto.CreateUserRequest
-        mockSetup func(*mocks.MockUserRepository)
-        wantErr   bool
-        errCode   string
+        name    string
+        req     dto.CreateOrderRequest
+        mock    func(*mocks.MockOrderRepository)
+        wantErr bool
     }{
         {
-            name:  "success",
-            input: dto.CreateUserRequest{Email: "test@example.com", Password: "password123"},
-            mockSetup: func(m *mocks.MockUserRepository) {
-                m.EXPECT().GetByEmail(gomock.Any(), "test@example.com").Return(nil, errors.ErrNotFound)
-                m.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
+            name: "success",
+            req: dto.CreateOrderRequest{
+                UserID: uuid.New(),
+                Items: []dto.OrderItemDTO{
+                    {ProductID: uuid.New(), Quantity: 2, Price: 10.00},
+                },
+            },
+            mock: func(m *mocks.MockOrderRepository) {
+                m.On("Create", mock.Anything, mock.AnythingOfType("*domain.Order")).
+                    Return(nil)
             },
             wantErr: false,
         },
-        {
-            name:  "email_already_exists",
-            input: dto.CreateUserRequest{Email: "exists@example.com", Password: "password123"},
-            mockSetup: func(m *mocks.MockUserRepository) {
-                m.EXPECT().GetByEmail(gomock.Any(), "exists@example.com").Return(&domain.User{}, nil)
-            },
-            wantErr: true,
-            errCode: "CONFLICT",
-        },
     }
-    
+
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            ctrl := gomock.NewController(t)
-            defer ctrl.Finish()
-            
-            mockRepo := mocks.NewMockUserRepository(ctrl)
-            tt.mockSetup(mockRepo)
-            
-            uc := usecase.NewUserUsecase(mockRepo, logger.NewNop())
-            _, err := uc.CreateUser(context.Background(), tt.input)
-            
+            mockRepo := new(mocks.MockOrderRepository)
+            tt.mock(mockRepo)
+
+            uc := NewOrderUsecase(mockRepo)
+            order, err := uc.CreateOrder(context.Background(), tt.req)
+
             if tt.wantErr {
                 assert.Error(t, err)
-                var appErr *errors.AppError
-                if errors.As(err, &appErr) {
-                    assert.Equal(t, tt.errCode, appErr.Code)
-                }
             } else {
                 assert.NoError(t, err)
+                assert.NotNil(t, order)
+                assert.Equal(t, 20.00, order.Total) // 2 * 10.00
             }
+
+            mockRepo.AssertExpectations(t)
         })
     }
 }
 ```
 
-### Integration Test Pattern
+---
 
-```go
-func TestUserRepositoryIntegration(t *testing.T) {
-    ctx := context.Background()
-    
-    // Setup test database
-    db := setupTestDB(t)
-    defer db.Close()
-    
-    repo := repository.NewSqlcUserRepository(db)
-    
-    t.Run("create_and_get_user", func(t *testing.T) {
-        user := &domain.User{
-            ID:    uuid.New().String(),
-            Email: "test@example.com",
-            Name:  "Test User",
-        }
-        
-        // Create
-        err := repo.Create(ctx, user)
-        require.NoError(t, err)
-        
-        // Get
-        found, err := repo.GetByID(ctx, user.ID)
-        require.NoError(t, err)
-        assert.Equal(t, user.Email, found.Email)
-        assert.Equal(t, user.Name, found.Name)
-    })
-}
+## Testing Procedures
+
+### Test-Driven Development Workflow
+
+```
+1. Write test (fails)
+2. Implement minimal code (passes)
+3. Refactor
+4. Repeat
 ```
 
 ### Running Tests
 
 ```bash
-# All tests
+# Run all tests
 make test
 
-# Unit tests only
-go test ./... -short
-
-# Integration tests only
-go test ./... -run Integration
-
-# Specific package
-go test ./internal/feature/user/...
-
-# With coverage
+# Run with coverage
 make test-coverage
 
-# Verbose output
-go test -v ./...
+# View HTML coverage report
+make test-coverage-html
+open coverage.html
+
+# Run specific test
+make test TEST_FLAGS="-v -run TestCreateUser"
+
+# Run integration tests only
+make test-integration
+
+# Run benchmarks
+make benchmark
 ```
 
-## Build and Deployment
+### Writing Good Tests
 
-### Local Build
+#### Unit Test Pattern
 
-```bash
-# Build binary
-make build
-# Output: bin/api
-
-# Run binary
-./bin/api
+```go
+func TestUsecase_Method(t *testing.T) {
+    type args struct {
+        // Input parameters
+    }
+    
+    tests := []struct {
+        name    string
+        args    args
+        mock    func(*mocks.MockRepository)
+        want    *domain.Entity
+        wantErr error
+    }{
+        {
+            name: "success case",
+            args: args{/* ... */},
+            mock: func(m *mocks.MockRepository) {
+                m.On("Method", mock.Anything, /* ... */).
+                    Return(/* ... */)
+            },
+            want:    &domain.Entity{/* ... */},
+            wantErr: nil,
+        },
+        {
+            name: "error case",
+            args: args{/* ... */},
+            mock: func(m *mocks.MockRepository) {
+                m.On("Method", mock.Anything, /* ... */).
+                    Return(nil, errors.New("database error"))
+            },
+            want:    nil,
+            wantErr: errors.New("database error"),
+        },
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // Setup mocks
+            mockRepo := new(mocks.MockRepository)
+            tt.mock(mockRepo)
+            
+            // Execute
+            uc := NewUsecase(mockRepo)
+            got, err := uc.Method(context.Background(), tt.args/* ... */)
+            
+            // Assert
+            if tt.wantErr != nil {
+                assert.Error(t, err)
+                assert.Equal(t, tt.wantErr.Error(), err.Error())
+            } else {
+                assert.NoError(t, err)
+                assert.Equal(t, tt.want, got)
+            }
+            
+            mockRepo.AssertExpectations(t)
+        })
+    }
+}
 ```
 
-### Docker Build
+#### Integration Test Pattern
 
-```bash
-# Build image
-docker build -t zercle-go-template:latest .
+```go
+//go:build integration
 
-# Run container
-docker run -p 8080:8080 --env-file .env zercle-go-template:latest
+package repository
+
+import (
+    "context"
+    "testing"
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+    "zercle-go-template/internal/infrastructure/db"
+)
+
+func TestSQLCRepository_CreateUser_Integration(t *testing.T) {
+    // Setup test database
+    pool, cleanup := db.SetupTestDB(t)
+    defer cleanup()
+    
+    repo := NewSQLCRepository(pool)
+    
+    ctx := context.Background()
+    user := &domain.User{
+        ID:       uuid.New(),
+        Email:    "test@example.com",
+        Password: "hashedpassword",
+        Name:     "Test User",
+    }
+    
+    // Execute
+    err := repo.Create(ctx, user)
+    
+    // Assert
+    require.NoError(t, err)
+    
+    // Verify by fetching
+    fetched, err := repo.GetByID(ctx, user.ID.String())
+    require.NoError(t, err)
+    assert.Equal(t, user.Email, fetched.Email)
+}
 ```
 
-### Docker Compose
+---
+
+## Database Migration Process
+
+### Creating a Migration
 
 ```bash
-# Start all services
-make docker-up
-# or
-docker-compose up -d
+# Create new migration files
+make migrate-create name=add_user_profile_fields
 
-# View logs
-docker-compose logs -f api
-
-# Stop services
-make docker-down
-# or
-docker-compose down
-
-# Full reset (volumes)
-docker-compose down -v
+# This creates:
+# internal/infrastructure/db/migrations/003_add_user_profile_fields.up.sql
+# internal/infrastructure/db/migrations/003_add_user_profile_fields.down.sql
 ```
 
-### Database Migrations
+### Writing Migrations
+
+**Best Practices**:
+- Always provide both `up` and `down` migrations
+- Make migrations idempotent where possible
+- Avoid destructive operations in production (use separate migrations)
+- Test migrations on a copy of production data
+
+```sql
+-- 003_add_user_profile_fields.up.sql
+-- Add new columns to users table
+
+-- Check if column exists before adding (idempotent)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='users' AND column_name='avatar_url') THEN
+        ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='users' AND column_name='bio') THEN
+        ALTER TABLE users ADD COLUMN bio TEXT;
+    END IF;
+END $$;
+```
+
+```sql
+-- 003_add_user_profile_fields.down.sql
+-- Revert changes
+
+ALTER TABLE users DROP COLUMN IF EXISTS avatar_url;
+ALTER TABLE users DROP COLUMN IF EXISTS bio;
+```
+
+### Running Migrations
 
 ```bash
-# Run migrations
-make migrate-up
+# Set environment variables
+export DB_USER=postgres
+export DB_PASSWORD=postgres
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=zercle_template
+export DB_SSLMODE=disable
 
-# Rollback last migration
+# Run all pending migrations
+make migrate
+
+# Rollback one migration
 make migrate-down
 
-# Create new migration
-migrate create -ext sql -dir internal/infrastructure/db/migrations -seq add_orders
+# Reset all migrations (down then up)
+make migrate-reset
 
-# Check version
-migrate -path internal/infrastructure/db/migrations -database $DB_URL version
+# Check current version
+migrate -path internal/infrastructure/db/migrations \
+  -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE" \
+  version
 ```
+
+### Migration Checklist
+
+Before committing migrations:
+
+- [ ] Migration is idempotent (can run multiple times safely)
+- [ ] Down migration is provided and tested
+- [ ] Migration works on empty database
+- [ ] Migration works on existing database with data
+- [ ] Indexes added for new foreign keys
+- [ ] No breaking changes to existing columns (renames, type changes)
+
+---
 
 ## Code Review Checklist
 
-### Before Creating PR
+### Before Submitting PR
 
-- [ ] Tests pass: `make test`
-- [ ] Linter passes: `make lint`
-- [ ] Code formatted: `go fmt ./...`
-- [ ] Swagger updated: `make swag`
-- [ ] SQLC generated: `make sqlc` (if queries changed)
-- [ ] Migrations tested: `make migrate-up` works
+```bash
+# Run full check suite
+make check
 
-### Architecture Review
+# Verify mocks are up to date
+make mock-verify
 
-- [ ] Domain layer has no external dependencies
-- [ ] Interfaces defined by consumer (usecase defines repo interface)
-- [ ] Errors use custom error types from `internal/errors`
-- [ ] Context passed through all layers
-- [ ] No business logic in handlers
+# Verify SQLC is up to date
+make sqlc-verify
 
-### Code Quality
+# Check test coverage
+make test-coverage
+```
 
-- [ ] Functions are focused and small (< 50 lines)
-- [ ] Variable names are descriptive
-- [ ] Exported functions have documentation comments
-- [ ] No magic numbers/strings (use constants)
-- [ ] Proper error wrapping with context
+### Review Criteria
 
-### Testing
+#### Code Quality
+- [ ] Code follows Go conventions (gofmt, golint)
+- [ ] No linting errors (`make lint`)
+- [ ] All tests pass (`make test`)
+- [ ] Test coverage maintained or improved
+- [ ] No security issues (`make security`)
 
-- [ ] Unit tests for usecase layer
-- [ ] Table-driven tests where appropriate
-- [ ] Mock generation with `//go:generate mockgen`
-- [ ] Integration tests for repository layer
+#### Architecture
+- [ ] Clean architecture principles followed
+- [ ] Domain logic in use cases, not handlers
+- [ ] Repository interfaces properly abstracted
+- [ ] Dependencies injected via container
+- [ ] No circular dependencies
+
+#### Documentation
+- [ ] Swagger annotations added for handlers
+- [ ] Complex logic has comments
+- [ ] README updated if needed
+- [ ] Memory Bank updated for significant changes
+
+#### Testing
+- [ ] Unit tests for use cases
+- [ ] Integration tests for repositories
+- [ ] Table-driven test patterns used
+- [ ] Mocks generated and up to date
 - [ ] Edge cases covered
 
-### Security
+#### Database
+- [ ] Migrations provided (up and down)
+- [ ] SQLC queries added
+- [ ] Indexes added for performance
+- [ ] No N+1 query problems
 
-- [ ] Input validation at handler layer
-- [ ] SQL queries use parameterized statements (via sqlc)
-- [ ] Passwords hashed with bcrypt
-- [ ] No secrets logged
-- [ ] Authorization checks in usecase
+---
 
-### API Design
+## Troubleshooting Common Issues
 
-- [ ] RESTful endpoint naming
-- [ ] Proper HTTP status codes
-- [ ] Consistent response structure
-- [ ] Swagger annotations complete
-- [ ] Error responses follow standard format
-
-## Troubleshooting
-
-### Common Issues
-
-**Tests failing with "connection refused"**
-```bash
-# Database not running
-make docker-up
-# or for unit tests only
-go test ./... -short
-```
-
-**SQLC generation errors**
-```bash
-# Ensure schema is valid
-make migrate-up
-# Regenerate
-make sqlc
-```
-
-**Linting errors**
-```bash
-# Auto-fix where possible
-golangci-lint run --fix
-```
-
-**Port already in use**
-```bash
-# Find and kill process
-lsof -ti:8080 | xargs kill -9
-# or change port in .env
-```
-
-## Git Workflow
+### Build Issues
 
 ```bash
-# Create feature branch
-git checkout -b feature/order-management
+# Clean and rebuild
+make clean
+make deps
+make build
 
-# Regular commits
-git add .
-git commit -m "feat: add order domain model"
-
-# Push branch
-git push -u origin feature/order-management
-
-# Create PR via GitHub/GitLab
-# After review and approval...
-
-# Merge to main
-git checkout main
-git pull origin main
+# Check Go version
+go version  # Should be 1.21+
 ```
 
-### Commit Message Convention
+### Database Issues
 
+```bash
+# Reset database
+docker rm -f postgres
+docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:14-alpine
+make migrate
+
+# Check connection
+psql postgres://postgres:postgres@localhost:5432/zercle_template -c "\dt"
 ```
-feat:     New feature
-fix:      Bug fix
-docs:     Documentation changes
-style:    Code style (formatting, no logic change)
-refactor: Code refactoring
-test:     Test changes
-chore:    Build/config/tooling changes
+
+### Test Issues
+
+```bash
+# Run tests with verbose output
+go test -v ./...
+
+# Run specific failing test
+go test -v -run TestName ./path/to/package
+
+# Clean test cache
+go clean -testcache
 ```
+
+### Linting Issues
+
+```bash
+# Auto-fix formatting
+make fmt
+
+# Run linter with details
+golangci-lint run --verbose
+
+# Skip pre-commit hooks (emergency only)
+git commit --no-verify -m "message"
+```
+
+---
+
+**Related Documents**:
+- [brief.md](brief.md) - Project overview
+- [product.md](product.md) - Product documentation
+- [architecture.md](architecture.md) - System architecture
+- [tech.md](tech.md) - Technology stack
+- [context.md](context.md) - Current context

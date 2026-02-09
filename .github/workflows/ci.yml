@@ -6,6 +6,7 @@
 # Triggers:
 #   - Push to main/develop branches
 #   - Pull requests to main/develop branches
+#   - Manual workflow dispatch
 #
 # Jobs:
 #   - lint: Code linting with golangci-lint and format checks
@@ -23,6 +24,7 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
 
 # Prevent concurrent runs of the same workflow on the same branch
 concurrency:
@@ -38,7 +40,7 @@ permissions:
 
 # Environment variables used across all jobs
 env:
-  GO_VERSION: "1.25"      # Go version for builds
+  GO_VERSION: "stable"    # Go version for builds
   POSTGRES_VERSION: "18"  # PostgreSQL version for integration tests
 
 jobs:
@@ -48,6 +50,7 @@ jobs:
   lint:
     name: Lint and Format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -58,11 +61,21 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: Verify Go modules
+        run: |
+          go mod verify
+          go mod tidy
+          if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
+            echo "Error: go.mod or go.sum is not tidy. Please run 'go mod tidy' and commit the changes."
+            git diff go.mod go.sum
+            exit 1
+          fi
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
           version: latest
-          args: --timeout=5m --out-format=github-actions
+          args: --timeout=5m
           skip-cache: false
 
       - name: Check code formatting
@@ -74,9 +87,19 @@ jobs:
           fi
           echo "All files are formatted correctly"
 
+      - name: Cache goimports
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin/goimports
+          key: ${{ runner.os }}-goimports-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-goimports-
+
       - name: Check go imports
         run: |
-          go install golang.org/x/tools/cmd/goimports@latest
+          if [ ! -f ~/go/bin/goimports ]; then
+            go install golang.org/x/tools/cmd/goimports@latest
+          fi
           if [ "$(goimports -l . | wc -l)" -gt 0 ]; then
             echo "The following files have import issues:"
             goimports -l .
@@ -90,6 +113,7 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -101,7 +125,7 @@ jobs:
           cache: true
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@vmaster
+        uses: securego/gosec@master
         with:
           args: "-no-fail -fmt sarif -out results.sarif ./..."
 
@@ -117,6 +141,7 @@ jobs:
   unit-test:
     name: Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -129,6 +154,9 @@ jobs:
 
       - name: Download dependencies
         run: go mod download
+
+      - name: Install mockgen
+        run: go install go.uber.org/mock/mockgen@latest
 
       - name: Generate mocks
         run: go generate ./...
@@ -164,13 +192,14 @@ jobs:
   integration-test:
     name: Integration Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:18-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
+          POSTGRES_DB: zercle_template_test
         ports:
           - 5432:5432
         options: >-
@@ -195,6 +224,7 @@ jobs:
         run: |
           go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
           go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+          go install go.uber.org/mock/mockgen@latest
 
       - name: Generate sqlc and mocks
         run: |
@@ -205,29 +235,23 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
+          DB_NAME: zercle_template_test
           DB_USER: postgres
           DB_PASSWORD: postgres
-          DB_NAME: test_db
-          DB_SSLMODE: disable
+          DB_SSL_MODE: disable
         run: |
-          migrate -path internal/infrastructure/db/migrations \
-            -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE" up
+          migrate -path "${{ github.workspace }}/internal/infrastructure/db/migrations" \
+            -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
 
       - name: Run integration tests
         env:
-          APP_DATABASE_HOST: localhost
-          APP_DATABASE_PORT: 5432
-          APP_DATABASE_DATABASE: test_db
-          APP_DATABASE_USERNAME: postgres
-          APP_DATABASE_PASSWORD: postgres
-          APP_DATABASE_SSL_MODE: disable
-          APP_ENVIRONMENT: test
           DB_HOST: localhost
           DB_PORT: 5432
+          DB_NAME: zercle_template_test
           DB_USER: postgres
           DB_PASSWORD: postgres
-          DB_NAME: test_db
-          DB_SSLMODE: disable
+          DB_SSL_MODE: disable
+          APP_ENVIRONMENT: test
         run: go test -v -race -tags=integration ./...
 
   # ==========================================================================
@@ -236,20 +260,12 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [lint, unit-test]
     strategy:
       matrix:
         os: [linux, darwin]
         arch: [amd64, arm64]
-        include:
-          - os: linux
-            arch: amd64
-          - os: linux
-            arch: arm64
-          - os: darwin
-            arch: amd64
-          - os: darwin
-            arch: arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -286,7 +302,8 @@ jobs:
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs: [build, security]
+    timeout-minutes: 10
+    needs: [build, security, integration-test]
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
       - name: Checkout code
@@ -296,7 +313,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GitHub Container Registry
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -305,7 +322,7 @@ jobs:
 
       - name: Docker metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@v5
         with:
           images: |
             ghcr.io/${{ github.repository }}
@@ -321,7 +338,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -332,12 +349,20 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
             BUILD_TIME=${{ github.event.head_commit.timestamp }}
 
+      - name: Extract short SHA tag
+        id: sha-tag
+        run: |
+          # Extract the sha- tag from the metadata output
+          sha_tag=$(echo '${{ steps.meta.outputs.json }}' | jq -r '.tags[] | select(startswith("ghcr.io/${{ github.repository }}:sha-"))' | head -1)
+          echo "sha-tag=$sha_tag" >> $GITHUB_OUTPUT
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.29.0
         with:
-          image-ref: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+          scan-type: 'fs'
           format: 'sarif'
           output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
         continue-on-error: true
 
       - name: Upload Trivy scan results

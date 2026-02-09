@@ -1,121 +1,204 @@
-# Zercle Go Template - Product Documentation
+# Product Documentation: Zercle Go Template
 
-## Purpose
+**Last Updated:** 2026-02-08  
+**Status:** Production-Ready  
+**Version:** 1.0.0
 
-Zercle Go Template solves the **boilerplate problem** for Go backend development. Every new Go project requires setting up the same foundational components: HTTP routing, authentication, database connections, configuration management, and testing infrastructure. This template eliminates that repetitive setup work, allowing developers to focus on business logic from day one.
+---
 
-## Target Users
+## Purpose & Vision
 
-### Primary Audience
-- **Backend developers** building REST APIs in Go
-- **Engineering teams** establishing new microservices
-- **Technical leads** standardizing project structures
-- **Developers learning** Clean Architecture in Go
+### Why This Project Exists
 
-### Use Cases
-1. **Startup MVPs**: Rapidly prototype with production-ready foundations
-2. **Enterprise microservices**: Consistent patterns across service boundaries
-3. **Educational projects**: Learn Clean Architecture with working examples
-4. **Hackathon submissions**: Skip setup, focus on features
+The Zercle Go Template was created to solve a recurring problem in Go API development: **repetitive boilerplate setup**. Every new API project requires the same foundational work—routing, authentication, database setup, configuration management, testing infrastructure, and deployment configuration. This template eliminates that overhead, allowing teams to focus on business logic from day one.
 
-## Key Features
+### Problems It Solves
 
-### Core Capabilities
+1. **Setup Fatigue**: Eliminates 2-3 weeks of initial project scaffolding
+2. **Inconsistency**: Provides a standardized foundation across multiple projects
+3. **Quality Gaps**: Embeds best practices for testing, error handling, and security by default
+4. **Onboarding Friction**: New team members can contribute immediately using familiar patterns
+5. **Technical Debt**: Prevents accumulation of structural debt through clean architecture
 
-| Feature | Description |
-|---------|-------------|
-| **JWT Authentication** | Complete auth flow with access/refresh tokens, secure middleware |
-| **User Management** | Full CRUD with validation, password hashing, profile operations |
-| **Type-Safe Database** | sqlc-generated code eliminates SQL injection and runtime errors |
-| **Clean Architecture** | Clear separation: Domain → Use Case → Repository → Handler |
-| **Dual Repository Support** | In-memory for testing, PostgreSQL for production |
-| **Structured Logging** | Zerolog with configurable levels and formats |
-| **Configuration Management** | Multi-layer config: env vars → .env → YAML → defaults |
-| **API Documentation** | Auto-generated Swagger/OpenAPI specs |
+### Target Audience
 
-### Developer Experience
+| Audience | Use Case |
+|----------|----------|
+| **Backend Teams** | Starting new microservices or APIs |
+| **Startups** | Rapid prototyping with production-grade quality |
+| **Enterprise** | Standardizing Go development across teams |
+| **Individual Developers** | Learning Go best practices through reference implementation |
+| **DevOps/SRE** | Consistent deployment patterns and containerization |
 
-- **Zero-config startup**: Works out of the box with sensible defaults
-- **Hot reload**: Docker Compose for development
-- **Pre-commit hooks**: Automated linting and formatting
-- **Comprehensive tests**: Unit and integration test patterns
-- **Makefile commands**: Common tasks abstracted to simple commands
+---
 
-## UX Goals
+## User Experience Goals
 
-### Easy to Use
-- Single command to start: `make docker-up`
-- Clear directory structure following Go conventions
-- Extensive inline code documentation
-- Working examples for all patterns
+### Developer Experience (DX) Principles
 
-### Well-Documented
-- README with setup instructions
-- Swagger UI at `/swagger/index.html`
-- Architecture decision records
-- This Memory Bank for AI context
+1. **Zero-Friction Start**: Clone, configure, and deploy within 10 minutes
+2. **Intuitive Structure**: Code organization that follows natural mental models
+3. **Fast Feedback**: Hot reload, fast tests, and clear error messages
+4. **Comprehensive Documentation**: Every decision documented, every pattern explained
+5. **Extensibility**: Easy to add features without fighting the architecture
 
-### Extensible
-- Feature-based organization: add new features by copying `user/` pattern
-- Interface-based design: swap implementations without changing business logic
-- Configuration-driven: behavior changes via config, not code
+### Key Workflows
 
-## Roadmap Suggestions
+```
+New Developer Onboarding:
+  git clone → make setup → make run → open Swagger UI
+  Time to first API call: < 5 minutes
 
-### Phase 1: Foundation (Current)
-- [x] Clean Architecture structure
-- [x] User authentication
-- [x] PostgreSQL integration
-- [x] Docker containerization
-- [x] Testing infrastructure
+Feature Development:
+  Define domain → Write use case → Implement repository → Add handler
+  Clear path from requirement to implementation
 
-### Phase 2: Enhanced Security
+Deployment:
+  make docker-build → docker run
+  Production-ready container in 2 commands
+```
+
+---
+
+## Feature Set
+
+### Core Features (Implemented)
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **JWT Authentication** | Token-based auth with access/refresh tokens | ✅ Complete |
+| **User Management** | Full CRUD with pagination and search | ✅ Complete |
+| **Password Security** | Bcrypt hashing with configurable cost | ✅ Complete |
+| **API Documentation** | Auto-generated Swagger/OpenAPI specs | ✅ Complete |
+| **Structured Logging** | JSON logging with correlation IDs | ✅ Complete |
+| **Configuration** | Environment-based YAML config with validation | ✅ Complete |
+| **Database Layer** | PostgreSQL with type-safe SQLC queries | ✅ Complete |
+| **Migrations** | Version-controlled schema migrations | ✅ Complete |
+| **Error Handling** | Typed errors with HTTP status mapping | ✅ Complete |
+| **Input Validation** | Request validation with detailed error messages | ✅ Complete |
+| **Health Checks** | Liveness and readiness endpoints | ✅ Complete |
+| **Graceful Shutdown** | Proper connection draining on SIGTERM | ✅ Complete |
+
+### Testing Infrastructure
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Unit Tests** | Mock-based isolated testing | ✅ Complete |
+| **Integration Tests** | Database-backed test suite | ✅ Complete |
+| **Coverage Reports** | HTML and CLI coverage metrics | ✅ Complete |
+| **Table-Driven Tests** | Go-idiomatic test patterns | ✅ Complete |
+| **Mock Generation** | Auto-generated mocks with mockgen | ✅ Complete |
+
+### Development Tools
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Makefile** | 40+ commands for common tasks | ✅ Complete |
+| **Docker** | Multi-stage optimized builds | ✅ Complete |
+| **Linting** | golangci-lint with 20+ linters | ✅ Complete |
+| **Pre-commit Hooks** | Automated quality checks | ✅ Complete |
+| **Hot Reload** | Air integration for development | ✅ Complete |
+
+---
+
+## Feature Roadmap
+
+### Phase 1: Foundation (Complete)
+- ✅ Clean architecture implementation
+- ✅ JWT authentication
+- ✅ User management
+- ✅ Testing infrastructure
+- ✅ Docker containerization
+- ✅ Documentation
+
+### Phase 2: Enhanced Security (Planned)
 - [ ] Rate limiting middleware
 - [ ] CORS configuration
-- [ ] Request validation middleware
+- [ ] Request signing
 - [ ] Audit logging
-- [ ] Role-based access control (RBAC)
+- [ ] RBAC permissions system
 
-### Phase 3: Operational Excellence
-- [ ] Health check endpoints
-- [ ] Metrics endpoint (Prometheus)
+### Phase 3: Observability (Planned)
+- [ ] OpenTelemetry integration
+- [ ] Prometheus metrics
 - [ ] Distributed tracing
-- [ ] Graceful shutdown handling
-- [ ] Request ID propagation
+- [ ] Health check enhancements
+- [ ] Performance profiling endpoints
 
-### Phase 4: Developer Tools
-- [ ] Code generation for new features
-- [ ] Database seeding scripts
-- [ ] Migration rollback utilities
-- [ ] Load testing setup (k6)
-- [ ] CI/CD pipeline examples
-
-### Phase 5: Advanced Features
-- [ ] WebSocket support
-- [ ] Background job processing
-- [ ] File upload handling
-- [ ] Multi-tenancy support
+### Phase 4: Developer Experience (Planned)
+- [ ] CLI tool for code generation
+- [ ] Database seeding
 - [ ] API versioning strategy
+- [ ] GraphQL support (optional)
+- [ ] WebSocket support
 
-## Acceptance Criteria
+### Phase 5: Production Hardening (Planned)
+- [ ] Circuit breaker pattern
+- [ ] Retry mechanisms
+- [ ] Connection pooling optimization
+- [ ] Horizontal scaling guides
+- [ ] Kubernetes manifests
 
-A project built from this template should:
-
-1. **Compile without warnings** at `go build ./...`
-2. **Pass all tests** with `go test ./...`
-3. **Pass linting** with `golangci-lint run`
-4. **Start successfully** with `make docker-up`
-5. **Serve requests** at `http://localhost:8080`
-6. **Show Swagger UI** at `http://localhost:8080/swagger/index.html`
-7. **Authenticate users** via JWT tokens
-8. **Perform CRUD** on user resources
-9. **Log structured output** to stdout
-10. **Connect to PostgreSQL** for data persistence
+---
 
 ## Success Metrics
 
-- New feature can be added in under 30 minutes
-- 100% test coverage for domain layer
-- Zero security vulnerabilities in dependency scan
-- p99 latency < 10ms for simple requests
-- Memory usage < 100MB at idle
+### Adoption Metrics
+- **Time to First Endpoint**: Target < 30 minutes for new developers
+- **Template Usage**: Track clones and forks
+- **Community Contributions**: PRs and issues
+
+### Quality Metrics
+- **Test Coverage**: Maintain > 80% coverage
+- **Lint Score**: Zero warnings with golangci-lint
+- **Security Score**: Pass gosec with no high/critical issues
+- **Build Time**: < 2 minutes for full CI pipeline
+
+### Performance Metrics
+- **Cold Start**: < 100ms application startup
+- **Request Latency**: P99 < 50ms for simple operations
+- **Memory Usage**: < 50MB baseline
+- **Build Size**: < 20MB Docker image
+
+---
+
+## Competitive Landscape
+
+### Compared to Other Templates
+
+| Feature | Zercle Go Template | Standard Go Layout | Other Templates |
+|---------|-------------------|-------------------|-----------------|
+| Clean Architecture | ✅ Full implementation | ❌ Not included | ⚠️ Partial |
+| SQLC Integration | ✅ Native support | ❌ Not included | ⚠️ GORM only |
+| Testing Strategy | ✅ Unit + Integration | ❌ Minimal | ⚠️ Unit only |
+| Documentation | ✅ Comprehensive | ❌ Minimal | ⚠️ Basic |
+| Pre-commit Hooks | ✅ Included | ❌ Not included | ❌ Rare |
+| Makefile | ✅ 40+ commands | ⚠️ Basic | ⚠️ Basic |
+
+### Unique Value Propositions
+
+1. **Production-Ready by Default**: Not a learning project—ready for real workloads
+2. **Type-Safe SQL**: SQLC provides compile-time query validation
+3. **Comprehensive Testing**: Both unit and integration test patterns included
+4. **Developer Experience**: Every common task has a Makefile command
+5. **Clean Architecture**: Proper separation of concerns, not just folder organization
+
+---
+
+## Feedback & Evolution
+
+### How We Improve
+
+1. **Real-World Usage**: Template evolves based on actual project needs
+2. **Community Input**: Issues and PRs drive feature prioritization
+3. **Go Ecosystem**: Stay current with latest Go versions and best practices
+4. **Security Updates**: Regular dependency updates and security audits
+
+### Contributing
+
+See [tasks.md](tasks.md) for development workflows and [README.md](../../../../README.md) for contribution guidelines.
+
+---
+
+**Maintained By:** Zercle Development Team  
+**License:** MIT

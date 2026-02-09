@@ -1,74 +1,160 @@
-# Zercle Go Template - Project Brief
+# Project Brief: Zercle Go Template
 
 ## Project Overview
 
-**Zercle Go Template** is a production-ready Go backend template designed for rapid REST API development. It implements Clean Architecture principles with domain-driven design, providing a solid foundation for building scalable and maintainable web applications.
+**Name:** Zercle Go Template  
+**Type:** Production-Ready REST API Template  
+**Language:** Go (Golang)  
+**Version:** Current (active development)  
 
-## What We're Building
-
-A comprehensive Go backend template that includes:
-
-- **REST API Server**: Built with Echo v4 framework for high-performance HTTP routing
-- **Authentication System**: JWT-based authentication with secure token generation and validation
-- **User Management**: Complete CRUD operations for user entities with validation
-- **Type-Safe Database Access**: SQL-generated code using sqlc for compile-time type safety
-- **Production Tooling**: Docker support, comprehensive testing, linting, and pre-commit hooks
+The Zercle Go Template is a comprehensive, production-ready starting point for building scalable, maintainable REST APIs in Go. It implements industry best practices including clean architecture, domain-driven design principles, and a robust testing framework. The template eliminates boilerplate setup and provides a solid foundation for API development.
 
 ## Core Requirements
 
-### Architecture
-- Clean Architecture with clear separation of concerns
-- Domain-driven design with feature-based organization
-- Repository pattern for data access abstraction
-- Dependency injection for testable components
+### Functional Requirements
+- RESTful API endpoints for user management (CRUD operations)
+- JWT-based authentication and authorization system
+- Secure password hashing (bcrypt)
+- Database migrations and schema management
+- API documentation via Swagger/OpenAPI specification
+- Structured logging with configurable levels
+- Environment-based configuration management
+- Comprehensive error handling and validation
 
-### Features
-- JWT authentication (login, token refresh, middleware protection)
-- User CRUD operations with validation
-- Password hashing with bcrypt
-- Structured logging with zerolog
-- Configuration management with Viper
-- Swagger/OpenAPI documentation
-
-### Infrastructure
-- PostgreSQL database with pgx/v5 driver
-- Docker support for containerization
-- Database migrations
-- Type-safe SQL queries via sqlc
-
-### Quality Assurance
-- Unit tests with table-driven test patterns
-- Integration tests for database operations
-- Mock generation with go.uber.org/mock
-- Linting with golangci-lint
-- Pre-commit hooks for code quality
+### Non-Functional Requirements
+- High code quality with linting (golangci-lint)
+- Unit and integration test coverage
+- Docker containerization for consistent deployments
+- Pre-commit hooks for code quality enforcement
+- Clean, maintainable codebase with clear separation of concerns
+- Type-safe database queries using SQLC
+- Efficient performance with connection pooling
 
 ## Goals
 
-1. **Provide Solid Foundation**: Offer a production-ready starting point for new Go projects, eliminating boilerplate setup and ensuring best practices from day one.
+### Primary Goals
+1. **Accelerate Development:** Provide a ready-to-use foundation that eliminates repetitive setup tasks, allowing developers to focus on business logic from day one.
+2. **Ensure Best Practices:** Embed industry-standard patterns, conventions, and architectural principles to guide developers toward maintainable, scalable code.
+3. **Reduce Technical Debt:** Establish a solid foundation with proper testing, error handling, and code organization that prevents accumulation of technical debt.
+4. **Enable Rapid Prototyping:** Support quick iteration and experimentation while maintaining production-grade quality standards.
 
-2. **Demonstrate Best Practices**: Showcase idiomatic Go patterns, Clean Architecture implementation, and industry-standard practices for building backend services.
+### Secondary Goals
+1. **Educational Resource:** Serve as a reference implementation for Go API development, demonstrating proper use of frameworks and libraries.
+2. **Consistency:** Provide a standardized approach across multiple projects within the organization, reducing context switching.
+3. **Team Onboarding:** Lower the barrier to entry for new team members by providing a familiar, well-documented structure.
+4. **Scalability:** Support horizontal scaling through stateless design and proper separation of concerns.
 
-3. **Enable Rapid Development**: Reduce time-to-market by providing pre-built authentication, user management, and infrastructure components that can be extended quickly.
+## Key Capabilities
 
-4. **Support Multiple Environments**: Enable seamless transitions between development, staging, and production with environment-aware configuration and logging.
+### Authentication & Authorization
+- JWT token generation and validation
+- Middleware-based route protection
+- Secure password hashing with bcrypt
+- Token refresh mechanism
+- Role-based access control (RBAC) foundation
 
-## Tech Stack
+### User Management
+- Complete CRUD operations for user entities
+- Email uniqueness validation
+- Password update functionality
+- User profile management
+- Soft delete support (extensible)
 
-| Category | Technology |
-|----------|------------|
-| Language | Go 1.25.7 |
-| Web Framework | Echo v4 |
-| Database | PostgreSQL with pgx/v5 |
-| SQL Generation | sqlc |
-| Authentication | JWT (golang-jwt/jwt/v5) |
-| Configuration | Viper |
-| Logging | zerolog |
-| Validation | go-playground/validator/v10 |
-| Documentation | Swagger/OpenAPI (swaggo) |
-| Testing | testify, go.uber.org/mock |
-| Linting | golangci-lint |
-| Containerization | Docker |
+### Architecture & Design
+- **Clean Architecture:** Layered structure with clear boundaries (handler → usecase → repository → domain)
+- **Domain-Driven Design:** Feature-based organization with domain models at the core
+- **Dependency Injection:** Container-based dependency management
+- **Repository Pattern:** Abstract data access with multiple implementations (SQL, in-memory)
+- **Use Case Pattern:** Business logic encapsulation independent of frameworks
+
+### Database Integration
+- PostgreSQL as primary database
+- SQLC for type-safe SQL query generation
+- Database migrations with version control
+- Connection pooling and management
+- Transaction support
+- Integration test database via Docker Compose
+
+### API Documentation
+- Swagger/OpenAPI 2.0 specification
+- Interactive API documentation UI
+- Auto-generated documentation from code annotations
+- Request/response schema definitions
+
+### Development Tools
+- **Makefile:** Common development tasks (build, test, run, lint, docker)
+- **Pre-commit Hooks:** Automated code quality checks
+- **Golangci-lint:** Comprehensive static analysis
+- **Docker:** Multi-stage builds for optimized images
+- **Docker Compose:** Local development environment with database
+
+### Testing Infrastructure
+- Unit tests with mocking (gomock)
+- Integration tests with test database
+- Table-driven test patterns
+- Test coverage reporting
+- Isolated test environments
+
+### Configuration Management
+- YAML-based configuration files
+- Environment variable overrides
+- Viper for configuration loading
+- Type-safe configuration structs
+- Validation of configuration values
+
+### Logging & Monitoring
+- Structured logging with Zerolog
+- Configurable log levels (debug, info, warn, error)
+- Request/response logging middleware
+- Error stack trace capture
+- Contextual logging with correlation IDs
+
+### Error Handling
+- Custom error types with context
+- Consistent error response format
+- HTTP status code mapping
+- Error wrapping and unwrapping
+- Recovery middleware for panic handling
+
+### Security Features
+- Input validation and sanitization
+- SQL injection prevention (via SQLC)
+- CORS support
+- Rate limiting foundation
+- Secure headers middleware
+
+## Technology Stack
+
+### Core Framework
+- **Echo v4:** High-performance, minimalist web framework
+- **Go 1.x:** Modern Go language features and standard library
+
+### Database & ORM
+- **PostgreSQL:** Relational database
+- **SQLC:** Type-safe SQL query generator
+- **pgx:** PostgreSQL driver with connection pooling
+
+### Authentication
+- **JWT (golang-jwt/jwt):** Token-based authentication
+- **bcrypt:** Password hashing
+
+### Configuration
+- **Viper:** Configuration management
+- **YAML:** Configuration file format
+
+### Logging
+- **Zerolog:** Zero-allocation JSON logger
+
+### Documentation
+- **Swagger/OpenAPI:** API specification
+- **swaggo:** Swagger code generation
+
+### Development Tools
+- **golangci-lint:** Linting and static analysis
+- **gomock:** Mock generation for testing
+- **pre-commit:** Git hook management
+- **Docker:** Containerization
+- **Make:** Build automation
 
 ## Project Structure
 
@@ -76,22 +162,37 @@ A comprehensive Go backend template that includes:
 zercle-go-template/
 ├── cmd/api/              # Application entry point
 ├── internal/
-│   ├── config/           # Configuration management
-│   ├── container/        # Dependency injection container
-│   ├── errors/           # Custom error types
-│   ├── feature/          # Feature modules (user, auth, etc.)
-│   ├── infrastructure/  # Database, external services
-│   ├── logger/           # Logging setup
-│   └── middleware/       # HTTP middleware
-├── api/docs/            # Swagger documentation
-├── configs/             # Configuration files
-└── .agents/rules/memory-bank/  # Memory Bank documentation
+│   ├── config/          # Configuration management
+│   ├── container/       # Dependency injection container
+│   ├── errors/         # Custom error types
+│   ├── feature/        # Feature modules (auth, user, etc.)
+│   ├── infrastructure/  # External dependencies (db, logger)
+│   └── middleware/      # HTTP middleware
+├── api/docs/           # Swagger documentation
+├── configs/            # Configuration files
+├── .agents/rules/memory-bank/  # Memory bank system
+└── plans/              # Architecture and migration plans
 ```
 
-## Key Design Decisions
+## Current State
 
-- **Feature-Based Organization**: Each feature (user, auth) is self-contained with domain, handler, repository, and usecase layers
-- **Domain Independence**: Domain layer has no external dependencies, ensuring pure business logic
-- **Type Safety**: sqlc generates type-safe Go code from SQL queries, eliminating runtime SQL errors
-- **Zero-Dependency Domain**: Domain entities and business rules are isolated from frameworks and databases
-- **Mock-Friendly Design**: Interfaces defined at usecase and repository layers enable easy testing with mocks
+**Status:** Active Development  
+**Stability:** Production-Ready Template  
+**Documentation:** In Progress  
+**Test Coverage:** Comprehensive (unit + integration)
+
+The template is actively maintained and serves as the foundation for multiple production APIs. All core features are implemented and tested, with room for extension based on specific project requirements.
+
+## Constraints & Considerations
+
+- **Read-Only Brief:** This file serves as the foundation document and should not be modified without explicit approval
+- **Go Version:** Requires Go 1.21+ for modern language features
+- **Database:** PostgreSQL is the supported database (extensible to others)
+- **Deployment:** Designed for containerized deployments (Docker/Kubernetes)
+- **Stateless:** Application is stateless; session data stored in JWT tokens
+- **Testing:** Requires Docker for integration test database
+
+---
+
+**Last Updated:** 2026-02-08  
+**Maintained By:** Zercle Development Team  

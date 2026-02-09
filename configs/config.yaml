@@ -94,6 +94,36 @@ log:
   format: "json"
 
 # =============================================================================
+# Security Settings
+# =============================================================================
+security:
+  # Argon2id password hashing parameters (OWASP recommended)
+  # These settings control the computational cost of password hashing
+  # Higher values = more secure but slower
+  #
+  # Memory: Memory cost in KB (default: 65536 = 64 MB for production, 16384 = 16 MB for dev)
+  # Iterations: Number of iterations (default: 3, OWASP minimum)
+  # Parallelism: Number of parallel threads (default: 4)
+  # SaltLength: Salt length in bytes (default: 16)
+  # KeyLength: Key length in bytes (default: 32)
+  #
+  # OWASP 2023 recommendations for Argon2id:
+  # - Minimum: m=65536 (64 MB), t=3, p=4
+  # - Higher security: m=131072 (128 MB) or more
+  #
+  # Environment variables:
+  #   APP_SECURITY_ARGON2_MEMORY
+  #   APP_SECURITY_ARGON2_ITERATIONS
+  #   APP_SECURITY_ARGON2_PARALLELISM
+  #   APP_SECURITY_ARGON2_SALT_LENGTH
+  #   APP_SECURITY_ARGON2_KEY_LENGTH
+  argon2_memory: 0      # 0 = use environment-based default
+  argon2_iterations: 0  # 0 = use environment-based default
+  argon2_parallelism: 0 # 0 = use environment-based default
+  argon2_salt_length: 0 # 0 = use environment-based default
+  argon2_key_length: 0  # 0 = use environment-based default
+
+# =============================================================================
 # Environment-Specific Overrides
 # =============================================================================
 # The following sections are commented out examples for different environments.

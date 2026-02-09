@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -470,6 +471,7 @@ func TestSqlcUserRepository_ConcurrentOperations(t *testing.T) {
 	// Create test users with unique pattern
 	numUsers := 5
 	createdEmails := make([]string, 0, numUsers)
+	var mu sync.Mutex
 	errors := make(chan error, numUsers)
 
 	for i := 0; i < numUsers; i++ {
@@ -481,7 +483,9 @@ func TestSqlcUserRepository_ConcurrentOperations(t *testing.T) {
 				fmt.Sprintf("Concurrent User %d", index),
 				"password123",
 			)
+			mu.Lock()
 			createdEmails = append(createdEmails, email)
+			mu.Unlock()
 			errors <- repo.Create(ctx, user)
 		}(i)
 	}
