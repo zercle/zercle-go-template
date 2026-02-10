@@ -203,10 +203,11 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
+          --health-cmd "pg_isready -U postgres -d zercle_template_test"
+          --health-interval 5s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
+          --health-start-period 10s
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -231,6 +232,31 @@ jobs:
           go generate ./...
           sqlc generate
 
+      - name: Wait for PostgreSQL to be ready
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: zercle_template_test
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_SSL_MODE: disable
+        run: |
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" >/dev/null 2>&1; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Attempt $i/30: PostgreSQL not ready yet, waiting..."
+            sleep 1
+          done
+          
+          # Verify connection with psql and check database exists
+          docker run --rm --network host \
+            -e PGPASSWORD="$DB_PASSWORD" \
+            postgres:16-alpine \
+            psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" >/dev/null 2>&1 && echo "Database connection verified!"
+
       - name: Run migrations
         env:
           DB_HOST: localhost
@@ -242,6 +268,15 @@ jobs:
         run: |
           migrate -path "${{ github.workspace }}/internal/infrastructure/db/migrations" \
             -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
+          
+          # Verify migrations were applied
+          echo "Verifying migrations..."
+          docker run --rm --network host \
+            -e PGPASSWORD="$DB_PASSWORD" \
+            postgres:16-alpine \
+            psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
+            -c "SELECT COUNT(*) as tables FROM information_schema.tables WHERE table_schema = 'public';" \
+            -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
 
       - name: Run integration tests
         env:
