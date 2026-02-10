@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,6 +35,9 @@ import (
 
 // testDB holds the database connection for integration tests.
 var testDB *pgxpool.Pool
+
+// testDBMutex ensures tests don't interfere with each other's database operations
+var testDBMutex sync.Mutex
 
 // getEnvOrDefault returns the value of an environment variable or a default value.
 func getEnvOrDefault(key, defaultValue string) string {
@@ -86,10 +90,9 @@ func TestMain(m *testing.M) {
 	// Run all tests
 	code := m.Run()
 
-	// Final cleanup after all tests complete
+	// Final cleanup after all tests complete - truncate table for complete isolation
 	ctx := context.Background()
-	_, _ = testDB.Exec(ctx, "DELETE FROM users WHERE email LIKE 'test-%@example.com'")
-	_, _ = testDB.Exec(ctx, "DELETE FROM users WHERE email LIKE 'integration-%@example.com'")
+	_, _ = testDB.Exec(ctx, "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
 
 	if testDB != nil {
 		testDB.Close()
@@ -132,22 +135,22 @@ func setupTestHandler(t *testing.T) (*UserHandler, *echo.Echo) {
 // cleanupTestUser removes a specific test user by email.
 func cleanupTestUser(t *testing.T, ctx context.Context, email string) {
 	t.Helper()
+	testDBMutex.Lock()
+	defer testDBMutex.Unlock()
 	_, _ = testDB.Exec(ctx, "DELETE FROM users WHERE email = $1", email)
 }
 
-// cleanupTestUsersByPattern removes test users matching a pattern.
-func cleanupTestUsersByPattern(t *testing.T, ctx context.Context, pattern string) {
+// cleanupTestUserByID removes a specific test user by ID.
+func cleanupTestUserByID(t *testing.T, ctx context.Context, userID string) {
 	t.Helper()
-	_, err := testDB.Exec(ctx, "DELETE FROM users WHERE email LIKE $1", pattern)
-	if err != nil {
-		t.Logf("Warning: failed to cleanup test users with pattern %s: %v", pattern, err)
-	}
+	testDBMutex.Lock()
+	defer testDBMutex.Unlock()
+	_, _ = testDB.Exec(ctx, "DELETE FROM users WHERE id = $1", userID)
 }
 
-// createUniqueEmail generates a unique email for testing.
+// createUniqueEmail generates a unique email for testing using UUID to ensure isolation.
 func createUniqueEmail(prefix string) string {
-	timestamp := time.Now().UnixNano()
-	return fmt.Sprintf("%s-%d-%s@example.com", prefix, timestamp, uuid.New().String()[:8])
+	return fmt.Sprintf("%s-%s@example.com", prefix, uuid.New().String())
 }
 
 // TestUserHandler_CreateUser tests the CreateUser endpoint.
@@ -402,15 +405,16 @@ func TestUserHandler_ListUsers(t *testing.T) {
 	ctx := context.Background()
 	handler, e := setupTestHandler(t)
 
-	// Create test users with unique pattern for this test
+	// Create test users with unique emails for this test only
 	numUsers := 3
+	createdUserIDs := make([]string, 0, numUsers)
 	createdEmails := make([]string, 0, numUsers)
 
 	for i := 0; i < numUsers; i++ {
-		email := createUniqueEmail("integration-list")
+		email := createUniqueEmail("list-test")
 		body, _ := json.Marshal(dto.CreateUserRequest{
 			Email:    email,
-			Name:     fmt.Sprintf("Integration User %d", i),
+			Name:     fmt.Sprintf("List Test User %d", i),
 			Password: "password123",
 		})
 		req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewReader(body))
@@ -423,12 +427,20 @@ func TestUserHandler_ListUsers(t *testing.T) {
 			_ = err
 		}
 		require.Equal(t, http.StatusCreated, rec.Code)
+
+		var resp Response
+		err = json.Unmarshal(rec.Body.Bytes(), &resp)
+		require.NoError(t, err)
+		userData := resp.Data.(map[string]interface{})
+		createdUserIDs = append(createdUserIDs, userData["id"].(string))
 		createdEmails = append(createdEmails, email)
 	}
 
-	// Cleanup after test
+	// Cleanup after test - delete specific users by ID
 	t.Cleanup(func() {
-		cleanupTestUsersByPattern(t, ctx, "integration-list-%@example.com")
+		for _, userID := range createdUserIDs {
+			cleanupTestUserByID(t, ctx, userID)
+		}
 	})
 
 	tests := []struct {
@@ -933,9 +945,9 @@ func TestUserHandler_FullWorkflow(t *testing.T) {
 	ctx := context.Background()
 	handler, e := setupTestHandler(t)
 
-	email := createUniqueEmail("integration")
+	email := createUniqueEmail("workflow")
 	password := "password123"
-	name := "Integration Test User"
+	name := "Workflow Test User"
 
 	// Cleanup after test
 	t.Cleanup(func() {
