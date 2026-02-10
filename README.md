@@ -1,302 +1,285 @@
-# Zercle Go Template
+# 🚀 Zercle Go Template
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.25+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Version">
-  <img src="https://img.shields.io/badge/Echo-v4.15-00ADD8?style=for-the-badge" alt="Echo Version">
-  <img src="https://img.shields.io/badge/PostgreSQL-14+-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+  <a href="https://go.dev"><img src="https://img.shields.io/badge/Go-1.25.7-00ADD8?style=for-the-badge&logo=go" alt="Go Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License: MIT"></a>
+  <a href="https://github.com/zercle/zercle-go-template/actions"><img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-blue?style=for-the-badge&logo=githubactions" alt="CI/CD"></a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/license/zercle/zercle-go-template?style=flat-square" alt="License">
-  <img src="https://img.shields.io/github/actions/workflow/status/zercle/zercle-go-template/ci.yml?style=flat-square" alt="CI Status">
-  <img src="https://img.shields.io/codecov/c/github/zercle/zercle-go-template?style=flat-square" alt="Coverage">
-  <img src="https://img.shields.io/github/v/release/zercle/zercle-go-template?style=flat-square" alt="Release">
+  <strong>Production-ready Go web application template with Clean Architecture, JWT authentication, and comprehensive tooling.</strong>
 </p>
 
 <p align="center">
-  <b>Production-ready REST API template with clean architecture, JWT auth, and comprehensive testing.</b>
+  <a href="#-features">Features</a> •
+  <a href="#-tech-stack">Tech Stack</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-project-structure">Structure</a> •
+  <a href="#-api-documentation">API Docs</a> •
+  <a href="#-testing">Testing</a> •
+  <a href="#-deployment">Deployment</a>
 </p>
 
 ---
 
-## Table of Contents
+## ✨ Features
 
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [API Documentation](#api-documentation)
-- [Testing](#testing)
-- [Project Structure](#project-structure)
-- [Architecture](#architecture)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
-## Features
-
-### Core Features
-
-- **🔐 JWT Authentication** - Secure token-based auth with access/refresh tokens
-- **👤 User Management** - Complete CRUD operations with pagination
-- **🗄️ Type-Safe Database** - PostgreSQL with SQLC for compile-time query validation
-- **📚 Auto Documentation** - Swagger/OpenAPI specs generated from code annotations
-- **🧪 Comprehensive Testing** - Unit and integration tests with mocking
-- **🐳 Docker Ready** - Multi-stage builds for optimized production images
-- **📊 Structured Logging** - JSON logging with correlation IDs
-- **⚡ High Performance** - Echo framework with zero-allocation routing
-
-### Developer Experience
-
-- **40+ Makefile Commands** - Build, test, lint, migrate, and more
-- **Hot Reload** - Air integration for rapid development
-- **Pre-commit Hooks** - Automated code quality checks
-- **Mock Generation** - Auto-generate mocks for testing
-- **Database Migrations** - Version-controlled schema changes
-- **Comprehensive Benchmarks** - Performance benchmarks for critical paths
+- 🏗️ **Clean Architecture** - Feature-based organization with clear separation of concerns
+- 🔐 **JWT Authentication** - Secure authentication with Argon2id password hashing
+- 🗄️ **PostgreSQL** - Type-safe database queries with sqlc
+- 🌐 **Echo Framework** - High-performance, minimalist web framework
+- 📝 **Swagger/OpenAPI** - Auto-generated API documentation
+- 🧪 **Comprehensive Testing** - Unit, integration, and benchmark tests
+- 🐳 **Docker Support** - Multi-stage builds for production-ready containers
+- ⚡ **GitHub Actions** - Automated CI/CD pipeline
+- 🪝 **Pre-commit Hooks** - Automated code quality checks
+- 📊 **Structured Logging** - High-performance logging with Zerolog
+- ⚙️ **Configuration Management** - Environment-based config with Viper
+- 🔒 **Security Best Practices** - Input validation, secure headers, and more
 
 ---
 
-## Quick Start
+## 🛠️ Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Language** | [Go 1.25.7](https://go.dev) |
+| **Web Framework** | [Echo v4](https://echo.labstack.com/) |
+| **Database** | [PostgreSQL](https://www.postgresql.org/) + [pgx v5](https://github.com/jackc/pgx) |
+| **SQL Codegen** | [sqlc](https://sqlc.dev/) |
+| **Authentication** | [golang-jwt](https://github.com/golang-jwt/jwt) + [Argon2id](https://pkg.go.dev/golang.org/x/crypto/argon2) |
+| **Configuration** | [Viper](https://github.com/spf13/viper) |
+| **Logging** | [Zerolog](https://github.com/rs/zerolog) |
+| **Validation** | [validator](https://github.com/go-playground/validator) |
+| **Documentation** | [Swagger](https://swagger.io/) |
+| **Testing** | [Testify](https://github.com/stretchr/testify) + [Mockgen](https://github.com/uber-go/mock) |
+| **Linting** | [golangci-lint](https://golangci-lint.run/) |
+| **Containerization** | [Docker](https://www.docker.com/) + [Distroless](https://github.com/GoogleContainerTools/distroless) |
+| **CI/CD** | [GitHub Actions](https://github.com/features/actions) |
+
+---
+
+## 🏛️ Architecture
+
+This project follows **Clean Architecture** principles with a feature-based organization:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Presentation Layer                    │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │   Handler   │  │ Middleware  │  │   Swagger Docs      │  │
+│  └──────┬──────┘  └─────────────┘  └─────────────────────┘  │
+└─────────┼────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        Application Layer                     │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │                    Use Cases                         │    │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────────────────┐ │    │
+│  │  │   User   │ │   Auth   │ │   [Other Features]   │ │    │
+│  │  └──────────┘ └──────────┘ └──────────────────────┘ │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        Domain Layer                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │   Domain    │  │     DTO     │  │     Interfaces      │  │
+│  │   Models    │  │             │  │                     │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     Infrastructure Layer                     │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ Repository  │  │   Database  │  │   External APIs     │  │
+│  │  (sqlc)     │  │  (PostgreSQL)│  │                     │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Principles
+
+- **Dependency Inversion**: Dependencies point inward toward the domain
+- **Single Responsibility**: Each layer has a clear, focused responsibility
+- **Testability**: Business logic is decoupled from frameworks and infrastructure
+- **Feature-Based**: Related code is colocated by feature, not by layer type
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- [Go 1.21+](https://golang.org/dl/)
-- [Docker](https://docs.docker.com/get-docker/) (for PostgreSQL)
-- [Make](https://www.gnu.org/software/make/)
+- Go 1.25.7 or later
+- PostgreSQL 14+ (or Docker for containerized database)
+- Make (optional, for using Makefile commands)
 
-### 5-Minute Setup
+### Installation
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/zercle/zercle-go-template.git
-cd zercle-go-template
+1. **Clone the repository**
 
-# 2. Install dependencies and tools
-make setup
+   ```bash
+   git clone https://github.com/zercle/zercle-go-template.git
+   cd zercle-go-template
+   ```
 
-# 3. Start PostgreSQL
-docker run -d --name postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -p 5432:5432 postgres:14-alpine
+2. **Copy environment file**
 
-# 4. Run migrations
-export DB_USER=postgres DB_PASSWORD=postgres DB_HOST=localhost \
-       DB_PORT=5432 DB_NAME=zercle_template DB_SSLMODE=disable
-make migrate
+   ```bash
+   cp .env.example .env
+   # Edit .env with your database credentials and JWT secret
+   ```
 
-# 5. Start the server
-make run
-```
+3. **Install dependencies**
 
-The API is now running at `http://localhost:8080`
+   ```bash
+   go mod download
+   ```
 
-- API Base URL: `http://localhost:8080/api/v1`
-- Swagger UI: `http://localhost:8080/swagger/index.html`
-- Health Check: `http://localhost:8080/health`
+4. **Run database migrations**
 
----
+   ```bash
+   # Install migrate tool if not already installed
+   go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
-## Installation
+   # Run migrations
+   make migrate-up
+   ```
 
-### Step 1: Clone and Setup
+5. **Run the application**
 
-```bash
-git clone https://github.com/zercle/zercle-go-template.git my-api
-cd my-api
+   ```bash
+   make run
+   ```
 
-# Replace module name (optional)
-find . -type f -name "*.go" -exec sed -i '' 's/zercle-go-template/my-api/g' {} +
-go mod edit -module my-api
-```
+   The API will be available at `http://localhost:8080`
 
-### Step 2: Install Development Tools
+### Using Docker
 
 ```bash
-# Install all required tools
-make install-tools
+# Build and run with Docker Compose
+docker-compose up -d
 
-# This installs:
-# - golangci-lint (linting)
-# - swag (Swagger generation)
-# - mockgen (Mock generation)
-# - sqlc (SQL code generation)
-# - migrate (Database migrations)
-```
-
-### Step 3: Configure Environment
-
-```bash
-# Copy configuration file
-cp configs/config.yaml configs/config.local.yaml
-
-# Edit with your settings
-vim configs/config.local.yaml
-```
-
-### Step 4: Setup Database
-
-```bash
-# Start PostgreSQL
-docker run -d \
-  --name postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=zercle_template \
-  -p 5432:5432 \
-  postgres:14-alpine
-
-# Run migrations
-make migrate
-
-# Generate SQLC code
-make sqlc
+# Or build the image manually
+make docker-build
+make docker-run
 ```
 
 ---
 
-## Configuration
+## 📁 Project Structure
 
-### Configuration Hierarchy
-
-1. **Environment variables** (highest priority)
-2. **Configuration file** (`configs/config.yaml`)
-3. **Default values** (lowest priority)
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `APP_APP_NAME` | Application name | `zercle-go-template` |
-| `APP_APP_ENVIRONMENT` | Environment | `development` |
-| `APP_SERVER_HOST` | Server bind address | `0.0.0.0` |
-| `APP_SERVER_PORT` | Server port | `8080` |
-| `APP_DATABASE_HOST` | Database host | `localhost` |
-| `APP_DATABASE_PORT` | Database port | `5432` |
-| `APP_DATABASE_DATABASE` | Database name | `zercle_template` |
-| `APP_DATABASE_USERNAME` | Database user | `postgres` |
-| `APP_DATABASE_PASSWORD` | Database password | *(empty)* |
-| `APP_DATABASE_SSL_MODE` | SSL mode | `disable` |
-| `APP_LOG_LEVEL` | Log level | `info` |
-| `APP_LOG_FORMAT` | Log format | `json` |
-| `APP_SECURITY_BCRYPT_COST` | Bcrypt cost for password hashing | `10` (prod), `4` (dev) |
-
-### Security Configuration
-
-The template includes configurable security settings:
-
-#### Bcrypt Password Hashing
-
-The bcrypt cost factor can be configured via `APP_SECURITY_BCRYPT_COST`:
-
-- **Production**: Cost 10 (bcrypt.DefaultCost) - ~100ms per hash
-- **Development/Test**: Cost 4 (bcrypt.MinCost) - ~1ms per hash (faster tests)
-
-```yaml
-# configs/config.yaml
-security:
-  bcrypt_cost: 10  # Set to 4 for faster tests/development
 ```
-
-Or via environment variable:
-```bash
-export APP_SECURITY_BCRYPT_COST=4
-```
-
-### Example: Production Configuration
-
-```yaml
-# configs/config.production.yaml
-app:
-  environment: "production"
-
-server:
-  read_timeout: "60s"
-  write_timeout: "60s"
-
-log:
-  level: "warn"
-  format: "json"
-
-database:
-  ssl_mode: "require"
-
-security:
-  bcrypt_cost: 10  # Production bcrypt cost
-```
-
-Run with:
-```bash
-APP_APP_ENVIRONMENT=production go run ./cmd/api
+zercle-go-template/
+├── 📂 cmd/
+│   └── 📂 api/                 # Application entry point
+│       └── 📄 main.go          # Main application
+│
+├── 📂 internal/                # Private application code
+│   ├── 📂 config/              # Configuration management (Viper)
+│   │   ├── 📄 config.go
+│   │   └── 📄 config_test.go
+│   │
+│   ├── 📂 container/           # Dependency injection container
+│   │   ├── 📄 container.go
+│   │   └── 📄 container_test.go
+│   │
+│   ├── 📂 errors/              # Custom error types
+│   │   ├── 📄 errors.go
+│   │   └── 📄 errors_test.go
+│   │
+│   ├── 📂 feature/             # Feature modules
+│   │   ├── 📂 auth/            # Authentication feature
+│   │   │   ├── 📂 domain/      # JWT domain logic
+│   │   │   ├── 📂 middleware/  # Auth middleware
+│   │   │   └── 📂 usecase/     # JWT use cases
+│   │   │
+│   │   └── 📂 user/            # User management feature
+│   │       ├── 📂 domain/      # User domain models
+│   │       ├── 📂 dto/         # Data transfer objects
+│   │       ├── 📂 handler/     # HTTP handlers
+│   │       ├── 📂 repository/  # Data access layer
+│   │       └── 📂 usecase/     # Business logic
+│   │
+│   ├── 📂 infrastructure/
+│   │   └── 📂 db/              # Database layer
+│   │       ├── 📂 migrations/  # SQL migrations
+│   │       ├── 📂 queries/     # sqlc query files
+│   │       └── 📂 sqlc/        # Generated Go code
+│   │
+│   ├── 📂 logger/              # Structured logging (Zerolog)
+│   │   ├── 📄 logger.go
+│   │   └── 📄 logger_test.go
+│   │
+│   └── 📂 middleware/          # HTTP middleware
+│       ├── 📄 logging.go
+│       └── 📄 recovery.go
+│
+├── 📂 api/
+│   └── 📂 docs/                # Swagger documentation
+│       ├── 📄 docs.go
+│       ├── 📄 swagger.json
+│       └── 📄 swagger.yaml
+│
+├── 📂 configs/                 # Configuration files
+│   └── 📄 config.yaml
+│
+├── 📄 .env.example             # Environment variables template
+├── 📄 .golangci.yml            # Linter configuration
+├── 📄 .pre-commit-config.yaml  # Pre-commit hooks
+├── 📄 Dockerfile               # Multi-stage Docker build
+├── 📄 docker-compose.test.yml  # Test environment
+├── 📄 Makefile                 # Build automation
+├── 📄 go.mod                   # Go module definition
+├── 📄 go.sum                   # Go module checksums
+└── 📄 sqlc.yaml                # sqlc configuration
 ```
 
 ---
 
-## API Documentation
+## 📚 API Documentation
 
 ### Swagger UI
 
-Interactive API documentation is available at:
+Once the application is running, access the interactive API documentation at:
+
 ```
 http://localhost:8080/swagger/index.html
 ```
 
+### Generating Swagger Docs
+
+After modifying handlers or adding new endpoints, regenerate the documentation:
+
+```bash
+make swagger
+```
+
+This requires the `swag` CLI tool:
+
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
+```
+
 ### API Endpoints
 
-#### Health
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-
-#### Authentication
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/auth/login` | User login |
-
-#### Users
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/users` | Create user |
-| GET | `/api/v1/users` | List users (paginated) |
-| GET | `/api/v1/users/:id` | Get user by ID |
-| PUT | `/api/v1/users/:id` | Update user |
-| DELETE | `/api/v1/users/:id` | Delete user |
-| PUT | `/api/v1/users/:id/password` | Update password |
-
-### Example Requests
-
-**Create User:**
-```bash
-curl -X POST http://localhost:8080/api/v1/users \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "securepassword123",
-    "name": "John Doe"
-  }'
-```
-
-**Login:**
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "securepassword123"
-  }'
-```
-
-**List Users:**
-```bash
-curl "http://localhost:8080/api/v1/users?page=1&limit=10" \
-  -H "Authorization: Bearer <token>"
-```
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | `/api/v1/auth/login` | User login | No |
+| `POST` | `/api/v1/auth/refresh` | Refresh access token | No |
+| `GET` | `/api/v1/users` | List all users | Yes |
+| `GET` | `/api/v1/users/:id` | Get user by ID | Yes |
+| `POST` | `/api/v1/users` | Create new user | Yes |
+| `PUT` | `/api/v1/users/:id` | Update user | Yes |
+| `DELETE` | `/api/v1/users/:id` | Delete user | Yes |
 
 ---
 
-## Testing
+## 🧪 Testing
 
 ### Running Tests
 
@@ -304,284 +287,184 @@ curl "http://localhost:8080/api/v1/users?page=1&limit=10" \
 # Run all tests
 make test
 
-# Run with coverage
+# Run unit tests only
+make test-unit
+
+# Run integration tests (requires database)
+make test-integration
+
+# Run tests with coverage
 make test-coverage
 
-# View HTML coverage report
+# Generate HTML coverage report
 make test-coverage-html
-
-# Run integration tests (requires test database)
-make test-integration
 
 # Run benchmarks
 make benchmark
-```
 
-### Benchmarks
-
-The project includes comprehensive benchmarks for performance-critical operations:
-
-#### User Domain Benchmarks
-- `BenchmarkSetPassword*` - Password hashing with different bcrypt costs
-- `BenchmarkVerifyPassword*` - Password verification performance
-- `BenchmarkNewUser` - User creation with password hashing
-- `BenchmarkIsValidEmail*` - Email validation performance
-- `BenchmarkPasswordComparison` - Compare bcrypt costs (4, 6, 8, 10, 12)
-
-#### JWT Benchmarks
-- `BenchmarkGenerateTokenPair*` - JWT token generation
-- `BenchmarkValidateToken*` - JWT token validation
-- `BenchmarkTokenRoundTrip` - Full generate + validate cycle
-
-#### Handler Benchmarks
-- `BenchmarkValidateStruct*` - Request validation performance
-- `BenchmarkFormatValidationErrors*` - Error formatting
-
-Run specific benchmarks:
-```bash
-# Run all benchmarks
-go test -bench=. -benchmem ./...
-
-# Run specific benchmark
-go test -bench=BenchmarkSetPassword -benchmem ./internal/feature/user/domain/...
-
-# Run with different bcrypt costs
-go test -bench=BenchmarkPasswordComparison -benchmem ./internal/feature/user/domain/...
+# Run short tests (skip integration)
+make test-short
 ```
 
 ### Test Structure
 
-```
-internal/feature/user/
-├── handler/
-│   ├── user_handler_test.go              # HTTP handler tests
-│   ├── user_handler_integration_test.go  # Integration tests
-│   └── user_handler_benchmark_test.go    # Benchmark tests
-├── repository/
-│   ├── sqlc_repository_test.go           # Repository tests
-│   └── sqlc_repository_integration_test.go
-├── usecase/
-│   └── user_usecase_test.go              # Business logic tests
-└── domain/
-    └── user_benchmark_test.go            # Domain benchmarks
-```
+| Test Type | Pattern | Location |
+|-----------|---------|----------|
+| Unit Tests | `*_test.go` | Next to source files |
+| Integration Tests | `*_integration_test.go` | Repository and handler packages |
+| Benchmark Tests | `*_benchmark_test.go` | Domain and handler packages |
+| Mocks | `mocks/` | Generated with mockgen |
 
 ### Writing Tests
 
-**Unit Test Example:**
 ```go
+// Example unit test
 func TestUserUsecase_CreateUser(t *testing.T) {
-    tests := []struct {
-        name    string
-        req     dto.CreateUserRequest
-        wantErr bool
-    }{
-        {
-            name: "success",
-            req: dto.CreateUserRequest{
-                Email:    "test@example.com",
-                Password: "password123",
-                Name:     "Test User",
-            },
-            wantErr: false,
-        },
-    }
+    // Arrange
+    mockRepo := mocks.NewMockUserRepository(gomock.NewController(t))
+    uc := usecase.NewUserUsecase(mockRepo)
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            // Test implementation
-        })
-    }
+    // Act
+    user, err := uc.CreateUser(context.Background(), dto.CreateUserRequest{
+        Email:    "test@example.com",
+        Password: "password123",
+    })
+
+    // Assert
+    assert.NoError(t, err)
+    assert.NotNil(t, user)
 }
 ```
 
 ---
 
-## Project Structure
+## ⚙️ Configuration
 
+### Environment Variables
+
+All configuration can be set via environment variables with the `APP_` prefix:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `APP_APP_NAME` | Application name | `zercle-go-template` |
+| `APP_APP_ENVIRONMENT` | Environment (development/staging/production) | `development` |
+| `APP_SERVER_HOST` | Server host address | `0.0.0.0` |
+| `APP_SERVER_PORT` | Server port | `8080` |
+| `APP_DATABASE_HOST` | Database host | `localhost` |
+| `APP_DATABASE_PORT` | Database port | `5432` |
+| `APP_DATABASE_DATABASE` | Database name | `zercle_template` |
+| `APP_DATABASE_USERNAME` | Database username | `postgres` |
+| `APP_DATABASE_PASSWORD` | Database password | `postgres` |
+| `APP_DATABASE_SSL_MODE` | SSL mode (disable/require/verify-ca/verify-full) | `disable` |
+| `APP_JWT_SECRET` | JWT signing secret | *(required)* |
+| `APP_JWT_ACCESS_TOKEN_TTL` | Access token TTL | `15m` |
+| `APP_JWT_REFRESH_TOKEN_TTL` | Refresh token TTL | `168h` |
+| `APP_LOG_LEVEL` | Log level (debug/info/warn/error) | `info` |
+| `APP_LOG_FORMAT` | Log format (json/console) | `json` |
+
+### Configuration File
+
+Alternatively, use the YAML configuration file at [`configs/config.yaml`](configs/config.yaml):
+
+```yaml
+app:
+  name: zercle-go-template
+  version: 1.0.0
+  environment: development
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
 ```
-zercle-go-template/
-├── cmd/
-│   └── api/
-│       └── main.go                 # Application entry point
-├── internal/
-│   ├── config/                     # Configuration management
-│   │   ├── config.go               # Main configuration with security settings
-│   │   └── config_test.go
-│   ├── container/                  # Dependency injection
-│   │   └── container.go
-│   ├── errors/                     # Custom error types
-│   │   └── errors.go
-│   ├── feature/                    # Feature modules
-│   │   ├── auth/                   # Authentication feature
-│   │   │   ├── domain/
-│   │   │   ├── middleware/
-│   │   │   └── usecase/
-│   │   │       └── jwt_usecase_benchmark_test.go
-│   │   └── user/                   # User management feature
-│   │       ├── domain/
-│   │       │   └── user_benchmark_test.go
-│   │       ├── dto/
-│   │       ├── handler/
-│   │       │   └── user_handler_benchmark_test.go
-│   │       ├── repository/
-│   │       └── usecase/
-│   ├── infrastructure/             # External dependencies
-│   │   └── db/
-│   │       ├── migrations/         # Database migrations
-│   │       ├── queries/            # SQLC queries
-│   │       └── sqlc/               # Generated code
-│   ├── logger/                     # Logging utilities
-│   └── middleware/                 # HTTP middleware
-├── api/
-│   └── docs/                       # Swagger documentation
-├── configs/
-│   └── config.yaml                 # Configuration file
-├── .agents/rules/memory-bank/      # Project documentation
-├── plans/                          # Architecture plans
-├── Makefile                        # Build automation
-├── Dockerfile                      # Container build
-├── docker-compose.test.yml         # Test environment
-├── sqlc.yaml                       # SQLC configuration
-└── go.mod                          # Go module definition
-```
+
+Environment variables take precedence over the configuration file.
 
 ---
 
-## Architecture
+## 💻 Development
 
-### Clean Architecture
-
-This template implements **Clean Architecture** with clear separation of concerns:
-
-```
-┌─────────────────────────────────────────┐
-│  Presentation Layer (Handler)           │
-│  - HTTP request/response handling       │
-│  - Input validation                     │
-│  - Swagger documentation                │
-├─────────────────────────────────────────┤
-│  Business Layer (Usecase)               │
-│  - Business logic                       │
-│  - Orchestration                        │
-│  - Domain rules enforcement             │
-├─────────────────────────────────────────┤
-│  Data Layer (Repository)                │
-│  - Data access abstraction              │
-│  - SQLC implementation                  │
-│  - In-memory implementation (tests)     │
-├─────────────────────────────────────────┤
-│  Domain Layer                           │
-│  - Entities                             │
-│  - Value objects                        │
-│  - Domain errors                        │
-└─────────────────────────────────────────┘
-```
-
-### Key Design Patterns
-
-- **Repository Pattern** - Abstract data access
-- **Dependency Injection** - Loose coupling via container
-- **DTO Pattern** - Separate API contracts from domain
-- **Middleware Chain** - Cross-cutting concerns
-
-### Request Flow
-
-```
-HTTP Request → Router → Middleware → Handler → Usecase → Repository → Database
-                                              ↓
-HTTP Response ← JSON ← Handler ← Usecase ← Domain Objects
-```
-
----
-
-## Development Commands
-
-### Essential Commands
+### Prerequisites
 
 ```bash
-# Development
-make run              # Run the application
-make dev              # Run with hot reload (requires Air)
-make build            # Build binary
-make clean            # Clean build artifacts
+# Install development tools
+make install-tools
 
-# Testing
-make test             # Run all tests
-make test-coverage    # Generate coverage report
-make benchmark        # Run benchmarks
-
-# Code Quality
-make lint             # Run linter
-make fmt              # Format code
-make check            # Run all checks (fmt, vet, lint, test)
-
-# Database
-make migrate          # Run migrations
-make migrate-create   # Create new migration
-make sqlc             # Generate SQLC code
-
-# Documentation
-make swagger          # Generate Swagger docs
-
-# Docker
-make docker-build     # Build Docker image
-make docker-run       # Run Docker container
+# Install pre-commit hooks
+make hooks-install
 ```
 
-### Full List
+### Development Workflow
 
 ```bash
-make help             # Show all available commands
+# 1. Start the database
+docker-compose -f docker-compose.test.yml up -d
+
+# 2. Run migrations
+make migrate-up
+
+# 3. Run the application with hot reload (requires air)
+make dev
+
+# Or without hot reload
+make run
+```
+
+### Code Quality
+
+```bash
+# Format code
+make fmt
+
+# Run linter
+make lint
+
+# Run security scan
+make security
+
+# Run all checks
+make check
+```
+
+### Pre-commit Hooks
+
+The project uses [pre-commit](https://pre-commit.com/) to ensure code quality:
+
+```bash
+# Install hooks
+make hooks-install
+
+# Run hooks manually
+make hooks-run
+
+# Update hook versions
+make hooks-update
+```
+
+Hooks include:
+- Trailing whitespace removal
+- YAML/JSON validation
+- Go formatting (`gofmt`)
+- Go linting (`golangci-lint`)
+- Dependency checking
+
+### Generating Code
+
+```bash
+# Generate mocks
+make mock
+
+# Generate sqlc code
+make sqlc
+
+# Generate Swagger docs
+make swagger
 ```
 
 ---
 
-## Contributing
-
-We welcome contributions! Please follow these guidelines:
-
-### Getting Started
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run quality checks (`make check`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-### Development Guidelines
-
-- Follow [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-- Write tests for new features
-- Update documentation for API changes
-- Ensure all checks pass before submitting PR
-
-### Commit Message Format
-
-```
-type(scope): subject
-
-body (optional)
-
-footer (optional)
-```
-
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-Example:
-```
-feat(user): add email verification
-
-- Add email verification token generation
-- Send verification email on registration
-- Add verify endpoint
-```
-
----
-
-## Deployment
+## 🐳 Deployment
 
 ### Docker
 
@@ -592,74 +475,103 @@ make docker-build
 # Run container
 make docker-run
 
-# Or manually
-docker build -t my-api .
-docker run -p 8080:8080 \
-  -e APP_DATABASE_HOST=db.example.com \
-  -e APP_DATABASE_PASSWORD=secret \
-  my-api
+# Push to registry
+DOCKER_REGISTRY=your-registry.com make docker-push
 ```
 
-### Environment-Specific Configurations
+### Kubernetes
 
-Create separate config files for each environment:
+Example deployment:
 
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zercle-go-template
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: zercle-go-template
+  template:
+    metadata:
+      labels:
+        app: zercle-go-template
+    spec:
+      containers:
+        - name: api
+          image: zercle-go-template:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: APP_ENVIRONMENT
+              value: "production"
+            - name: APP_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt-secret
+                  key: secret
 ```
-configs/
-├── config.yaml              # Default
-├── config.development.yaml  # Development overrides
-├── config.staging.yaml      # Staging overrides
-└── config.production.yaml   # Production overrides
-```
 
-### Health Checks
-
-The application includes a health check endpoint:
+### Environment-Specific Builds
 
 ```bash
-curl http://localhost:8080/health
-```
+# Development
+APP_ENVIRONMENT=development make build
 
-Response:
-```json
-{
-  "success": true,
-  "data": {
-    "status": "healthy",
-    "timestamp": "2026-02-08T18:30:00Z"
-  }
-}
+# Production (optimized)
+APP_ENVIRONMENT=production make build
+
+# Cross-compile for Linux
+make build-linux
 ```
 
 ---
 
-## Memory Bank
+## 🤝 Contributing
 
-This project uses a comprehensive documentation system in `.agents/rules/memory-bank/`:
+We welcome contributions! Please follow these guidelines:
 
-| Document | Description |
-|----------|-------------|
-| [brief.md](.agents/rules/memory-bank/brief.md) | Project overview and requirements |
-| [product.md](.agents/rules/memory-bank/product.md) | Product documentation and roadmap |
-| [architecture.md](.agents/rules/memory-bank/architecture.md) | System architecture and design patterns |
-| [tech.md](.agents/rules/memory-bank/tech.md) | Technology stack and setup instructions |
-| [context.md](.agents/rules/memory-bank/context.md) | Current work focus and decisions |
-| [tasks.md](.agents/rules/memory-bank/tasks.md) | Development workflows and guides |
+1. **Fork the repository** and create your branch from `main`
+2. **Run tests** and ensure they pass: `make test`
+3. **Run linting** and fix any issues: `make lint`
+4. **Update documentation** if needed
+5. **Submit a pull request** with a clear description
+
+### Commit Message Convention
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: add user authentication
+fix: resolve database connection leak
+docs: update API documentation
+test: add integration tests for user handler
+refactor: simplify error handling
+```
+
+### Code Style
+
+- Follow [Effective Go](https://go.dev/doc/effective_go) guidelines
+- Use `gofmt` for formatting
+- Keep functions focused and under 50 lines when possible
+- Add documentation comments for exported functions
+- Write tests for new features
 
 ---
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
-- [Echo Framework](https://echo.labstack.com/) - High performance web framework
-- [SQLC](https://sqlc.dev/) - Type-safe SQL generator
-- [Zerolog](https://github.com/rs/zerolog) - Zero-allocation JSON logger
-- [Viper](https://github.com/spf13/viper) - Configuration management
+- [Echo Framework](https://echo.labstack.com/) for the excellent web framework
+- [sqlc](https://sqlc.dev/) for type-safe SQL
+- [Zerolog](https://github.com/rs/zerolog) for blazing-fast logging
+- [golangci-lint](https://golangci-lint.run/) for comprehensive linting
 
 ---
 
