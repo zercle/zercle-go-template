@@ -6,14 +6,16 @@
 # Triggers:
 #   - Push to main/develop branches
 #   - Pull requests to main/develop branches
+#   - Tags starting with 'v' (e.g., v1.0.0)
 #   - Manual workflow dispatch
 #
 # Jobs:
-#   - lint: Code linting with golangci-lint and format checks
-#   - unit-test: Run unit tests with race detection and coverage
-#   - integration-test: Run integration tests with PostgreSQL service
-#   - build: Verify application builds successfully
-#   - docker: Build and optionally push Docker image
+#   - lint: Code linting with golangci-lint and format checks (all triggers)
+#   - security: Security scanning with gosec (all triggers)
+#   - unit-test: Run unit tests with race detection and coverage (all triggers)
+#   - integration-test: Run integration tests with PostgreSQL service (all triggers)
+#   - build: Verify application builds successfully (push events only, not PRs)
+#   - docker: Build and push Docker image (tagged releases only)
 # =============================================================================
 
 name: CI
@@ -297,6 +299,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [lint, unit-test]
+    # Skip build on pull requests - only run on push events (branches and tags)
+    if: github.event_name != 'pull_request'
     strategy:
       matrix:
         os: [linux, darwin]
@@ -339,7 +343,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [build, security, integration-test]
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    # Only build Docker images for tagged releases (v*)
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -348,7 +353,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GitHub Container Registry
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -373,7 +377,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
