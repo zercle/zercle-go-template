@@ -1,535 +1,256 @@
-# Technology Documentation: Zercle Go Template
+# Technology Stack
 
-**Last Updated:** 2026-02-08  
-**Go Version:** 1.25.7  
-**Status:** Production-Ready
+**Last Updated:** 2026-02-10
 
----
+## Core Technologies
 
-## Technology Stack
+### Language & Runtime
+- **Go:** 1.25.7
+- **Module:** zercle-go-template
 
-### Core Technologies
+### Web Framework
+- **Echo v4:** 4.15.0
+  - High-performance HTTP router
+  - Middleware support
+  - Built-in request/response handling
+  - Graceful shutdown
 
-| Category | Technology | Version | Purpose |
-|----------|------------|---------|---------|
-| **Language** | Go | 1.25.7 | Primary programming language |
-| **Web Framework** | Echo | v4.15.0 | HTTP router and middleware |
-| **Database** | PostgreSQL | 14+ | Primary data store |
-| **SQL Generator** | SQLC | v1.28.0 | Type-safe SQL code generation |
-| **Driver** | pgx | v5.8.0 | PostgreSQL driver with pooling |
+### Database
+- **PostgreSQL:** Primary data store
+- **pgx v5:** 5.8.0
+  - Pure Go PostgreSQL driver
+  - Connection pooling (pgxpool)
+  - Context support
+  - Performance optimized
+- **sqlc:** Type-safe SQL query generation
+  - Generates Go code from SQL
+  - Compile-time query validation
+  - Reduces boilerplate
 
-### Authentication & Security
+### Authentication
+- **JWT:** golang-jwt/jwt/v5 v5.3.1
+  - Access tokens (15 min default)
+  - Refresh tokens (7 days default)
+  - HMAC-SHA256 signing
+- **Argon2id:** golang.org/x/crypto v0.48.0
+  - OWASP-recommended password hashing
+  - Configurable parameters
+  - Constant-time comparison
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| JWT | v5.3.1 | Token-based authentication |
-| bcrypt | v0.47.0 | Password hashing |
-| validator | v10.30.1 | Request validation |
+### Configuration
+- **Viper:** 1.21.0
+  - Multi-source configuration
+  - Environment variables
+  - .env file support
+  - YAML configuration
+  - Type-safe unmarshaling
 
-### Configuration & Logging
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Viper | v1.21.0 | Configuration management |
-| Zerolog | v1.34.0 | Structured logging |
-
-### Documentation
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Swaggo | v1.16.6 | Swagger annotation parser |
-| Echo Swagger | v1.4.1 | Swagger UI middleware |
-
-### Testing
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Testify | v1.11.1 | Test assertions and suites |
-| Mock (gomock) | v0.6.0 | Mock generation for tests |
-
-### Utilities
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| UUID | v1.6.0 | Unique identifier generation |
-
----
-
-## Frameworks and Libraries
-
-### Echo Framework (labstack/echo)
-
-**Why Echo?**
-- High performance (zero dynamic memory allocation in routing)
-- Extensible middleware framework
-- Excellent documentation and community
-- Built-in validation support
-- Graceful shutdown support
-
-**Key Features Used**:
-```go
-// Router with parameter support
-e.GET("/users/:id", handler.GetUser)
-
-// Middleware chain
-e.Use(middleware.Recover())
-e.Use(middleware.RequestID())
-
-// Request binding and validation
-c.Bind(&req)
-c.Validate(&req)
-
-// Group routing
-api := e.Group("/api/v1")
-```
-
-### SQLC (sqlc-dev/sqlc)
-
-**Why SQLC?**
-- Write SQL, get type-safe Go code
-- Compile-time query checking
-- No runtime reflection overhead
-- IDE support for SQL files
-
-**Configuration** ([`sqlc.yaml`](../../../../sqlc.yaml)):
-```yaml
-version: "2"
-sql:
-  - schema: "internal/infrastructure/db/migrations"
-    queries: "internal/infrastructure/db/queries"
-    engine: "postgresql"
-    gen:
-      go:
-        package: "sqlc"
-        out: "internal/infrastructure/db/sqlc"
-        sql_package: "pgx/v5"
-```
-
-**Example**:
-```sql
--- queries/users.sql
--- name: CreateUser :one
-INSERT INTO users (id, email, password_hash, name, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING *;
-```
-
-Generates:
-```go
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
-```
-
-### pgx (jackc/pgx)
-
-**Why pgx over lib/pq?**
-- Active maintenance
-- Connection pooling built-in
-- Better performance
-- Support for advanced PostgreSQL features
-- Compatible with database/sql
-
-**Connection Pooling**:
-```go
-config, _ := pgxpool.ParseConfig(connString)
-config.MaxConns = 100
-config.MinConns = 10
-config.MaxConnLifetime = time.Hour
-pool, _ := pgxpool.NewWithConfig(ctx, config)
-```
-
-### Viper (spf13/viper)
-
-**Configuration Hierarchy**:
-1. Environment variables (highest priority)
-2. Configuration file
-3. Default values (lowest priority)
-
-**Environment Variable Mapping**:
-```yaml
-# config.yaml
-database:
-  host: "localhost"
-  port: 5432
-```
-
-Override with:
-```bash
-export APP_DATABASE_HOST=prod-db.example.com
-export APP_DATABASE_PORT=5432
-```
-
-### Zerolog (rs/zerolog)
-
-**Structured Logging**:
-```go
-log.Info().
-    Str("method", "POST").
-    Str("path", "/api/v1/users").
-    Int("status", 201).
-    Dur("latency", time.Since(start)).
-    Msg("request completed")
-```
-
-Output:
-```json
-{"level":"info","method":"POST","path":"/api/v1/users","status":201,"latency":45,"time":"2026-02-08T18:30:00Z"}
-```
-
----
+### Logging
+- **Zerolog:** 1.34.0
+  - Structured logging
+  - Zero-allocation JSON logging
+  - Context-aware logging
+  - Multiple output formats
 
 ## Development Tools
 
-### Required Tools
+### Code Generation
+- **Mockgen:** go.uber.org/mock v0.6.0
+  - Interface mocking
+  - Used with go:generate directives
+  - Generates mocks in `mocks/` directories
 
-| Tool | Purpose | Installation |
-|------|---------|--------------|
-| **Go** | Language runtime | https://golang.org/dl/ |
-| **Docker** | Containerization | https://docs.docker.com/get-docker/ |
-| **Make** | Build automation | `brew install make` (macOS) |
-| **golangci-lint** | Linting | `brew install golangci-lint` |
-| **pre-commit** | Git hooks | `pip install pre-commit` |
+### API Documentation
+- **Swagger:** github.com/swaggo/swag v1.16.6
+  - OpenAPI 3.0 specification
+  - Auto-generated docs from annotations
+  - Available at `/swagger/*`
+- **Echo-Swagger:** github.com/swaggo/echo-swagger v1.4.1
+  - Echo integration for Swagger UI
 
-### Optional Tools
+### Validation
+- **go-playground/validator:** v10.30.1
+  - Struct validation
+  - Custom validators
+  - Detailed error messages
 
-| Tool | Purpose | Installation |
-|------|---------|--------------|
-| **Air** | Hot reload | `go install github.com/air-verse/air@latest` |
-| **swag** | Swagger generation | `go install github.com/swaggo/swag/cmd/swag@latest` |
-| **mockgen** | Mock generation | `go install go.uber.org/mock/mockgen@latest` |
-| **sqlc** | SQL code gen | `go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest` |
-| **migrate** | DB migrations | `go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest` |
-| **gosec** | Security scanner | `go install github.com/securego/gosec/v2/cmd/gosec@latest` |
+### Testing
+- **Testify:** github.com/stretchr/testify v1.11.1
+  - Assertions
+  - Test suites
+  - Mocking utilities
+- **Go Testing:** Built-in testing framework
+  - Unit tests
+  - Integration tests
+  - Benchmark tests
 
-### Installation Script
+### Linting & Code Quality
+- **golangci-lint:** Comprehensive linting
+  - Configured in `.golangci.yml`
+  - Multiple linters enabled
+  - CI/CD integration
+- **Pre-commit hooks:** .pre-commit-config.yaml
+  - Automated checks before commit
+  - Formatting validation
+  - Linting enforcement
 
-```bash
-# Install all development tools
-make install-tools
+## Dependencies Summary
 
-# Or manually:
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-go install github.com/swaggo/swag/cmd/swag@latest
-go install github.com/securego/gosec/v2/cmd/gosec@latest
-go install go.uber.org/mock/mockgen@latest
-go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+### Core Dependencies
+```
+github.com/labstack/echo/v4 v4.15.0
+github.com/jackc/pgx/v5 v5.8.0
+github.com/golang-jwt/jwt/v5 v5.3.1
+github.com/spf13/viper v1.21.0
+github.com/rs/zerolog v1.34.0
+github.com/google/uuid v1.6.0
+golang.org/x/crypto v0.48.0
 ```
 
----
-
-## Setup Instructions
-
-### Quick Start
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/zercle/zercle-go-template.git
-cd zercle-go-template
-
-# 2. Install dependencies
-make deps
-
-# 3. Set up configuration
-cp configs/config.yaml configs/config.local.yaml
-# Edit configs/config.local.yaml with your settings
-
-# 4. Start PostgreSQL (using Docker)
-docker run -d \
-  --name postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=zercle_template \
-  -p 5432:5432 \
-  postgres:14-alpine
-
-# 5. Run migrations
-make migrate DB_USER=postgres DB_PASSWORD=postgres DB_HOST=localhost DB_PORT=5432 DB_NAME=zercle_template DB_SSLMODE=disable
-
-# 6. Run the application
-make run
-
-# 7. Open Swagger UI
-open http://localhost:8080/swagger/index.html
+### Development Dependencies
+```
+github.com/stretchr/testify v1.11.1
+github.com/swaggo/swag v1.16.6
+github.com/swaggo/echo-swagger v1.4.1
+go.uber.org/mock v0.6.0
+github.com/go-playground/validator/v10 v10.30.1
 ```
 
-### Configuration
+## Configuration Management
 
-**Environment Variables**:
+### Configuration Sources (Priority Order)
+1. Runtime environment variables (highest)
+2. .env file
+3. YAML config file (`configs/config.yaml`)
+4. Default values (lowest)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `APP_APP_NAME` | Application name | zercle-go-template |
-| `APP_APP_VERSION` | Application version | 1.0.0 |
-| `APP_APP_ENVIRONMENT` | Environment (development/staging/production) | development |
-| `APP_SERVER_HOST` | Server bind address | 0.0.0.0 |
-| `APP_SERVER_PORT` | Server port | 8080 |
-| `APP_DATABASE_HOST` | Database host | localhost |
-| `APP_DATABASE_PORT` | Database port | 5432 |
-| `APP_DATABASE_DATABASE` | Database name | zercle_template |
-| `APP_DATABASE_USERNAME` | Database user | postgres |
-| `APP_DATABASE_PASSWORD` | Database password | (empty) |
-| `APP_DATABASE_SSL_MODE` | SSL mode (disable/require/verify-ca/verify-full) | disable |
-| `APP_LOG_LEVEL` | Log level (debug/info/warn/error) | info |
-| `APP_LOG_FORMAT` | Log format (json/console) | json |
+### Environment Variables Prefix
+- Prefix: `APP_`
+- Example: `APP_SERVER_PORT=8080`
 
----
+### Configuration Structure
+```yaml
+app:
+  name: string
+  version: string
+  environment: string
 
-## Testing Approach
+server:
+  host: string
+  port: int
+  read_timeout: duration
+  write_timeout: duration
+  shutdown_timeout: duration
 
-### Test Pyramid
+database:
+  host: string
+  port: int
+  database: string
+  username: string
+  password: string
+  ssl_mode: string
 
-```
-       /\
-      /  \
-     / E2E \          (Future: API integration tests)
-    /--------\
-   /          \
-  / Integration \    (Repository tests with test DB)
- /--------------\
-/                \
-/     Unit         \  (Usecase tests with mocks)
-/--------------------\
-```
+log:
+  level: string (debug|info|warn|error)
+  format: string (json|console)
 
-### Running Tests
+jwt:
+  secret: string
+  access_token_ttl: duration
+  refresh_token_ttl: duration
 
-```bash
-# Run all tests
-make test
-
-# Run only unit tests
-make test-unit
-
-# Run integration tests (requires test database)
-make test-integration
-
-# Generate coverage report
-make test-coverage
-
-# View coverage in browser
-make test-coverage-html
-
-# Run benchmarks
-make benchmark
+security:
+  argon2_memory: int (KB)
+  argon2_iterations: int
+  argon2_parallelism: int
+  argon2_salt_length: int
+  argon2_key_length: int
 ```
 
-### Test Database
+## Deployment Configuration
 
-Integration tests use Docker Compose to spin up a temporary PostgreSQL instance:
+### Docker
+- **Dockerfile:** Multi-stage build
+- **Docker Compose:** Test environment setup
+- **.dockerignore:** Exclude unnecessary files
 
-```bash
-# docker-compose.test.yml
-version: '3.8'
-services:
-  postgres_test:
-    image: postgres:14-alpine
-    environment:
-      POSTGRES_USER: test
-      POSTGRES_PASSWORD: test
-      POSTGRES_DB: test_db
-    ports:
-      - "5433:5432"
-```
+### Database Migrations
+- **Location:** `internal/infrastructure/db/migrations/`
+- **Format:** SQL up/down migrations
+- **Naming:** `001_initial_schema.up.sql`
 
-### Mock Generation
+### Connection Pool Settings
+- Max connections: 25
+- Min connections: 5
+- Max connection lifetime: 1 hour
+- Max connection idle time: 30 minutes
+- Health check period: 5 minutes
 
-```bash
-# Generate all mocks
-make mock
+## Security Configuration
 
-# Clean and regenerate
-make mock-clean mock
+### Argon2id Defaults
+- **Production:** Memory=64MB, Iterations=3, Parallelism=4, Salt=16B, Key=32B
+- **Development:** Memory=16MB, Iterations=3, Parallelism=4, Salt=16B, Key=32B
 
-# Verify mocks are up to date
-make mock-verify
-```
+### JWT Configuration
+- Signing method: HMAC-SHA256
+- Access token TTL: 15 minutes (configurable)
+- Refresh token TTL: 7 days (configurable)
+- Issuer: zercle-go-template
 
----
+## Testing Strategy
 
-## Security Practices
+### Test Types
+1. **Unit Tests:** Isolated component testing
+2. **Integration Tests:** Database interaction testing
+3. **Benchmark Tests:** Performance measurement
+4. **Mock Tests:** Interface contract verification
 
-### Authentication
+### Test Coverage Goal
+- 80%+ for critical paths
+- All business logic covered
+- All handlers covered
 
-- **JWT Tokens**: HS256 signed, configurable secret
-- **Access Token TTL**: 15 minutes
-- **Refresh Token TTL**: 7 days
-- **Password Hashing**: bcrypt with cost 12
+### Test Naming Convention
+- Unit: `*_test.go`
+- Integration: `*_integration_test.go`
+- Benchmark: `*_benchmark_test.go`
+- Mocks: `mocks/*.go`
 
-### Input Validation
+## Code Standards
 
-```go
-type CreateUserRequest struct {
-    Email    string `json:"email" validate:"required,email"`
-    Password string `json:"password" validate:"required,min=8,max=72"`
-    Name     string `json:"name" validate:"required,min=2,max=100"`
-}
-```
+### Go Conventions
+- Follow Effective Go guidelines
+- Use gofmt for formatting
+- Use goimports for import management
+- Follow SOLID principles
+- Keep functions under 50 lines
 
-### SQL Injection Prevention
+### Naming Conventions
+- Interfaces: Simple, descriptive (e.g., `UserRepository`)
+- Implementations: Specific (e.g., `SqlcUserRepository`)
+- Packages: Lowercase, single word when possible
+- Exports: PascalCase
+- Privates: camelCase
 
-SQLC generates parameterized queries automatically:
+### Error Handling
+- Wrap errors with context
+- Use typed errors where appropriate
+- Log all errors with context
+- Provide user-friendly messages
 
-```go
-// Safe - uses parameterization
-const createUser = `-- name: CreateUser :one
-INSERT INTO users (email, password_hash)
-VALUES ($1, $2)
-RETURNING id, email`
-```
-
-### Security Scanning
-
-```bash
-# Run security scanner
-make security
-
-# Or directly
-gosec ./...
-```
-
-### Security Headers (Future)
-
-- `X-Content-Type-Options: nosniff`
-- `X-Frame-Options: DENY`
-- `X-XSS-Protection: 1; mode=block`
-- `Strict-Transport-Security: max-age=31536000`
-
----
-
-## Deployment Information
-
-### Docker Build
-
-```bash
-# Build production image
-make docker-build
-
-# Build with specific tag
-make docker-build DOCKER_TAG=v1.0.0
-
-# Run container
-make docker-run
-```
-
-### Multi-Stage Dockerfile
-
-```dockerfile
-# Stage 1: Builder
-golang:1.25-bookworm
-- Compile with optimizations
-- Static binary output
-
-# Stage 2: Runtime
-gcr.io/distroless/static:nonroot
-- Minimal attack surface
-- Non-root user (UID 65532)
-- ~20MB final image
-```
-
-### Environment-Specific Configuration
-
-```
-configs/
-├── config.yaml              # Default configuration
-├── config.development.yaml  # Development overrides
-├── config.staging.yaml      # Staging overrides
-└── config.production.yaml   # Production overrides
-```
-
-### Health Checks
-
-```bash
-# Liveness probe
-GET /health
-
-Response:
-{
-  "success": true,
-  "data": {
-    "status": "healthy",
-    "timestamp": "2026-02-08T18:30:00Z"
-  }
-}
-```
-
-### Graceful Shutdown
-
-```go
-// Wait for interrupt signal
-quit := make(chan os.Signal, 1)
-signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-<-quit
-
-// Graceful shutdown with timeout
-ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-defer cancel()
-e.Shutdown(ctx)
-```
-
----
-
-## Performance Characteristics
-
-### Benchmarks
-
-| Metric | Target | Notes |
-|--------|--------|-------|
-| Cold Start | < 100ms | Application startup time |
-| Request Latency (P99) | < 50ms | Simple CRUD operations |
-| Memory Usage | < 50MB | Baseline at idle |
-| Build Time | < 2 min | Full CI pipeline |
-| Docker Image | < 20MB | Compressed size |
-| Test Suite | < 30s | Full test run |
+## Performance Considerations
 
 ### Optimization Strategies
+- Connection pooling for database
+- Lazy initialization where appropriate
+- Zero-copy patterns where possible
+- Efficient data structures
+- Proper indexing in database
 
-1. **Connection Pooling**: pgx handles this automatically
-2. **Prepared Statements**: SQLC generates these
-3. **JSON Pooling**: Echo uses `sync.Pool` for buffers
-4. **Zero-Allocation Logging**: Zerolog design
-5. **Static Binary**: CGO disabled for faster startup
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Port Already in Use**:
-```bash
-lsof -ti:8080 | xargs kill -9
-```
-
-**Database Connection Failed**:
-```bash
-# Check PostgreSQL is running
-docker ps | grep postgres
-
-# Test connection
-psql postgres://postgres:postgres@localhost:5432/zercle_template
-```
-
-**Linting Errors**:
-```bash
-# Auto-fix issues
-make fmt
-
-# Run linter with details
-golangci-lint run --verbose
-```
-
-**Test Failures**:
-```bash
-# Run with verbose output
-go test -v ./...
-
-# Run specific test
-go test -v -run TestCreateUser ./internal/feature/user/usecase/
-```
-
----
-
-**Related Documents**:
-- [brief.md](brief.md) - Project overview
-- [architecture.md](architecture.md) - System architecture
-- [tasks.md](tasks.md) - Development workflows
+### Monitoring Points
+- Request latency
+- Database query performance
+- Connection pool statistics
+- Error rates
+- Token generation performance
