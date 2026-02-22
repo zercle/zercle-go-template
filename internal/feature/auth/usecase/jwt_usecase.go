@@ -19,8 +19,12 @@ import (
 
 // TokenCache stores validated JWT tokens with TTL-based expiration.
 // It uses sync.Map for thread-safe concurrent access.
+// It runs a background cleanup goroutine to periodically remove expired entries.
 type TokenCache struct {
-	tokens sync.Map // map[string]*cachedToken
+	tokens    sync.Map // map[string]*cachedToken
+	ctx       context.Context
+	cancel    context.CancelFunc
+	ticker    *time.Ticker
 }
 
 // cachedToken represents a cached token with its claims and expiration time.
@@ -71,6 +75,58 @@ func (c *TokenCache) Clear() {
 	c.tokens = sync.Map{}
 }
 
+// cleanupLoop periodically removes expired tokens from the cache.
+// It runs every 5 minutes and stops when the context is cancelled.
+func (c *TokenCache) cleanupLoop() {
+	defer c.ticker.Stop()
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case <-c.ticker.C:
+			c.removeExpiredTokens()
+		}
+	}
+}
+
+// removeExpiredTokens iterates through all cached tokens and removes expired ones.
+func (c *TokenCache) removeExpiredTokens() {
+	now := time.Now()
+	var deletedCount int
+	c.tokens.Range(func(key, value any) bool {
+		token := key.(string)
+		ct := value.(*cachedToken)
+		if now.After(ct.expiresAt) {
+			c.tokens.Delete(token)
+			deletedCount++
+		}
+		return true
+	})
+	if deletedCount > 0 {
+		// Optional: Log cleanup activity
+	}
+}
+
+// Stop stops the background cleanup goroutine gracefully.
+// It should be called when the TokenCache is no longer needed.
+func (c *TokenCache) Stop() {
+	c.cancel()
+}
+
+// NewTokenCache creates a new TokenCache with a background cleanup goroutine.
+// The cleanup runs every 5 minutes to remove expired tokens.
+func NewTokenCache() *TokenCache {
+	ctx, cancel := context.WithCancel(context.Background())
+	ticker := time.NewTicker(5 * time.Minute)
+	cache := &TokenCache{
+		ctx:    ctx,
+		cancel: cancel,
+		ticker: ticker,
+	}
+	go cache.cleanupLoop()
+	return cache
+}
+
 // jwtClaimsPool is a sync.Pool for reusing JWTClaims objects to reduce GC pressure.
 // This reduces allocations during token generation by reusing claim structures.
 var jwtClaimsPool = sync.Pool{
@@ -101,6 +157,8 @@ type JWTUsecase interface {
 	ValidateToken(tokenString string) (*domain.JWTClaims, error)
 	// GenerateAccessToken generates a new access token from claims.
 	GenerateAccessToken(claims *domain.JWTClaims) (string, error)
+	// Stop stops the token cache cleanup goroutine.
+	Stop()
 }
 
 // jwtUsecase implements JWTUsecase.
@@ -122,7 +180,7 @@ func NewJWTUsecase(cfg *config.JWTConfig, log logger.Logger) JWTUsecase {
 		accessTokenTTL:  cfg.AccessTokenTTL,
 		refreshTokenTTL: cfg.RefreshTokenTTL,
 		logger:          log,
-		cache:           &TokenCache{},
+		cache:           NewTokenCache(),
 		cacheEnabled:    cfg.CacheEnabled,
 		cacheTTL:        cfg.CacheTTL,
 	}
@@ -250,6 +308,13 @@ func (s *jwtUsecase) GenerateAccessToken(claims *domain.JWTClaims) (string, erro
 	}
 
 	return tokenString, nil
+}
+
+// Stop stops the token cache and its background cleanup goroutine.
+func (s *jwtUsecase) Stop() {
+	if s.cache != nil {
+		s.cache.Stop()
+	}
 }
 
 // WithUserContext adds user information to the context.

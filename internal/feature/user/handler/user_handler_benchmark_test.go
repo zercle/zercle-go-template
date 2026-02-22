@@ -300,18 +300,6 @@ func BenchmarkErrorMapPoolParallel(b *testing.B) {
 	})
 }
 
-// BenchmarkResponseBufferPool measures the performance of response buffer pool operations.
-func BenchmarkResponseBufferPool(b *testing.B) {
-	b.ResetTimer()
-	b.ReportAllocs()
-
-	for i := 0; i < b.N; i++ {
-		buf := getResponseBuffer()
-		*buf = append(*buf, []byte(`{"test":"data"}`)...)
-		putResponseBuffer(buf)
-	}
-}
-
 // BenchmarkResponseBufferDirectAllocation measures direct byte slice allocation performance.
 func BenchmarkResponseBufferDirectAllocation(b *testing.B) {
 	b.ResetTimer()
@@ -322,18 +310,4 @@ func BenchmarkResponseBufferDirectAllocation(b *testing.B) {
 		buf = append(buf, []byte(`{"test":"data"}`)...)
 		_ = buf
 	}
-}
-
-// BenchmarkResponseBufferPoolParallel measures the buffer pool under concurrent load.
-func BenchmarkResponseBufferPoolParallel(b *testing.B) {
-	b.ResetTimer()
-	b.ReportAllocs()
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			buf := getResponseBuffer()
-			*buf = append(*buf, []byte(`{"test":"data"}`)...)
-			putResponseBuffer(buf)
-		}
-	})
 }

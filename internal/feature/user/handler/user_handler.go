@@ -46,27 +46,6 @@ func putErrorMap(m map[string]string) {
 	errorMapPool.Put(m)
 }
 
-// responseBufferPool is a sync.Pool for reusing byte slices for JSON marshaling.
-// This reduces allocations during response encoding.
-var responseBufferPool = sync.Pool{
-	New: func() any {
-		buf := make([]byte, 0, 512) // Pre-allocate 512 bytes as typical response size
-		return &buf
-	},
-}
-
-// getResponseBuffer retrieves a byte slice from the pool.
-func getResponseBuffer() *[]byte {
-	return responseBufferPool.Get().(*[]byte)
-}
-
-// putResponseBuffer returns a byte slice to the pool after clearing it.
-func putResponseBuffer(buf *[]byte) {
-	// Reset the slice to empty but keep capacity
-	*buf = (*buf)[:0]
-	responseBufferPool.Put(buf)
-}
-
 // getValidator returns the singleton validator instance.
 // Uses sync.Once for thread-safe lazy initialization.
 func getValidator() *validator.Validate {

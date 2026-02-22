@@ -112,6 +112,9 @@ func (c *Container) Close() error {
 	if c.Logger != nil {
 		c.Logger.Info("shutting down dependency container")
 	}
+	if c.JWTUsecase != nil {
+		c.JWTUsecase.Stop()
+	}
 	if c.db != nil {
 		if err := c.db.Close(); err != nil {
 			c.Logger.Error("error closing database connection", logger.Error(err))
