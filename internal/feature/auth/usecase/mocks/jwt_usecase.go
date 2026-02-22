@@ -70,6 +70,18 @@ func (mr *MockJWTUsecaseMockRecorder) GenerateTokenPair(user any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateTokenPair", reflect.TypeOf((*MockJWTUsecase)(nil).GenerateTokenPair), user)
 }
 
+// Stop mocks base method.
+func (m *MockJWTUsecase) Stop() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Stop")
+}
+
+// Stop indicates an expected call of Stop.
+func (mr *MockJWTUsecaseMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockJWTUsecase)(nil).Stop))
+}
+
 // ValidateToken mocks base method.
 func (m *MockJWTUsecase) ValidateToken(tokenString string) (*domain.JWTClaims, error) {
 	m.ctrl.T.Helper()

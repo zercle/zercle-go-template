@@ -21,10 +21,10 @@ import (
 // It uses sync.Map for thread-safe concurrent access.
 // It runs a background cleanup goroutine to periodically remove expired entries.
 type TokenCache struct {
-	tokens    sync.Map // map[string]*cachedToken
-	ctx       context.Context
-	cancel    context.CancelFunc
-	ticker    *time.Ticker
+	tokens sync.Map // map[string]*cachedToken
+	ctx    context.Context
+	cancel context.CancelFunc
+	ticker *time.Ticker
 }
 
 // cachedToken represents a cached token with its claims and expiration time.
@@ -102,9 +102,7 @@ func (c *TokenCache) removeExpiredTokens() {
 		}
 		return true
 	})
-	if deletedCount > 0 {
-		// Optional: Log cleanup activity
-	}
+	_ = deletedCount // Keep the counter for debugging if needed
 }
 
 // Stop stops the background cleanup goroutine gracefully.
