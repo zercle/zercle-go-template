@@ -12,7 +12,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: Builder
 # -----------------------------------------------------------------------------
-FROM golang AS builder
+FROM mirror.gcr.io/golang AS builder
 
 # Build arguments for versioning (passed via --build-arg)
 ARG APP_NAME=zercle-go-template
