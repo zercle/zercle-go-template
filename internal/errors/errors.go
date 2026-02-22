@@ -153,3 +153,28 @@ func GetStatusCode(err error) int {
 	}
 	return http.StatusInternalServerError
 }
+
+// Error wrapping helpers (Go 1.13+).
+
+// Wrap wraps an error with additional context message.
+// Returns nil if the input error is nil.
+// Uses %w for error wrapping to support error unwrapping.
+func Wrap(err error, message string) error {
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", message, err)
+}
+
+// Is reports whether any error in err's chain matches target.
+// Wrapper around errors.Is for convenience.
+func Is(err, target error) bool {
+	return errors.Is(err, target)
+}
+
+// As finds the first error in err's chain that matches target.
+// Wrapper around errors.As for convenience.
+// Target must be a pointer to an error type.
+func As(err error, target any) bool {
+	return errors.As(err, target)
+}

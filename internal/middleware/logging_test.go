@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 
 	"zercle-go-template/internal/logger"
@@ -66,7 +66,7 @@ func TestRequestLogger(t *testing.T) {
 			e := echo.New()
 			e.Use(RequestLogger(log))
 
-			e.Any(tt.path, func(c echo.Context) error {
+			e.Any(tt.path, func(c *echo.Context) error {
 				return c.String(tt.statusCode, "")
 			})
 
@@ -91,7 +91,7 @@ func TestRequestLogger_WithError(t *testing.T) {
 	e := echo.New()
 	e.Use(RequestLogger(log))
 
-	e.GET("/error", func(c echo.Context) error {
+	e.GET("/error", func(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "test error")
 	})
 
@@ -110,7 +110,7 @@ func TestLoggerContext(t *testing.T) {
 	e.Use(LoggerContext(log))
 
 	var capturedLogger logger.Logger
-	e.GET("/test", func(c echo.Context) error {
+	e.GET("/test", func(c *echo.Context) error {
 		capturedLogger = logger.FromContext(c.Request().Context())
 		return c.String(http.StatusOK, "")
 	})
@@ -159,7 +159,7 @@ func TestRequestLogger_LogLevels(t *testing.T) {
 			e := echo.New()
 			e.Use(RequestLogger(log))
 
-			e.GET("/test", func(c echo.Context) error {
+			e.GET("/test", func(c *echo.Context) error {
 				return c.String(tt.statusCode, "")
 			})
 
@@ -179,7 +179,7 @@ func TestRequestLogger_ClientIP(t *testing.T) {
 	e := echo.New()
 	e.Use(RequestLogger(log))
 
-	e.GET("/test", func(c echo.Context) error {
+	e.GET("/test", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "")
 	})
 
@@ -198,7 +198,7 @@ func TestRequestLogger_WithUserAgent(t *testing.T) {
 	e := echo.New()
 	e.Use(RequestLogger(log))
 
-	e.GET("/test", func(c echo.Context) error {
+	e.GET("/test", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "")
 	})
 
@@ -218,7 +218,7 @@ func TestRequestLogger_MethodNotAllowed(t *testing.T) {
 	e.Use(RequestLogger(log))
 
 	// Only allow GET
-	e.GET("/test", func(c echo.Context) error {
+	e.GET("/test", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "")
 	})
 
@@ -239,7 +239,7 @@ func TestLoggerContext_MultipleCalls(t *testing.T) {
 	e.Use(LoggerContext(log))
 
 	callCount := 0
-	e.GET("/test", func(c echo.Context) error {
+	e.GET("/test", func(c *echo.Context) error {
 		// Call multiple times to verify idempotency
 		_ = logger.FromContext(c.Request().Context())
 		_ = logger.FromContext(c.Request().Context())
@@ -263,7 +263,7 @@ func TestRequestLogger_QueryStringInPath(t *testing.T) {
 	e.Use(RequestLogger(log))
 
 	var capturedPath string
-	e.GET("/test", func(c echo.Context) error {
+	e.GET("/test", func(c *echo.Context) error {
 		capturedPath = c.Path()
 		return c.String(http.StatusOK, "")
 	})
@@ -284,7 +284,7 @@ func TestRequestLogger_LongPath(t *testing.T) {
 	e.Use(RequestLogger(log))
 
 	longPath := "/api/v1/users/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/profile"
-	e.GET(longPath, func(c echo.Context) error {
+	e.GET(longPath, func(c *echo.Context) error {
 		return c.String(http.StatusOK, "")
 	})
 

@@ -22,7 +22,7 @@ services:
   # PostgreSQL Database Service
   # ---------------------------------------------------------------------------
   postgres:
-    image: docker.io/postgres:18-alpine
+    image: mirror.gcr.io/postgres:18-alpine
     container_name: zercle-test-postgres
     restart: "no"
     environment:
@@ -54,7 +54,7 @@ services:
   # Database Migration Service
   # ---------------------------------------------------------------------------
   migrations:
-    image: docker.io/postgres:18-alpine
+    image: mirror.gcr.io/postgres:18-alpine
     container_name: zercle-test-migrations
     restart: "no"
     depends_on:
@@ -143,7 +143,7 @@ services:
   # Test Runner Service
   # ---------------------------------------------------------------------------
   test-runner:
-    image: docker.io/golang:1.25-bookworm
+    image: mirror.gcr.io/golang
     container_name: zercle-test-runner
     restart: "no"
     depends_on:
@@ -207,7 +207,7 @@ services:
   # Database Seeder (optional, for test data)
   # ---------------------------------------------------------------------------
   db-seed:
-    image: docker.io/postgres:18-alpine
+    image: mirror.gcr.io/postgres:18-alpine
     container_name: zercle-test-seed
     restart: "no"
     depends_on:

@@ -64,6 +64,13 @@ type JWTConfig struct {
 	Secret          string        `mapstructure:"secret"`
 	AccessTokenTTL  time.Duration `mapstructure:"access_token_ttl"`
 	RefreshTokenTTL time.Duration `mapstructure:"refresh_token_ttl"`
+	// CacheEnabled enables token validation caching to reduce authentication latency.
+	// Default: true (enabled)
+	CacheEnabled bool `mapstructure:"cache_enabled"`
+	// CacheTTL is the duration for which validated tokens are cached.
+	// Should be less than the access token TTL for security.
+	// Default: 5 minutes
+	CacheTTL time.Duration `mapstructure:"cache_ttl"`
 }
 
 // SecurityConfig contains security-related settings.
@@ -324,6 +331,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("jwt.secret", "your-secret-key-change-in-production")
 	v.SetDefault("jwt.access_token_ttl", "15m")
 	v.SetDefault("jwt.refresh_token_ttl", "168h")
+	v.SetDefault("jwt.cache_enabled", true)
+	v.SetDefault("jwt.cache_ttl", "5m")
 
 	// Security defaults - Argon2id parameters
 	// Production: Memory=64MB, Iterations=3, Parallelism=4
@@ -376,6 +385,10 @@ func (c *Config) Validate() error {
 
 	if c.JWT.RefreshTokenTTL <= 0 {
 		return fmt.Errorf("invalid JWT refresh token TTL: %v", c.JWT.RefreshTokenTTL)
+	}
+
+	if c.JWT.CacheTTL < 0 {
+		return fmt.Errorf("invalid JWT cache TTL: %v", c.JWT.CacheTTL)
 	}
 
 	return nil

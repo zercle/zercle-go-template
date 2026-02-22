@@ -96,7 +96,7 @@ func TestValidator_ValidateVar(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		field   interface{}
+		field   any
 		tag     string
 		wantErr bool
 	}{
@@ -403,14 +403,14 @@ func TestValidator_SingletonThreadSafety(t *testing.T) {
 	// Test that concurrent calls to GetValidator are safe
 	done := make(chan bool, 10)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			_ = GetValidator()
 			done <- true
 		}()
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 }
@@ -424,7 +424,7 @@ func TestValidator_MultipleValidationCalls(t *testing.T) {
 	}
 
 	// Test multiple validations
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		input := TestStruct{
 			Name:  "John Doe",
 			Email: "john@example.com",

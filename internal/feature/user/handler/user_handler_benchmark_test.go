@@ -257,3 +257,57 @@ func BenchmarkValidateStructDifferentRequests(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkErrorMapPool measures the performance of error map pool operations.
+func BenchmarkErrorMapPool(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		m := getErrorMap()
+		m["field1"] = "error1"
+		m["field2"] = "error2"
+		m["field3"] = "error3"
+		putErrorMap(m)
+	}
+}
+
+// BenchmarkErrorMapDirectAllocation measures direct map allocation performance.
+func BenchmarkErrorMapDirectAllocation(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		m := make(map[string]string)
+		m["field1"] = "error1"
+		m["field2"] = "error2"
+		m["field3"] = "error3"
+		_ = m
+	}
+}
+
+// BenchmarkErrorMapPoolParallel measures the pool under concurrent load.
+func BenchmarkErrorMapPoolParallel(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			m := getErrorMap()
+			m["field1"] = "error1"
+			putErrorMap(m)
+		}
+	})
+}
+
+// BenchmarkResponseBufferDirectAllocation measures direct byte slice allocation performance.
+func BenchmarkResponseBufferDirectAllocation(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		buf := make([]byte, 0, 512)
+		buf = append(buf, []byte(`{"test":"data"}`)...)
+		_ = buf
+	}
+}

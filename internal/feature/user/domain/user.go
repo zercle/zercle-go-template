@@ -26,12 +26,18 @@ import (
 // Key length: 32 bytes
 // Algorithm: Argon2id
 const (
-	argon2idVersion    = argon2.Version
-	defaultMemory      = 64 * 1024 // 64 MB in KB
-	defaultIterations  = 3
+	// argon2idVersion is the Argon2id algorithm version used for password hashing.
+	argon2idVersion = argon2.Version
+	// defaultMemory is the default memory cost for Argon2id in KB (64 MB).
+	defaultMemory = 64 * 1024 // 64 MB in KB
+	// defaultIterations is the default number of iterations for Argon2id.
+	defaultIterations = 3
+	// defaultParallelism is the default parallelism factor for Argon2id.
 	defaultParallelism = 4
-	defaultSaltLength  = 16
-	defaultKeyLength   = 32
+	// defaultSaltLength is the default salt length in bytes for Argon2id.
+	defaultSaltLength = 16
+	// defaultKeyLength is the default key length in bytes for Argon2id.
+	defaultKeyLength = 32
 )
 
 // argon2Params holds the current Argon2id parameters for password hashing.
@@ -44,7 +50,8 @@ type argon2Params struct {
 	keyLength   uint32
 }
 
-// defaultParams holds the default Argon22id parameters.
+// defaultParams holds the default Argon2id parameters.
+// These are the initial parameters used for password hashing before any custom configuration.
 var defaultParams = argon2Params{
 	memory:      defaultMemory,
 	iterations:  defaultIterations,
@@ -54,6 +61,7 @@ var defaultParams = argon2Params{
 }
 
 // currentParams holds the current Argon2id parameters (can be changed via SetArgon2Params).
+// Uses atomic.Value for thread-safe access to the parameters.
 var currentParams atomic.Value
 
 func init() {
@@ -294,14 +302,22 @@ func NewUser(email, name, password string) (*User, error) {
 // Domain errors for the user entity.
 // These are used for validation and business rule violations.
 var (
-	ErrInvalidID          = NewDomainError("INVALID_ID", "user ID is required")
-	ErrInvalidEmail       = NewDomainError("INVALID_EMAIL", "email format is invalid")
-	ErrInvalidName        = NewDomainError("INVALID_NAME", "name is required")
-	ErrInvalidNameLength  = NewDomainError("INVALID_NAME_LENGTH", "name must be between 2 and 100 characters")
-	ErrPasswordTooShort   = NewDomainError("PASSWORD_TOO_SHORT", "password must be at least 8 characters")
+	// ErrInvalidID is returned when the user ID is empty or missing.
+	ErrInvalidID = NewDomainError("INVALID_ID", "user ID is required")
+	// ErrInvalidEmail is returned when the email format is invalid.
+	ErrInvalidEmail = NewDomainError("INVALID_EMAIL", "email format is invalid")
+	// ErrInvalidName is returned when the name is empty.
+	ErrInvalidName = NewDomainError("INVALID_NAME", "name is required")
+	// ErrInvalidNameLength is returned when the name length is not between 2 and 100 characters.
+	ErrInvalidNameLength = NewDomainError("INVALID_NAME_LENGTH", "name must be between 2 and 100 characters")
+	// ErrPasswordTooShort is returned when the password is less than 8 characters.
+	ErrPasswordTooShort = NewDomainError("PASSWORD_TOO_SHORT", "password must be at least 8 characters")
+	// ErrPasswordHashFailed is returned when password hashing fails.
 	ErrPasswordHashFailed = NewDomainError("PASSWORD_HASH_FAILED", "failed to hash password")
-	ErrUserNotFound       = NewDomainError("USER_NOT_FOUND", "user not found")
-	ErrDuplicateEmail     = NewDomainError("DUPLICATE_EMAIL", "email already exists")
+	// ErrUserNotFound is returned when a user is not found in the repository.
+	ErrUserNotFound = NewDomainError("USER_NOT_FOUND", "user not found")
+	// ErrDuplicateEmail is returned when trying to create a user with an existing email.
+	ErrDuplicateEmail = NewDomainError("DUPLICATE_EMAIL", "email already exists")
 )
 
 // DomainError represents a domain-specific error.

@@ -1,8 +1,29 @@
 # Current Work Context
 
-**Last Updated:** 2026-02-10
+**Last Updated:** 2026-02-21
 
 ## Recent Refactoring (2026-02)
+
+### Go 1.26 Upgrade (2026-02)
+- **Decision:** Upgrade Go version from 1.25.7 to 1.26
+- **Impact:** Updated go.mod, Dockerfile, Makefile GO_VERSION variable
+- **Files Changed:** go.mod, Makefile, Dockerfile
+
+### Echo v5 Migration (2026-02)
+- **Decision:** Migrate from Echo v4 to Echo v5
+- **Impact:** Updated imports and some API changes
+- **Files Changed:** cmd/api/main.go, all handlers
+- **Dependencies Updated:** github.com/labstack/echo/v5 v5.0.4
+
+### JWT Token Caching (2026-02)
+- **Decision:** Add JWT token validation caching
+- **Implementation:**
+  - Configurable cache enabled by default
+  - Cache TTL configurable (default 5 minutes)
+  - Reduces authentication latency
+- **Config Options:**
+  - `jwt.cache_enabled` (default: true)
+  - `jwt.cache_ttl` (default: 5m)
 
 ### Service → Usecase Rename
 - **Rationale:** Align with Clean Architecture terminology

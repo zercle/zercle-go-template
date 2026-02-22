@@ -1,15 +1,15 @@
 # Technology Stack
 
-**Last Updated:** 2026-02-10
+**Last Updated:** 2026-02-21
 
 ## Core Technologies
 
 ### Language & Runtime
-- **Go:** 1.25.7
+- **Go:** 1.26
 - **Module:** zercle-go-template
 
 ### Web Framework
-- **Echo v4:** 4.15.0
+- **Echo v5:** 5.0.4
   - High-performance HTTP router
   - Middleware support
   - Built-in request/response handling
@@ -32,6 +32,10 @@
   - Access tokens (15 min default)
   - Refresh tokens (7 days default)
   - HMAC-SHA256 signing
+  - **Token Caching:** Configurable in-memory cache for validated tokens
+    - Default: enabled
+    - Cache TTL: 5 minutes (configurable)
+    - Reduces authentication latency
 - **Argon2id:** golang.org/x/crypto v0.48.0
   - OWASP-recommended password hashing
   - Configurable parameters
@@ -197,6 +201,10 @@ security:
 - Access token TTL: 15 minutes (configurable)
 - Refresh token TTL: 7 days (configurable)
 - Issuer: zercle-go-template
+- **Token Caching:**
+  - Cache enabled: true (default)
+  - Cache TTL: 5 minutes (configurable)
+  - Config options: `jwt.cache_enabled`, `jwt.cache_ttl`
 
 ## Testing Strategy
 

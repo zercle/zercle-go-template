@@ -30,8 +30,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 	echoSwagger "github.com/swaggo/echo-swagger"
 
 	_ "zercle-go-template/api/docs"
@@ -76,18 +76,23 @@ func run() error {
 
 	// Initialize Echo app
 	e := echo.New()
-	e.HideBanner = cfg.IsProduction()
-	e.Server.ReadTimeout = cfg.Server.ReadTimeout
-	e.Server.WriteTimeout = cfg.Server.WriteTimeout
 
 	// Setup routes
 	setupRouter(e, container, log)
 
-	// Start server in a goroutine
+	// Create HTTP server with timeouts
 	address := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	srv := &http.Server{
+		Addr:         address,
+		Handler:      e,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+	}
+
+	// Start server in a goroutine
 	go func() {
 		log.Info("HTTP server starting", logger.String("address", address))
-		if err := e.Start(address); err != nil && err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("HTTP server failed", logger.Error(err))
 		}
 	}()
@@ -103,7 +108,7 @@ func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
 	defer cancel()
 
-	if err := e.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(ctx); err != nil {
 		log.Error("server forced to shutdown", logger.Error(err))
 		return fmt.Errorf("server shutdown error: %w", err)
 	}
@@ -120,7 +125,7 @@ func setupRouter(e *echo.Echo, container *container.Container, log logger.Logger
 		LogStatus: true,
 		LogMethod: true,
 		LogURI:    true,
-		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+		LogValuesFunc: func(c *echo.Context, v middleware.RequestLoggerValues) error {
 			log.Info("HTTP request",
 				logger.String("method", v.Method),
 				logger.String("uri", v.URI),
@@ -147,10 +152,10 @@ func setupRouter(e *echo.Echo, container *container.Container, log logger.Logger
 	}
 
 	// 404 handler - Echo handles this with a custom route
-	e.RouteNotFound("/*", func(c echo.Context) error {
-		return c.JSON(http.StatusNotFound, map[string]interface{}{
+	e.RouteNotFound("/*", func(c *echo.Context) error {
+		return c.JSON(http.StatusNotFound, map[string]any{
 			"success": false,
-			"error": map[string]interface{}{
+			"error": map[string]any{
 				"code":    "NOT_FOUND",
 				"message": "Resource not found",
 			},
@@ -159,10 +164,10 @@ func setupRouter(e *echo.Echo, container *container.Container, log logger.Logger
 }
 
 // healthCheck handles health check requests.
-func healthCheck(c echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]interface{}{
+func healthCheck(c *echo.Context) error {
+	return c.JSON(http.StatusOK, map[string]any{
 		"success": true,
-		"data": map[string]interface{}{
+		"data": map[string]any{
 			"status":    "healthy",
 			"timestamp": time.Now().UTC(),
 		},
