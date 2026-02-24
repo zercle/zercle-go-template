@@ -1,7 +1,0 @@
-version: "2"
-
-output:
-  show-stats: true
-  sort-order:
-    - file
-    - linter
