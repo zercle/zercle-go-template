@@ -101,7 +101,7 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*AuthResult,
 }
 
 func (s *AuthService) ValidateToken(ctx context.Context, tokenString string) (*domain.User, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, apperrors.ErrTokenInvalid
 		}

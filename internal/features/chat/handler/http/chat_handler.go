@@ -20,6 +20,18 @@ func NewChatHandler(chatService service.ChatServiceInterface) *ChatHandler {
 	return &ChatHandler{chatService: chatService}
 }
 
+// CreateRoom godoc
+// @Summary Create a new chat room
+// @Description Create a new chat room with specified members
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body dto.CreateRoomRequest true "Room details"
+// @Success 201 {object} dto.RoomResponse "Room created successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /chat/rooms [post]
 func (h *ChatHandler) CreateRoom(c *echo.Context) error {
 	userID, err := middleware.GetUserID(c)
 	if err != nil {
@@ -56,6 +68,18 @@ func (h *ChatHandler) CreateRoom(c *echo.Context) error {
 	return c.JSON(http.StatusCreated, ToRoomResponse(room))
 }
 
+// GetRoom godoc
+// @Summary Get room details
+// @Description Get details of a specific chat room
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Room ID" format(uuid)
+// @Success 200 {object} dto.RoomResponse "Room details"
+// @Failure 400 {object} map[string]string "Invalid room ID"
+// @Failure 404 {object} map[string]string "Room not found"
+// @Router /chat/rooms/{id} [get]
 func (h *ChatHandler) GetRoom(c *echo.Context) error {
 	roomID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -70,6 +94,19 @@ func (h *ChatHandler) GetRoom(c *echo.Context) error {
 	return c.JSON(http.StatusOK, ToRoomResponse(room))
 }
 
+// ListRooms godoc
+// @Summary List user's chat rooms
+// @Description Get all chat rooms the authenticated user is a member of
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param limit query int false "Number of results" default(20)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Success 200 {object} dto.ListRoomsResponse "List of rooms"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /chat/rooms [get]
 func (h *ChatHandler) ListRooms(c *echo.Context) error {
 	userID, err := middleware.GetUserID(c)
 	if err != nil {
@@ -104,6 +141,19 @@ func (h *ChatHandler) ListRooms(c *echo.Context) error {
 	})
 }
 
+// UpdateRoom godoc
+// @Summary Update room details
+// @Description Update name and description of a chat room
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Room ID" format(uuid)
+// @Param request body dto.UpdateRoomRequest true "Updated room details"
+// @Success 200 {object} dto.RoomResponse "Room updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /chat/rooms/{id} [put]
 func (h *ChatHandler) UpdateRoom(c *echo.Context) error {
 	roomID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -123,6 +173,19 @@ func (h *ChatHandler) UpdateRoom(c *echo.Context) error {
 	return c.JSON(http.StatusOK, ToRoomResponse(room))
 }
 
+// DeleteRoom godoc
+// @Summary Delete a chat room
+// @Description Delete a chat room (owner only)
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Room ID" format(uuid)
+// @Success 204 "Room deleted successfully"
+// @Failure 400 {object} map[string]string "Invalid room ID"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /chat/rooms/{id} [delete]
 func (h *ChatHandler) DeleteRoom(c *echo.Context) error {
 	roomID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -136,6 +199,18 @@ func (h *ChatHandler) DeleteRoom(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// JoinRoom godoc
+// @Summary Join a chat room
+// @Description Add the authenticated user to a chat room
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Room ID" format(uuid)
+// @Success 204 "Successfully joined room"
+// @Failure 400 {object} map[string]string "Invalid room ID"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /chat/rooms/{id}/join [post]
 func (h *ChatHandler) JoinRoom(c *echo.Context) error {
 	roomID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -154,6 +229,18 @@ func (h *ChatHandler) JoinRoom(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// LeaveRoom godoc
+// @Summary Leave a chat room
+// @Description Remove the authenticated user from a chat room
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Room ID" format(uuid)
+// @Success 204 "Successfully left room"
+// @Failure 400 {object} map[string]string "Invalid room ID"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /chat/rooms/{id}/leave [post]
 func (h *ChatHandler) LeaveRoom(c *echo.Context) error {
 	roomID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -172,6 +259,18 @@ func (h *ChatHandler) LeaveRoom(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// GetRoomMembers godoc
+// @Summary Get room members
+// @Description Get all members of a specific chat room
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Room ID" format(uuid)
+// @Success 200 {array} dto.RoomResponse "List of room members"
+// @Failure 400 {object} map[string]string "Invalid room ID"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /chat/rooms/{id}/members [get]
 func (h *ChatHandler) GetRoomMembers(c *echo.Context) error {
 	roomID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -186,6 +285,19 @@ func (h *ChatHandler) GetRoomMembers(c *echo.Context) error {
 	return c.JSON(http.StatusOK, members)
 }
 
+// SendMessage godoc
+// @Summary Send a message to a room
+// @Description Send a new message to a specific chat room
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Room ID" format(uuid)
+// @Param request body dto.SendMessageRequest true "Message content"
+// @Success 201 {object} dto.MessageResponse "Message sent successfully"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Router /chat/rooms/{id}/messages [post]
 func (h *ChatHandler) SendMessage(c *echo.Context) error {
 	roomID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -226,6 +338,22 @@ func (h *ChatHandler) SendMessage(c *echo.Context) error {
 	return c.JSON(http.StatusCreated, ToMessageResponse(message))
 }
 
+// GetMessageHistory godoc
+// @Summary Get message history
+// @Description Get paginated message history for a room
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Room ID" format(uuid)
+// @Param limit query int false "Number of messages" default(50)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Param before query string false "Get messages before this message ID" format(uuid)
+// @Success 200 {object} dto.GetMessagesResponse "Message history"
+// @Failure 400 {object} map[string]string "Invalid room ID"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /chat/rooms/{id}/messages [get]
 func (h *ChatHandler) GetMessageHistory(c *echo.Context) error {
 	roomID, err := uuid.Parse(c.Param("id"))
 	if err != nil {

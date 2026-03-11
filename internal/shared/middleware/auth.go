@@ -32,7 +32,7 @@ func AuthMiddleware(jwtSecret []byte) echo.MiddlewareFunc {
 
 			tokenString := parts[1]
 
-			token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+			token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (any, error) {
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 					return nil, apperrors.ErrTokenInvalid
 				}

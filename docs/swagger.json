@@ -1,0 +1,1138 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/auth/login": {
+            "post": {
+                "description": "Authenticate user with email and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "User login",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully logged in",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Invalidate the current user session",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "User logout",
+                "responses": {
+                    "204": {
+                        "description": "Successfully logged out"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get the authenticated user's profile information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Get current user profile",
+                "responses": {
+                    "200": {
+                        "description": "User profile",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.UserDTO"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "description": "Get a new access token using a refresh token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Refresh access token",
+                "parameters": [
+                    {
+                        "description": "Refresh token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.RefreshRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New tokens issued",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid refresh token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/register": {
+            "post": {
+                "description": "Create a new user account with email and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "Registration details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successfully registered",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "User already exists",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/rooms": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get all chat rooms the authenticated user is a member of",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chat"
+                ],
+                "summary": "List user's chat rooms",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Number of results",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset for pagination",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of rooms",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.ListRoomsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Create a new chat room with specified members",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chat"
+                ],
+                "summary": "Create a new chat room",
+                "parameters": [
+                    {
+                        "description": "Room details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.CreateRoomRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Room created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/rooms/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get details of a specific chat room",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chat"
+                ],
+                "summary": "Get room details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Room ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Room details",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid room ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Room not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Update name and description of a chat room",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chat"
+                ],
+                "summary": "Update room details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Room ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated room details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.UpdateRoomRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Room updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Delete a chat room (owner only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chat"
+                ],
+                "summary": "Delete a chat room",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Room ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Room deleted successfully"
+                    },
+                    "400": {
+                        "description": "Invalid room ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/rooms/{id}/join": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Add the authenticated user to a chat room",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chat"
+                ],
+                "summary": "Join a chat room",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Room ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Successfully joined room"
+                    },
+                    "400": {
+                        "description": "Invalid room ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/rooms/{id}/leave": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Remove the authenticated user from a chat room",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chat"
+                ],
+                "summary": "Leave a chat room",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Room ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Successfully left room"
+                    },
+                    "400": {
+                        "description": "Invalid room ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/rooms/{id}/members": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get all members of a specific chat room",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chat"
+                ],
+                "summary": "Get room members",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Room ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of room members",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid room ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/rooms/{id}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get paginated message history for a room",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chat"
+                ],
+                "summary": "Get message history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Room ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Number of messages",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset for pagination",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Get messages before this message ID",
+                        "name": "before",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Message history",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.GetMessagesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid room ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Send a new message to a specific chat room",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "chat"
+                ],
+                "summary": "Send a message to a room",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Room ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Message content",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.SendMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Message sent successfully",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_zercle_zercle-go-template_internal_features_auth_dto.AuthResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "description": "The JWT access token",
+                    "type": "string"
+                },
+                "expires_at": {
+                    "description": "Unix timestamp when the access token expires\nFormat: int64",
+                    "type": "integer"
+                },
+                "refresh_token": {
+                    "description": "The refresh token for obtaining new access tokens",
+                    "type": "string"
+                },
+                "user": {
+                    "description": "The authenticated user's information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.UserDTO"
+                        }
+                    ]
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_auth_dto.LoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "description": "The user's email address\nRequired: true\nFormat: email",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "The user's password\nRequired: true",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_auth_dto.RefreshRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "description": "The refresh token\nRequired: true",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_auth_dto.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "display_name": {
+                    "description": "The display name for the new user (optional)",
+                    "type": "string"
+                },
+                "email": {
+                    "description": "The email address for the new user\nRequired: true\nFormat: email",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "The password for the new user\nRequired: true\nMin Length: 8",
+                    "type": "string",
+                    "minLength": 8
+                },
+                "username": {
+                    "description": "The username for the new user\nRequired: true\nMin Length: 3\nMax Length: 50",
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 3
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_auth_dto.UserDTO": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "description": "URL to the user's avatar image\nFormat: uri",
+                    "type": "string"
+                },
+                "display_name": {
+                    "description": "The display name",
+                    "type": "string"
+                },
+                "email": {
+                    "description": "The email address\nFormat: email",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "The unique user identifier\nFormat: uuid",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "The user's status (e.g., online, offline, away)",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "The username",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_chat_dto.CreateRoomRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "type"
+            ],
+            "properties": {
+                "description": {
+                    "description": "The description of the room",
+                    "type": "string"
+                },
+                "member_ids": {
+                    "description": "List of user IDs to add as initial members\nFormat: uuid",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "description": "The name of the room\nRequired: true\nMin Length: 1\nMax Length: 100",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "type": {
+                    "description": "The type of room (public, private, direct)\nRequired: true\nEnum: public, private, direct",
+                    "type": "string",
+                    "enum": [
+                        "public",
+                        "private",
+                        "direct"
+                    ]
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_chat_dto.GetMessagesResponse": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "description": "Whether there are more messages available",
+                    "type": "boolean"
+                },
+                "messages": {
+                    "description": "The list of messages",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.MessageResponse"
+                    }
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_chat_dto.ListRoomsResponse": {
+            "type": "object",
+            "properties": {
+                "rooms": {
+                    "description": "The list of rooms",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse"
+                    }
+                },
+                "total": {
+                    "description": "Total number of rooms",
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_chat_dto.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "The message content",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "When the message was sent\nFormat: date-time",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "The unique message identifier\nFormat: uuid",
+                    "type": "string"
+                },
+                "message_type": {
+                    "description": "The type of message",
+                    "type": "string"
+                },
+                "reply_to": {
+                    "description": "ID of the message being replied to (if any)",
+                    "type": "string"
+                },
+                "room_id": {
+                    "description": "The ID of the room this message belongs to\nFormat: uuid",
+                    "type": "string"
+                },
+                "sender_id": {
+                    "description": "The ID of the message sender\nFormat: uuid",
+                    "type": "string"
+                },
+                "sender_username": {
+                    "description": "The username of the message sender",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "When the room was created\nFormat: date-time",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "The description of the room",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "The unique room identifier\nFormat: uuid",
+                    "type": "string"
+                },
+                "member_count": {
+                    "description": "The number of members in the room",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "The name of the room",
+                    "type": "string"
+                },
+                "owner_id": {
+                    "description": "The ID of the room owner\nFormat: uuid",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "The type of room (public, private, direct)",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_chat_dto.SendMessageRequest": {
+            "type": "object",
+            "required": [
+                "content"
+            ],
+            "properties": {
+                "content": {
+                    "description": "The message content\nRequired: true",
+                    "type": "string"
+                },
+                "message_type": {
+                    "description": "The type of message (text, image, file, etc.)",
+                    "type": "string"
+                },
+                "reply_to": {
+                    "description": "ID of the message being replied to (optional)\nFormat: uuid",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zercle_zercle-go-template_internal_features_chat_dto.UpdateRoomRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "The new description of the room",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "The new name of the room",
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

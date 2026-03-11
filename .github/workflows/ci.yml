@@ -105,12 +105,6 @@ jobs:
             exit 1
           fi
           
-          # Verify plan/brief.md exists
-          if [ ! -f "plan/brief.md" ]; then
-            echo "ERROR: plan/brief.md not found"
-            exit 1
-          fi
-          
           echo "Documentation validation passed!"
 
       - name: Cache goimports

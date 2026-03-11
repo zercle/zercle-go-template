@@ -1,4 +1,4 @@
-.PHONY: build build-server build-client test test-integration test-all clean migrate-up migrate-down docker-build docker-up docker-down generate mocks sqlc lint fmt help
+.PHONY: build build-server build-client test test-integration test-all clean migrate-up migrate-down docker-build docker-up docker-down generate mocks sqlc lint fmt swagger swagger-validate swagger-serve swagger-clean help
 
 # Build
 build: build-server build-client
@@ -45,6 +45,25 @@ mocks:
 sqlc:
 	sqlc generate
 
+# Swagger documentation
+swagger:
+	@echo "Generating Swagger documentation..."
+	@which swag > /dev/null || go install github.com/swaggo/swag/cmd/swag@latest
+	swag init -g cmd/server/main.go -o ./docs --parseDependency --parseInternal
+
+swagger-validate:
+	@echo "Validating Swagger specification..."
+	@which swagger > /dev/null || go install github.com/go-swagger/go-swagger/cmd/swagger@latest
+	swagger validate ./docs/swagger.json
+
+swagger-serve:
+	@echo "Serving Swagger UI at http://localhost:8081"
+	@which swagger > /dev/null || go install github.com/go-swagger/go-swagger/cmd/swagger@latest
+	swagger serve -F swagger ./docs/swagger.json --port=8081
+
+swagger-clean:
+	rm -rf docs/
+
 # Docker
 docker-build:
 	docker-compose -f deployments/docker/compose.yaml build
@@ -80,6 +99,10 @@ help:
 	@echo "  generate        - Run go generate"
 	@echo "  mocks           - Generate mocks"
 	@echo "  sqlc            - Generate sqlc code"
+	@echo "  swagger         - Generate Swagger documentation"
+	@echo "  swagger-validate - Validate Swagger specification"
+	@echo "  swagger-serve   - Serve Swagger UI locally"
+	@echo "  swagger-clean   - Clean generated swagger docs"
 	@echo "  docker-build    - Build Docker images"
 	@echo "  docker-up       - Start Docker containers"
 	@echo "  docker-down     - Stop Docker containers"

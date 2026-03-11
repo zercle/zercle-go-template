@@ -21,8 +21,8 @@ func NewHandler(valkeyClient valkey.PubSubClient) *Handler {
 }
 
 type Event struct {
-	Type    string      `json:"type"`
-	Payload interface{} `json:"payload"`
+	Type    string `json:"type"`
+	Payload any    `json:"payload"`
 }
 
 func (h *Handler) HandleSSE(c *echo.Context) error {
@@ -85,7 +85,7 @@ func (h *Handler) HandleSSE(c *echo.Context) error {
 	}
 }
 
-func (h *Handler) PublishMessage(ctx context.Context, roomID string, message interface{}) error {
+func (h *Handler) PublishMessage(ctx context.Context, roomID string, message any) error {
 	event := Event{
 		Type:    "message",
 		Payload: message,
@@ -97,7 +97,7 @@ func (h *Handler) PublishMessage(ctx context.Context, roomID string, message int
 	return h.valkeyClient.Publish(ctx, fmt.Sprintf("room:%s", roomID), string(data))
 }
 
-func (h *Handler) sendEvent(c *echo.Context, eventType string, data interface{}) error {
+func (h *Handler) sendEvent(c *echo.Context, eventType string, data any) error {
 	event := Event{
 		Type:    eventType,
 		Payload: data,

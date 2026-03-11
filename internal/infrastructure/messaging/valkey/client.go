@@ -38,7 +38,7 @@ func (c *Client) Ping(ctx context.Context) error {
 	return c.RDB.Ping(ctx).Err()
 }
 
-func (c *Client) Publish(ctx context.Context, channel string, message interface{}) error {
+func (c *Client) Publish(ctx context.Context, channel string, message any) error {
 	return c.RDB.Publish(ctx, channel, message).Err()
 }
 
@@ -46,7 +46,7 @@ func (c *Client) Subscribe(ctx context.Context, channels ...string) *redis.PubSu
 	return c.RDB.Subscribe(ctx, channels...)
 }
 
-func (c *Client) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+func (c *Client) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
 	return c.RDB.Set(ctx, key, value, expiration).Err()
 }
 
@@ -62,7 +62,7 @@ func (c *Client) Exists(ctx context.Context, keys ...string) (int64, error) {
 	return c.RDB.Exists(ctx, keys...).Result()
 }
 
-func (c *Client) HSet(ctx context.Context, key string, values ...interface{}) error {
+func (c *Client) HSet(ctx context.Context, key string, values ...any) error {
 	return c.RDB.HSet(ctx, key, values...).Err()
 }
 
