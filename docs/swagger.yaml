@@ -1,0 +1,805 @@
+definitions:
+  github_com_zercle_zercle-go-template_internal_features_auth_dto.AuthResponse:
+    properties:
+      access_token:
+        description: The JWT access token
+        type: string
+      expires_at:
+        description: |-
+          Unix timestamp when the access token expires
+          Format: int64
+        type: integer
+      refresh_token:
+        description: The refresh token for obtaining new access tokens
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.UserDTO'
+        description: The authenticated user's information
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_auth_dto.LoginRequest:
+    properties:
+      email:
+        description: |-
+          The user's email address
+          Required: true
+          Format: email
+        type: string
+      password:
+        description: |-
+          The user's password
+          Required: true
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_auth_dto.RefreshRequest:
+    properties:
+      refresh_token:
+        description: |-
+          The refresh token
+          Required: true
+        type: string
+    required:
+    - refresh_token
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_auth_dto.RegisterRequest:
+    properties:
+      display_name:
+        description: The display name for the new user (optional)
+        type: string
+      email:
+        description: |-
+          The email address for the new user
+          Required: true
+          Format: email
+        type: string
+      password:
+        description: |-
+          The password for the new user
+          Required: true
+          Min Length: 8
+        minLength: 8
+        type: string
+      username:
+        description: |-
+          The username for the new user
+          Required: true
+          Min Length: 3
+          Max Length: 50
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_auth_dto.UserDTO:
+    properties:
+      avatar_url:
+        description: |-
+          URL to the user's avatar image
+          Format: uri
+        type: string
+      display_name:
+        description: The display name
+        type: string
+      email:
+        description: |-
+          The email address
+          Format: email
+        type: string
+      id:
+        description: |-
+          The unique user identifier
+          Format: uuid
+        type: string
+      status:
+        description: The user's status (e.g., online, offline, away)
+        type: string
+      username:
+        description: The username
+        type: string
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_chat_dto.CreateRoomRequest:
+    properties:
+      description:
+        description: The description of the room
+        type: string
+      member_ids:
+        description: |-
+          List of user IDs to add as initial members
+          Format: uuid
+        items:
+          type: string
+        type: array
+      name:
+        description: |-
+          The name of the room
+          Required: true
+          Min Length: 1
+          Max Length: 100
+        maxLength: 100
+        minLength: 1
+        type: string
+      type:
+        description: |-
+          The type of room (public, private, direct)
+          Required: true
+          Enum: public, private, direct
+        enum:
+        - public
+        - private
+        - direct
+        type: string
+    required:
+    - name
+    - type
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_chat_dto.GetMessagesResponse:
+    properties:
+      has_more:
+        description: Whether there are more messages available
+        type: boolean
+      messages:
+        description: The list of messages
+        items:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.MessageResponse'
+        type: array
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_chat_dto.ListRoomsResponse:
+    properties:
+      rooms:
+        description: The list of rooms
+        items:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse'
+        type: array
+      total:
+        description: Total number of rooms
+        type: integer
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_chat_dto.MessageResponse:
+    properties:
+      content:
+        description: The message content
+        type: string
+      created_at:
+        description: |-
+          When the message was sent
+          Format: date-time
+        type: string
+      id:
+        description: |-
+          The unique message identifier
+          Format: uuid
+        type: string
+      message_type:
+        description: The type of message
+        type: string
+      reply_to:
+        description: ID of the message being replied to (if any)
+        type: string
+      room_id:
+        description: |-
+          The ID of the room this message belongs to
+          Format: uuid
+        type: string
+      sender_id:
+        description: |-
+          The ID of the message sender
+          Format: uuid
+        type: string
+      sender_username:
+        description: The username of the message sender
+        type: string
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse:
+    properties:
+      created_at:
+        description: |-
+          When the room was created
+          Format: date-time
+        type: string
+      description:
+        description: The description of the room
+        type: string
+      id:
+        description: |-
+          The unique room identifier
+          Format: uuid
+        type: string
+      member_count:
+        description: The number of members in the room
+        type: integer
+      name:
+        description: The name of the room
+        type: string
+      owner_id:
+        description: |-
+          The ID of the room owner
+          Format: uuid
+        type: string
+      type:
+        description: The type of room (public, private, direct)
+        type: string
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_chat_dto.SendMessageRequest:
+    properties:
+      content:
+        description: |-
+          The message content
+          Required: true
+        type: string
+      message_type:
+        description: The type of message (text, image, file, etc.)
+        type: string
+      reply_to:
+        description: |-
+          ID of the message being replied to (optional)
+          Format: uuid
+        type: string
+    required:
+    - content
+    type: object
+  github_com_zercle_zercle-go-template_internal_features_chat_dto.UpdateRoomRequest:
+    properties:
+      description:
+        description: The new description of the room
+        type: string
+      name:
+        description: The new name of the room
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully logged in
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.AuthResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Invalid credentials
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: User login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidate the current user session
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Successfully logged out
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: User logout
+      tags:
+      - auth
+  /auth/me:
+    get:
+      consumes:
+      - application/json
+      description: Get the authenticated user's profile information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.UserDTO'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get current user profile
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Get a new access token using a refresh token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New tokens issued
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.AuthResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Invalid refresh token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Refresh access token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with email and password
+      parameters:
+      - description: Registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successfully registered
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_auth_dto.AuthResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: User already exists
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register a new user
+      tags:
+      - auth
+  /chat/rooms:
+    get:
+      consumes:
+      - application/json
+      description: Get all chat rooms the authenticated user is a member of
+      parameters:
+      - default: 20
+        description: Number of results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of rooms
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.ListRoomsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: List user's chat rooms
+      tags:
+      - chat
+    post:
+      consumes:
+      - application/json
+      description: Create a new chat room with specified members
+      parameters:
+      - description: Room details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.CreateRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Room created successfully
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Create a new chat room
+      tags:
+      - chat
+  /chat/rooms/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a chat room (owner only)
+      parameters:
+      - description: Room ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Room deleted successfully
+        "400":
+          description: Invalid room ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Delete a chat room
+      tags:
+      - chat
+    get:
+      consumes:
+      - application/json
+      description: Get details of a specific chat room
+      parameters:
+      - description: Room ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Room details
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse'
+        "400":
+          description: Invalid room ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Room not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get room details
+      tags:
+      - chat
+    put:
+      consumes:
+      - application/json
+      description: Update name and description of a chat room
+      parameters:
+      - description: Room ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated room details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.UpdateRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Room updated successfully
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Update room details
+      tags:
+      - chat
+  /chat/rooms/{id}/join:
+    post:
+      consumes:
+      - application/json
+      description: Add the authenticated user to a chat room
+      parameters:
+      - description: Room ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Successfully joined room
+        "400":
+          description: Invalid room ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Join a chat room
+      tags:
+      - chat
+  /chat/rooms/{id}/leave:
+    post:
+      consumes:
+      - application/json
+      description: Remove the authenticated user from a chat room
+      parameters:
+      - description: Room ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Successfully left room
+        "400":
+          description: Invalid room ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Leave a chat room
+      tags:
+      - chat
+  /chat/rooms/{id}/members:
+    get:
+      consumes:
+      - application/json
+      description: Get all members of a specific chat room
+      parameters:
+      - description: Room ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of room members
+          schema:
+            items:
+              $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.RoomResponse'
+            type: array
+        "400":
+          description: Invalid room ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get room members
+      tags:
+      - chat
+  /chat/rooms/{id}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated message history for a room
+      parameters:
+      - description: Room ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 50
+        description: Number of messages
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      - description: Get messages before this message ID
+        format: uuid
+        in: query
+        name: before
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Message history
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.GetMessagesResponse'
+        "400":
+          description: Invalid room ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get message history
+      tags:
+      - chat
+    post:
+      consumes:
+      - application/json
+      description: Send a new message to a specific chat room
+      parameters:
+      - description: Room ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Message content
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.SendMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Message sent successfully
+          schema:
+            $ref: '#/definitions/github_com_zercle_zercle-go-template_internal_features_chat_dto.MessageResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Send a message to a room
+      tags:
+      - chat
+swagger: "2.0"

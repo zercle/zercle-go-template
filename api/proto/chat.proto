@@ -1,0 +1,174 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/zercle/zercle-go-template/api/pb";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service ChatService {
+  rpc CreateRoom(CreateRoomRequest) returns (Room);
+  rpc GetRoom(GetRoomRequest) returns (Room);
+  rpc UpdateRoom(UpdateRoomRequest) returns (Room);
+  rpc DeleteRoom(DeleteRoomRequest) returns (google.protobuf.Empty);
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+
+  rpc JoinRoom(JoinRoomRequest) returns (google.protobuf.Empty);
+  rpc LeaveRoom(LeaveRoomRequest) returns (google.protobuf.Empty);
+  rpc GetRoomMembers(GetRoomMembersRequest) returns (GetRoomMembersResponse);
+
+  rpc SendMessage(SendMessageRequest) returns (Message);
+  rpc GetMessageHistory(GetMessageHistoryRequest) returns (GetMessageHistoryResponse);
+
+  rpc ChatStream(stream ChatStreamRequest) returns (stream ChatStreamResponse);
+
+  rpc SetPresence(SetPresenceRequest) returns (google.protobuf.Empty);
+}
+
+message CreateRoomRequest {
+  string name = 1;
+  string description = 2;
+  string type = 3;
+  string owner_id = 5;
+  repeated string member_ids = 4;
+}
+
+message GetRoomRequest {
+  string room_id = 1;
+}
+
+message UpdateRoomRequest {
+  string room_id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message DeleteRoomRequest {
+  string room_id = 1;
+}
+
+message ListRoomsRequest {
+  string user_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message ListRoomsResponse {
+  repeated Room rooms = 1;
+  int32 total = 2;
+}
+
+message Room {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string type = 4;
+  string owner_id = 5;
+  int32 member_count = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message JoinRoomRequest {
+  string room_id = 1;
+  string user_id = 2;
+}
+
+message LeaveRoomRequest {
+  string room_id = 1;
+  string user_id = 2;
+}
+
+message GetRoomMembersRequest {
+  string room_id = 1;
+}
+
+message GetRoomMembersResponse {
+  repeated RoomMember members = 1;
+}
+
+message RoomMember {
+  string user_id = 1;
+  string username = 2;
+  string display_name = 3;
+  string avatar_url = 4;
+  string role = 5;
+  google.protobuf.Timestamp joined_at = 6;
+}
+
+message SendMessageRequest {
+  string room_id = 1;
+  string sender_id = 2;
+  string content = 3;
+  string message_type = 4;
+  string reply_to = 5;
+}
+
+message Message {
+  string id = 1;
+  string room_id = 2;
+  string sender_id = 3;
+  string sender_username = 4;
+  string content = 5;
+  string message_type = 6;
+  string reply_to = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message GetMessageHistoryRequest {
+  string room_id = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+  string before = 4;
+}
+
+message GetMessageHistoryResponse {
+  repeated Message messages = 1;
+  bool has_more = 2;
+}
+
+message ChatStreamRequest {
+  oneof payload {
+    JoinRoomRequest join = 1;
+    LeaveRoomRequest leave = 2;
+    SendMessageRequest message = 3;
+    TypingIndicator typing = 4;
+  }
+}
+
+message ChatStreamResponse {
+  oneof payload {
+    Message message = 1;
+    PresenceEvent presence = 2;
+    TypingIndicator typing = 3;
+    SystemEvent system = 4;
+  }
+}
+
+message PresenceEvent {
+  string user_id = 1;
+  string username = 2;
+  string status = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+message TypingIndicator {
+  string room_id = 1;
+  string user_id = 2;
+  string username = 3;
+  bool is_typing = 4;
+}
+
+message SystemEvent {
+  string room_id = 1;
+  string event_type = 2;
+  string user_id = 3;
+  string message = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+message SetPresenceRequest {
+  string user_id = 1;
+  string status = 2;
+}

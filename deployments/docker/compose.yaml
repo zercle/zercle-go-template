@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: zercle-postgres
+    environment:
+      TZ: Asia/Bangkok
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: zercle_chat
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  valkey:
+    image: valkey/valkey:9
+    container_name: zercle-valkey
+    environment:
+      TZ: Asia/Bangkok
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  server:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/server.Dockerfile
+    container_name: zercle-server
+    ports:
+      - "50051:50051"
+    environment:
+      TZ: Asia/Bangkok
+      APP_SERVER_GRPC_HOST: 0.0.0.0
+      APP_SERVER_GRPC_PORT: 50051
+      APP_DATABASE_HOST: postgres
+      APP_DATABASE_PORT: 5432
+      APP_DATABASE_NAME: zercle_chat
+      APP_DATABASE_USER: postgres
+      APP_DATABASE_PASSWORD: postgres
+      APP_VALKEY_HOST: valkey
+      APP_VALKEY_PORT: 6379
+      APP_AUTH_JWT_SECRET: your-secret-key-change-in-production
+      APP_LOGGING_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  client:
+    build:
+      context: ../../
+      dockerfile: deployments/docker/client.Dockerfile
+    container_name: zercle-client
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Asia/Bangkok
+      APP_SERVER_HTTP_HOST: 0.0.0.0
+      APP_SERVER_HTTP_PORT: 8080
+      APP_DATABASE_HOST: postgres
+      APP_DATABASE_PORT: 5432
+      APP_DATABASE_NAME: zercle_chat
+      APP_DATABASE_USER: postgres
+      APP_DATABASE_PASSWORD: postgres
+      APP_VALKEY_HOST: valkey
+      APP_VALKEY_PORT: 6379
+      APP_AUTH_JWT_SECRET: your-secret-key-change-in-production
+      APP_LOGGING_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  valkey_data:
