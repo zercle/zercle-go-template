@@ -89,6 +89,30 @@ jobs:
           fi
           echo "All files are formatted correctly"
 
+      - name: Validate documentation
+        run: |
+          echo "Validating project documentation..."
+          
+          # Check that cmd/server exists (referenced in brief.md)
+          if [ ! -d "cmd/server" ]; then
+            echo "ERROR: cmd/server directory not found but referenced in documentation"
+            exit 1
+          fi
+          
+          # Check that cmd/client exists (referenced in brief.md)
+          if [ ! -d "cmd/client" ]; then
+            echo "ERROR: cmd/client directory not found but referenced in documentation"
+            exit 1
+          fi
+          
+          # Verify plan/brief.md exists
+          if [ ! -f "plan/brief.md" ]; then
+            echo "ERROR: plan/brief.md not found"
+            exit 1
+          fi
+          
+          echo "Documentation validation passed!"
+
       - name: Cache goimports
         uses: actions/cache@v4
         with:
@@ -96,6 +120,14 @@ jobs:
           key: ${{ runner.os }}-goimports-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-goimports-
+
+      - name: Format generated protobuf files
+        run: |
+          if [ ! -f ~/go/bin/goimports ]; then
+            go install golang.org/x/tools/cmd/goimports@latest
+          fi
+          ~/go/bin/goimports -w api/pb/
+          echo "Protobuf files formatted"
 
       - name: Check go imports
         run: |
@@ -325,7 +357,7 @@ jobs:
           if [ "${{ matrix.os }}" = "windows" ]; then
             output_name="${output_name}.exe"
           fi
-          go build -ldflags="-s -w" -o "bin/${output_name}" ./cmd/api
+          go build -ldflags="-s -w" -o "bin/${output_name}" ./cmd/server
           echo "Built: bin/${output_name}"
 
       - name: Upload build artifacts
