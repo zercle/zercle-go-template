@@ -1,4 +1,4 @@
-package http
+package handler
 
 import (
 	"github.com/zercle/zercle-go-template/internal/features/chat/domain"

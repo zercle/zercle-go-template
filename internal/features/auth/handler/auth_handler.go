@@ -1,4 +1,4 @@
-package http
+package handler
 
 import (
 	"net/http"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/auth/dto"
 	"github.com/zercle/zercle-go-template/internal/features/auth/service"
-	"github.com/zercle/zercle-go-template/internal/shared/middleware"
+	"github.com/zercle/zercle-go-template/internal/middleware"
 )
 
 type AuthHandler struct {

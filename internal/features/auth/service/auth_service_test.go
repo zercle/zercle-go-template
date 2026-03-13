@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/zercle/zercle-go-template/internal/features/auth/domain"
-	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/errors"
 )
 
 func TestAuthService_Register(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
+	"github.com/zercle/zercle-go-template/internal/valkey"
 )
 
 type Handler struct {

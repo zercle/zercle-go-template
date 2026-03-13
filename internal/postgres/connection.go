@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	"github.com/zercle/zercle-go-template/internal/shared/logger"
+	"github.com/zercle/zercle-go-template/internal/config"
+	"github.com/zercle/zercle-go-template/internal/logger"
 )
 
 type DB struct {

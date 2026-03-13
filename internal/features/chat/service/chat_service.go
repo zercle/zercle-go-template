@@ -7,7 +7,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/chat/domain"
 	"github.com/zercle/zercle-go-template/internal/features/chat/messaging"
-	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/errors"
 )
 
 type ChatService struct {

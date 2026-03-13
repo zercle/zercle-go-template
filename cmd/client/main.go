@@ -10,17 +10,19 @@ import (
 	"github.com/labstack/echo/v5"
 	echomiddleware "github.com/labstack/echo/v5/middleware"
 
-	authhttp "github.com/zercle/zercle-go-template/internal/features/auth/handler/http"
+	"github.com/zercle/zercle-go-template/internal/config"
+	authRepo "github.com/zercle/zercle-go-template/internal/features/auth"
+	authHandler "github.com/zercle/zercle-go-template/internal/features/auth/handler"
 	authservice "github.com/zercle/zercle-go-template/internal/features/auth/service"
-	chathttp "github.com/zercle/zercle-go-template/internal/features/chat/handler/http"
+	chatRepo "github.com/zercle/zercle-go-template/internal/features/chat"
+	chatHandler "github.com/zercle/zercle-go-template/internal/features/chat/handler"
 	ssehandler "github.com/zercle/zercle-go-template/internal/features/chat/handler/sse"
 	"github.com/zercle/zercle-go-template/internal/features/chat/messaging"
 	chatservice "github.com/zercle/zercle-go-template/internal/features/chat/service"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/db/postgres"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
-	"github.com/zercle/zercle-go-template/internal/shared/logger"
-	"github.com/zercle/zercle-go-template/internal/shared/middleware"
+	"github.com/zercle/zercle-go-template/internal/logger"
+	"github.com/zercle/zercle-go-template/internal/middleware"
+	"github.com/zercle/zercle-go-template/internal/postgres"
+	"github.com/zercle/zercle-go-template/internal/valkey"
 )
 
 func main() {
@@ -49,10 +51,10 @@ func main() {
 	}
 	defer func() { _ = valkeyClient.Close() }()
 
-	userRepo := postgres.NewUserRepository(db)
-	sessionRepo := postgres.NewSessionRepository(db)
-	roomRepo := postgres.NewRoomRepository(db)
-	messageRepo := postgres.NewMessageRepository(db)
+	userRepo := authRepo.NewUserRepository(db)
+	sessionRepo := authRepo.NewSessionRepository(db)
+	roomRepo := chatRepo.NewRoomRepository(db)
+	messageRepo := chatRepo.NewMessageRepository(db)
 
 	authSvc := authservice.NewAuthService(
 		userRepo,
@@ -65,8 +67,8 @@ func main() {
 	chatPubsub := messaging.New(valkeyClient)
 	chatSvc := chatservice.NewChatServiceWithPubSub(roomRepo, messageRepo, chatPubsub)
 
-	authHTTPHandler := authhttp.NewAuthHandler(authSvc)
-	chatHTTPHandler := chathttp.NewChatHandler(chatSvc)
+	authHTTPHandler := authHandler.NewAuthHandler(authSvc)
+	chatHTTPHandler := chatHandler.NewChatHandler(chatSvc)
 	sseHandler := ssehandler.NewHandler(valkeyClient)
 
 	e := echo.New()

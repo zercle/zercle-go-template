@@ -1,4 +1,4 @@
-package postgres
+package auth
 
 import (
 	"context"
@@ -7,16 +7,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	apperrors "github.com/zercle/zercle-go-template/internal/errors"
 	"github.com/zercle/zercle-go-template/internal/features/auth/domain"
-	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	"github.com/zercle/zercle-go-template/internal/postgres"
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
 )
 
 type SessionRepository struct {
-	db *DB
+	db *postgres.DB
 }
 
-func NewSessionRepository(db *DB) *SessionRepository {
+func NewSessionRepository(db *postgres.DB) *SessionRepository {
 	return &SessionRepository{db: db}
 }
 

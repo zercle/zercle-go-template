@@ -1,4 +1,4 @@
-package grpc
+package handler
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pb "github.com/zercle/zercle-go-template/api/pb"
+	apperrors "github.com/zercle/zercle-go-template/internal/errors"
 	"github.com/zercle/zercle-go-template/internal/features/auth/domain"
 	"github.com/zercle/zercle-go-template/internal/features/auth/service"
-	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
 type AuthServer struct {

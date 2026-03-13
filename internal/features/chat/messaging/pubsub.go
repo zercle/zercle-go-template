@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
-	"github.com/zercle/zercle-go-template/internal/shared/logger"
+	"github.com/zercle/zercle-go-template/internal/valkey"
+	"github.com/zercle/zercle-go-template/internal/logger"
 )
 
 const (

@@ -1,4 +1,4 @@
-package postgres
+package chat
 
 import (
 	"context"
@@ -6,15 +6,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	apperrors "github.com/zercle/zercle-go-template/internal/errors"
 	"github.com/zercle/zercle-go-template/internal/features/chat/domain"
-	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	"github.com/zercle/zercle-go-template/internal/postgres"
 )
 
 type MessageRepository struct {
-	db *DB
+	db *postgres.DB
 }
 
-func NewMessageRepository(db *DB) *MessageRepository {
+func NewMessageRepository(db *postgres.DB) *MessageRepository {
 	return &MessageRepository{db: db}
 }
 

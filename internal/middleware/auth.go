@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 
-	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/errors"
 )
 
 type JWTClaims struct {

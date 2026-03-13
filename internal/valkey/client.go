@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	"github.com/zercle/zercle-go-template/internal/shared/logger"
+	"github.com/zercle/zercle-go-template/internal/config"
+	"github.com/zercle/zercle-go-template/internal/logger"
 )
 
 type Client struct {

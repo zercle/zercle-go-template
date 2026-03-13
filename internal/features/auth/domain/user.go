@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/zercle/zercle-go-template/internal/shared/errors"
+	"github.com/zercle/zercle-go-template/internal/errors"
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
 )
 
