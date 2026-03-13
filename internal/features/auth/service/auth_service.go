@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/zercle/zercle-go-template/internal/features/auth/domain"
 	apperrors "github.com/zercle/zercle-go-template/internal/errors"
+	"github.com/zercle/zercle-go-template/internal/features/auth/domain"
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
 )
 

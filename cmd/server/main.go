@@ -14,8 +14,7 @@ import (
 	authHandler "github.com/zercle/zercle-go-template/internal/features/auth/handler"
 	authService "github.com/zercle/zercle-go-template/internal/features/auth/service"
 	chatRepo "github.com/zercle/zercle-go-template/internal/features/chat"
-	chatGrpc "github.com/zercle/zercle-go-template/internal/features/chat/handler"
-	chatHttp "github.com/zercle/zercle-go-template/internal/features/chat/handler"
+	chatHandler "github.com/zercle/zercle-go-template/internal/features/chat/handler"
 	chatService "github.com/zercle/zercle-go-template/internal/features/chat/service"
 	"github.com/zercle/zercle-go-template/internal/logger"
 	"github.com/zercle/zercle-go-template/internal/middleware"
@@ -62,10 +61,10 @@ func main() {
 	chatSvc := chatService.NewChatService(roomRepo, messageRepo)
 
 	authServer := authHandler.NewAuthServer(authSvc)
-	chatServer := chatGrpc.NewChatServer(chatSvc)
+	chatServer := chatHandler.NewChatServer(chatSvc)
 
 	authHttpHandler := authHandler.NewAuthHandler(authSvc)
-	chatHttpHandler := chatHttp.NewChatHandler(chatSvc)
+	chatHttpHandler := chatHandler.NewChatHandler(chatSvc)
 
 	e := echo.New()
 

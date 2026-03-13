@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zercle/zercle-go-template/internal/features/auth/domain"
 	apperrors "github.com/zercle/zercle-go-template/internal/errors"
+	"github.com/zercle/zercle-go-template/internal/features/auth/domain"
 )
 
 func TestAuthService_Register(t *testing.T) {

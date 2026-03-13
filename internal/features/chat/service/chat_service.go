@@ -5,9 +5,9 @@ import (
 
 	"github.com/google/uuid"
 
+	apperrors "github.com/zercle/zercle-go-template/internal/errors"
 	"github.com/zercle/zercle-go-template/internal/features/chat/domain"
 	"github.com/zercle/zercle-go-template/internal/features/chat/messaging"
-	apperrors "github.com/zercle/zercle-go-template/internal/errors"
 )
 
 type ChatService struct {
