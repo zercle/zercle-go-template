@@ -44,6 +44,7 @@ permissions:
 env:
   GO_VERSION: "stable"    # Go version for builds
   POSTGRES_VERSION: "18"  # PostgreSQL version for integration tests
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"  # Opt into Node.js 24 for JavaScript actions
 
 jobs:
   # ==========================================================================
@@ -74,7 +75,7 @@ jobs:
           fi
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           args: --timeout=5m
@@ -108,7 +109,7 @@ jobs:
           echo "Documentation validation passed!"
 
       - name: Cache goimports
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/go/bin/goimports
           key: ${{ runner.os }}-goimports-${{ hashFiles('**/go.sum') }}
@@ -153,7 +154,7 @@ jobs:
           cache: true
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
+        uses: securego/gosec@v2
         with:
           args: "-no-fail -fmt sarif -out results.sarif ./..."
 
@@ -401,7 +402,7 @@ jobs:
             type=sha,prefix=,suffix=,format=short
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
