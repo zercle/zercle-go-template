@@ -17,7 +17,9 @@ import (
 )
 
 // swaggerHandlerWrapper wraps the v4 swagger handler to work with v5
-func swaggerHandlerWrapper(c echo.Context) error {
+//
+//nolint:unused // Reserved for future echo-swagger v5 support
+func swaggerHandlerWrapper(c *echo.Context) error {
 	// TODO: echo-swagger v1.5.2 does not support Echo v5 yet.
 	// Once a v5-compatible version is released, update this code.
 	// See: https://github.com/swaggo/echo-swagger/issues
