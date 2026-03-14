@@ -1,12 +1,12 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    queries: "internal/postgres"
+    queries: "internal/infrastructure/databases/postgres"
     schema: "internal/migrations"
     gen:
       go:
         package: "postgres"
-        out: "internal/postgres"
+        out: "internal/infrastructure/databases/postgres"
         sql_package: "pgx/v5"
         overrides:
           - go_type: "github.com/google/uuid.UUID"

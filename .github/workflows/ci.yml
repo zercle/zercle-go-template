@@ -121,7 +121,7 @@ jobs:
           if [ ! -f ~/go/bin/goimports ]; then
             go install golang.org/x/tools/cmd/goimports@latest
           fi
-          ~/go/bin/goimports -w api/pb/
+          ~/go/bin/goimports -w api/proto/
           echo "Protobuf files formatted"
 
       - name: Check go imports
@@ -154,7 +154,7 @@ jobs:
           cache: true
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@v2
+        uses: securego/gosec@v2.21.4
         with:
           args: "-no-fail -fmt sarif -out results.sarif ./..."
 
