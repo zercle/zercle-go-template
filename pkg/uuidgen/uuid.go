@@ -6,20 +6,22 @@ import (
 	"github.com/google/uuid"
 )
 
+// New generates a new UUIDv7.
 func New() uuid.UUID {
-	if id, err := uuid.NewV7(); err == nil {
-		return id
-	} else {
+	id, err := uuid.NewV7()
+	if err != nil {
 		slog.Warn("Failed to generate UUIDv7, falling back to uuid.New()", "err", err)
 		return uuid.New()
 	}
+	return id
 }
 
+// NewString generates a new UUIDv7 as a string.
 func NewString() string {
-	if id, err := uuid.NewV7(); err == nil {
-		return id.String()
-	} else {
+	id, err := uuid.NewV7()
+	if err != nil {
 		slog.Warn("Failed to generate UUIDv7, falling back to uuid.NewString()", "err", err)
 		return uuid.NewString()
 	}
+	return id.String()
 }

@@ -1,4 +1,4 @@
-.PHONY: build build-server build-client test test-integration test-all clean migrate-up migrate-down docker-build docker-up docker-down generate mocks sqlc lint fmt swagger swagger-validate swagger-serve swagger-clean help
+.PHONY: build build-server build-client test test-integration test-all clean migrate-up migrate-down podman-build podman-up podman-down generate mocks sqlc proto lint fmt swagger swagger-validate swagger-serve swagger-clean help
 
 # Build
 build: build-server build-client
@@ -42,6 +42,16 @@ mocks:
 	go install go.uber.org/mock/mockgen@latest
 	go generate ./...
 
+# Protocol Buffers
+proto:
+	@echo "Generating protobuf files..."
+	@which protoc > /dev/null || echo "protoc not found, please install protoc"
+	@which protoc-gen-go > /dev/null || go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	@which protoc-gen-go-grpc > /dev/null || go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	mkdir -p api/proto/auth/v1 api/proto/chat/v1
+	protoc --go_out=./api/proto/auth/v1 --go-grpc_out=./api/proto/auth/v1 api/proto/auth.proto
+	protoc --go_out=./api/proto/chat/v1 --go-grpc_out=./api/proto/chat/v1 api/proto/chat.proto
+
 sqlc:
 	sqlc generate
 
@@ -64,18 +74,18 @@ swagger-serve:
 swagger-clean:
 	rm -rf docs/
 
-# Docker
-docker-build:
-	docker-compose -f deployments/docker/compose.yaml build
+# Podman
+podman-build:
+	podman compose -f deployments/podman/compose.yaml build
 
-docker-up:
-	docker-compose -f deployments/docker/compose.yaml up -d
+podman-up:
+	podman compose -f deployments/podman/compose.yaml up -d
 
-docker-down:
-	docker-compose -f deployments/docker/compose.yaml down
+podman-down:
+	podman compose -f deployments/podman/compose.yaml down
 
-docker-logs:
-	docker-compose -f deployments/docker/compose.yaml logs -f
+podman-logs:
+	podman compose -f deployments/podman/compose.yaml logs -f
 
 # Development
 lint:
@@ -98,13 +108,14 @@ help:
 	@echo "  migrate-create  - Create new migration"
 	@echo "  generate        - Run go generate"
 	@echo "  mocks           - Generate mocks"
+	@echo "  proto           - Generate protobuf files"
 	@echo "  sqlc            - Generate sqlc code"
 	@echo "  swagger         - Generate Swagger documentation"
 	@echo "  swagger-validate - Validate Swagger specification"
 	@echo "  swagger-serve   - Serve Swagger UI locally"
 	@echo "  swagger-clean   - Clean generated swagger docs"
-	@echo "  docker-build    - Build Docker images"
-	@echo "  docker-up       - Start Docker containers"
-	@echo "  docker-down     - Stop Docker containers"
+	@echo "  podman-build    - Build Podman images"
+	@echo "  podman-up       - Start Podman containers"
+	@echo "  podman-down     - Stop Podman containers"
 	@echo "  lint            - Run linters"
 	@echo "  fmt             - Format code"

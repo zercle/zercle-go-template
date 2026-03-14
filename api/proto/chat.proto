@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package pb;
 
-option go_package = "github.com/zercle/zercle-go-template/api/pb";
+option go_package = "github.com/zercle/zercle-go-template/api/proto/chat/v1";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";

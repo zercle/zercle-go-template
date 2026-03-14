@@ -5,10 +5,10 @@
 | Tool | Version | Installation |
 |------|---------|--------------|
 | Go | 1.26+ | [go.dev](https://go.dev/dl/) |
-| Docker | Latest | [docker.com](https://www.docker.com/) |
-| Docker Compose | Latest | Included with Docker |
-| PostgreSQL | 18+ | Via Docker |
-| Valkey | 9+ | Via Docker |
+| Podman | Latest | [podman.io](https://podman.io/) |
+| Podman Compose | Latest | Included with Podman |
+| PostgreSQL | 18+ | Via Podman |
+| Valkey | 9+ | Via Podman |
 
 ## Quick Start
 
@@ -21,7 +21,7 @@ cd zercle-go-template
 cp .env.example .env
 
 # 3. Start infrastructure (PostgreSQL + Valkey)
-docker compose -f deployments/docker/docker-compose.yaml up -d
+podman compose -f deployments/podman/podman-compose.yaml up -d
 
 # 4. Run database migrations
 make migrate-up
@@ -114,11 +114,11 @@ make generate         # Run go generate
 make mocks            # Generate mocks only
 make sqlc             # Generate sqlc code
 
-# Docker
-make docker-build     # Build Docker images
-make docker-up       # Start containers
-make docker-down     # Stop containers
-make docker-logs     # View logs
+# Podman
+make podman-build     # Build Podman images
+make podman-up       # Start containers
+make podman-down     # Stop containers
+make podman-logs     # View logs
 
 # Development
 make watch           # Watch mode (requires air)
@@ -134,23 +134,43 @@ zercle-go-template/
 │   ├── server/              # gRPC server entry point
 │   └── client/              # HTTP client entry point
 ├── internal/
-│   ├── features/           # Feature modules
-│   │   ├── auth/           # Authentication
-│   │   ├── chat/           # Chat/Messaging
-│   │   └── user/           # User management
+│   ├── app/                 # Application bootstrap & DI
+│   ├── core/errors/         # Core error types
+│   ├── feature/             # Feature modules (clean architecture)
+│   │   ├── auth/            # Authentication feature
+│   │   │   ├── domain/      # Domain models & interfaces
+│   │   │   ├── ports/       # Port interfaces
+│   │   │   ├── usecases/    # Business logic
+│   │   │   ├── repositories/postgres/  # Repository implementations
+│   │   │   ├── handlers/http/           # HTTP handlers
+│   │   │   ├── handlers/grpc/           # gRPC handlers
+│   │   │   └── mocks/                   # Generated mocks
+│   │   └── chat/            # Chat/Messaging feature
+│   │       ├── domain/
+│   │       ├── ports/
+│   │       ├── usecases/
+│   │       ├── repositories/postgres/
+│   │       ├── handlers/http/
+│   │       └── mocks/
 │   ├── infrastructure/     # Infrastructure
-│   │   ├── config/         # Configuration
-│   │   ├── db/             # Database
-│   │   └── messaging/      # Valkey
-│   └── shared/             # Shared utilities
+│   │   ├── configs/         # Configuration
+│   │   ├── databases/postgres/  # Database connections
+│   │   ├── loggers/zerolog/     # Logging
+│   │   └── middlewares/     # HTTP/gRPC middlewares
+│   └── migrations/          # Database migrations
 ├── api/
-│   ├── proto/              # gRPC definitions
-│   └── openapi/            # REST API spec
-├── configs/                # Config files
-├── deployments/             # Docker & K8s
-├── test/                   # Test utilities
+│   ├── proto/               # Protocol Buffer definitions
+│   │   ├── auth/v1/        # Auth service proto
+│   │   └── chat/v1/        # Chat service proto
+│   └── dtos/               # HTTP DTOs
+│       ├── auth/
+│       └── chat/
+├── configs/                 # Config files
+├── deployments/             # Podman & K8s
+├── test/                    # Test utilities
 ├── Makefile
-└── sqlc.yaml
+├── sqlc.yaml
+└── go.mod
 ```
 
 ## Testing
@@ -187,18 +207,18 @@ go generate ./...
 ### Create Migration
 
 ```bash
-migrate create -ext sql -dir internal/infrastructure/db/migrations create_users
+migrate create -ext sql -dir internal/migrations create_users
 ```
 
 ### Run Migrations
 
 ```bash
 # Up
-migrate -path internal/infrastructure/db/migrations \
+migrate -path internal/migrations \
   -database "postgres://postgres:postgres@localhost:5432/zercle_chat?sslmode=disable" up
 
 # Down
-migrate -path internal/infrastructure/db/migrations \
+migrate -path internal/migrations \
   -database "postgres://postgres:postgres@localhost:5432/zercle_chat?sslmode=disable" down
 ```
 
@@ -225,12 +245,12 @@ Configuration in `sqlc.yaml`:
 version: "2"
 sql:
   - engine: "postgresql"
-    queries: "internal/infrastructure/db/queries"
-    schema: "internal/infrastructure/db/migrations"
+    queries: "internal/infrastructure/databases/postgres/queries"
+    schema: "internal/migrations"
     gen:
       go:
         package: "db"
-        out: "internal/infrastructure/db/postgres"
+        out: "internal/infrastructure/databases/postgres"
 ```
 
 ### Protocol Buffers
@@ -246,18 +266,18 @@ protoc --go_out=. --go_opt=paths=source_relative \
        api/proto/chat.proto
 ```
 
-## Docker Development
+## Podman Development
 
 ### Local Development with Hot Reload
 
 ```yaml
-# docker-compose.dev.yaml
+# podman-compose.dev.yaml
 version: '3.8'
 services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      podmanfile: Podmanfile.dev
     volumes:
       - .:/app
     ports:
@@ -272,8 +292,8 @@ services:
 
 ```bash
 # Build multi-stage
-docker build -f deployments/docker/Dockerfile.server -t zercle-server:latest .
-docker build -f deployments/docker/Dockerfile.client -t zercle-client:latest .
+podman build -f deployments/podman/Podmanfile.server -t zercle-server:latest .
+podman build -f deployments/podman/Podmanfile.client -t zercle-client:latest .
 ```
 
 ## Troubleshooting
@@ -282,13 +302,13 @@ docker build -f deployments/docker/Dockerfile.client -t zercle-client:latest .
 
 ```bash
 # Check if PostgreSQL is running
-docker ps | grep postgres
+podman ps | grep postgres
 
 # Check logs
-docker logs postgres
+podman logs postgres
 
 # Test connection
-docker exec -it postgres psql -U postgres -d zercle_chat
+podman exec -it postgres psql -U postgres -d zercle_chat
 ```
 
 ### Port Already in Use
