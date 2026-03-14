@@ -22,17 +22,17 @@ test-all: test test-integration
 migrate-up:
 	@echo "Running migrations up..."
 	@read -p "Enter database URL: " DB_URL; \
-	migrate -path internal/infrastructure/db/migrations -database "$$DB_URL" up
+	migrate -path internal/migrations -database "$DB_URL" up
 
 migrate-down:
 	@echo "Running migrations down..."
 	@read -p "Enter database URL: " DB_URL; \
-	migrate -path internal/infrastructure/db/migrations -database "$$DB_URL" down
+	migrate -path internal/migrations -database "$DB_URL" down
 
 migrate-create:
 	@echo "Creating new migration..."
 	@read -p "Enter migration name: " NAME; \
-	migrate create -ext sql -dir internal/infrastructure/db/migrations $$NAME
+	migrate create -ext sql -dir internal/migrations $NAME
 
 # Code Generation
 generate:

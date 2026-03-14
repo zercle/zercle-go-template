@@ -295,7 +295,7 @@ jobs:
           DB_PASSWORD: postgres
           DB_SSL_MODE: disable
         run: |
-          migrate -path "${{ github.workspace }}/internal/infrastructure/db/migrations" \
+          migrate -path "${{ github.workspace }}/internal/migrations" \
             -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
           
           # Verify migrations were applied
