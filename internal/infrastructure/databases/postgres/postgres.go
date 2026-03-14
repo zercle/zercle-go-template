@@ -6,7 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/zercle/zercle-go-template/internal/infrastructure/configs"
+	config "github.com/zercle/zercle-go-template/internal/infrastructure/configs"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/loggers/zerolog"
 )
 
