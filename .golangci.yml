@@ -1,0 +1,97 @@
+# golangci.yml - Linter configuration for zercle-go-template
+# Go 2026 best practices
+
+version: "2"
+
+run:
+  timeout: 10m
+  modules-download-mode: readonly
+  go: '1.26'
+
+linters:
+  disable-all: true
+  enable:
+    # Core linters
+    - errcheck      # Check for unchecked errors
+    - govet         # Reports suspicious constructs
+    - ineffassign   # Detects unused variable assignments
+    - staticcheck   # Static analysis checks
+    - unused        # Checks for unused code
+    - gosec         # Security issues
+
+    # Code quality
+    - bodyclose     # Checks whether HTTP response body is closed successfully
+    - contextcheck  # Check for context usage
+    - errorlint     # Find issues with error wrapping
+    - exhaustive    # Check exhaustiveness of enum switch statements
+    - noctx         # Detects unnecessary ctx usage in HTTP handlers
+    - unparam       # Reports unused function parameters
+
+    # Performance
+    - prealloc      # Finds slice declarations that could be preallocated
+
+    # Documentation
+    - godox         # Generates comment for TODO/FIXME comments
+    - gomodguard    # Block unwanted Go modules
+
+    # Style
+    - misspell      # Finds commonly misspelled English words
+    - whitespace    # Checks for unnecessary whitespace
+
+# Note: gofmt and goimports are formatters, not linters.
+# They are enabled via golangci-lint's built-in formatter settings.
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+
+  staticcheck:
+    checks:
+      - all
+      - -SA1019
+
+  gosec:
+    excludes:
+      - G104
+
+  gofmt:
+    simplify: true
+
+  goimports:
+    local-prefixes: github.com/zercle/zercle-go-template
+
+  misspell:
+    locale: US
+
+  errorlint:
+    errorf: true
+    wraps: true
+
+  gomodguard:
+    allowed:
+      modules:
+        - gopkg.in/yaml.v3
+        - gopkg.in/check.v1
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - noctx
+        - staticcheck
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true

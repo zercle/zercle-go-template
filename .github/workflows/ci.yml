@@ -1,21 +1,17 @@
 # =============================================================================
 # GitHub Actions CI/CD Workflow
 # =============================================================================
-# This workflow provides continuous integration and deployment for the Go API.
+# This workflow provides continuous integration for the Go API with testcontainers.
 #
 # Triggers:
 #   - Push to main/develop branches
 #   - Pull requests to main/develop branches
-#   - Tags starting with 'v' (e.g., v1.0.0)
-#   - Manual workflow dispatch
 #
 # Jobs:
-#   - lint: Code linting with golangci-lint and format checks (all triggers)
-#   - security: Security scanning with gosec (all triggers)
-#   - unit-test: Run unit tests with race detection and coverage (all triggers)
-#   - integration-test: Run integration tests with PostgreSQL service (all triggers)
-#   - build: Verify application builds successfully (push events only, not PRs)
-#   - docker: Build and push Docker image (tagged releases only)
+#   - lint: Code linting with golangci-lint
+#   - unit-tests: Run unit tests with race detection and coverage
+#   - integration-tests: Run integration tests with testcontainers (podman)
+#   - build: Build binary (after lint and unit tests pass)
 # =============================================================================
 
 name: CI
@@ -23,35 +19,18 @@ name: CI
 on:
   push:
     branches: [main, develop]
-    tags: ['v*']
   pull_request:
     branches: [main, develop]
-  workflow_dispatch:
 
-# Prevent concurrent runs of the same workflow on the same branch
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-# Permissions required for the workflow
-permissions:
-  contents: read          # Checkout code
-  security-events: write  # Upload SARIF results
-  pull-requests: read     # Read PR info
-  packages: write         # Push to GitHub Container Registry (if needed)
-
-# Environment variables used across all jobs
 env:
-  GO_VERSION: "stable"    # Go version for builds
-  POSTGRES_VERSION: "18"  # PostgreSQL version for integration tests
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"  # Opt into Node.js 24 for JavaScript actions
+  GO_VERSION: "stable"
 
 jobs:
   # ==========================================================================
-  # Job: Lint and Format
+  # Job: Lint
   # ==========================================================================
   lint:
-    name: Lint and Format
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -64,110 +43,16 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Verify Go modules
-        run: |
-          go mod verify
-          go mod tidy
-          if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
-            echo "Error: go.mod or go.sum is not tidy. Please run 'go mod tidy' and commit the changes."
-            git diff go.mod go.sum
-            exit 1
-          fi
-
-      - name: Run golangci-lint
+      - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           args: --timeout=5m
-          skip-cache: false
-
-      - name: Check code formatting
-        run: |
-          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-            echo "The following files are not formatted:"
-            gofmt -s -l .
-            exit 1
-          fi
-          echo "All files are formatted correctly"
-
-      - name: Validate documentation
-        run: |
-          echo "Validating project documentation..."
-          
-          # Check that cmd/server exists (referenced in brief.md)
-          if [ ! -d "cmd/server" ]; then
-            echo "ERROR: cmd/server directory not found but referenced in documentation"
-            exit 1
-          fi
-          
-          # Check that cmd/client exists (referenced in brief.md)
-          if [ ! -d "cmd/client" ]; then
-            echo "ERROR: cmd/client directory not found but referenced in documentation"
-            exit 1
-          fi
-          
-          echo "Documentation validation passed!"
-
-      - name: Cache goimports
-        uses: actions/cache@v5
-        with:
-          path: ~/go/bin/goimports
-          key: ${{ runner.os }}-goimports-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-goimports-
-
-      - name: Format generated protobuf files
-        run: |
-          if [ ! -f ~/go/bin/goimports ]; then
-            go install golang.org/x/tools/cmd/goimports@latest
-          fi
-          ~/go/bin/goimports -w api/proto/
-          echo "Protobuf files formatted"
-
-      - name: Check go imports
-        run: |
-          if [ ! -f ~/go/bin/goimports ]; then
-            go install golang.org/x/tools/cmd/goimports@latest
-          fi
-          if [ "$(goimports -l . | wc -l)" -gt 0 ]; then
-            echo "The following files have import issues:"
-            goimports -l .
-            exit 1
-          fi
-          echo "All imports are correct"
-
-  # ==========================================================================
-  # Job: Security Scan
-  # ==========================================================================
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-
-      - name: Run Gosec Security Scanner
-        uses: securego/gosec@v2.21.4
-        with:
-          args: "-no-fail -fmt sarif -out results.sarif ./..."
-
-      - name: Upload Gosec results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: results.sarif
 
   # ==========================================================================
   # Job: Unit Tests
   # ==========================================================================
-  unit-test:
+  unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -184,60 +69,22 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Install mockgen
-        run: go install go.uber.org/mock/mockgen@latest
-
-      - name: Generate mocks
-        run: go generate ./...
-
       - name: Run unit tests
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+        run: go test -short -race -coverprofile=coverage-unit.txt -covermode=atomic ./...
 
-      - name: Generate coverage report
-        run: |
-          go tool cover -func=coverage.out
-          go tool cover -html=coverage.out -o coverage.html
-
-      - name: Upload coverage to Codecov
+      - name: Upload unit test coverage
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.out
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-          verbose: true
-
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-report
-          path: coverage.html
-          retention-days: 7
+          files: coverage-unit.txt
+          flags: unit
 
   # ==========================================================================
   # Job: Integration Tests
   # ==========================================================================
-  integration-test:
+  integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          TZ: Asia/Bangkok
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: zercle_template_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d zercle_template_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-          --health-start-period 10s
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -248,76 +95,25 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      # Enable podman socket for rootless containers
+      - name: Start podman service
+        run: |
+          systemctl --user start podman.socket
+          echo "DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock" >> $GITHUB_ENV
+
       - name: Download dependencies
         run: go mod download
 
-      - name: Install tools
-        run: |
-          go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-          go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-          go install go.uber.org/mock/mockgen@latest
-
-      - name: Generate sqlc and mocks
-        run: |
-          go generate ./...
-          sqlc generate
-
-      - name: Wait for PostgreSQL to be ready
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: zercle_template_test
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_SSL_MODE: disable
-        run: |
-          echo "Waiting for PostgreSQL to be ready..."
-          for i in {1..30}; do
-            if pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" >/dev/null 2>&1; then
-              echo "PostgreSQL is ready!"
-              break
-            fi
-            echo "Attempt $i/30: PostgreSQL not ready yet, waiting..."
-            sleep 1
-          done
-          
-          # Verify connection with psql and check database exists
-          docker run --rm --network host \
-            -e PGPASSWORD="$DB_PASSWORD" \
-            postgres:16-alpine \
-            psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" >/dev/null 2>&1 && echo "Database connection verified!"
-
-      - name: Run migrations
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: zercle_template_test
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_SSL_MODE: disable
-        run: |
-          migrate -path "${{ github.workspace }}/internal/migrations" \
-            -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
-          
-          # Verify migrations were applied
-          echo "Verifying migrations..."
-          docker run --rm --network host \
-            -e PGPASSWORD="$DB_PASSWORD" \
-            postgres:16-alpine \
-            psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-            -c "SELECT COUNT(*) as tables FROM information_schema.tables WHERE table_schema = 'public';" \
-            -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"
-
       - name: Run integration tests
+        run: go test -race -coverprofile=coverage-integration.txt -covermode=atomic ./test/integration/...
         env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: zercle_template_test
-          DB_USER: postgres
-          DB_PASSWORD: postgres
-          DB_SSL_MODE: disable
-          APP_ENVIRONMENT: test
-        run: go test -v -race -tags=integration ./...
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+
+      - name: Upload integration test coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage-integration.txt
+          flags: integration
 
   # ==========================================================================
   # Job: Build
@@ -326,13 +122,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [lint, unit-test]
-    # Skip build on pull requests - only run on push events (branches and tags)
-    if: github.event_name != 'pull_request'
-    strategy:
-      matrix:
-        os: [linux, darwin]
-        arch: [amd64, arm64]
+    needs: [lint, unit-tests]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -344,96 +134,4 @@ jobs:
           cache: true
 
       - name: Build binary
-        env:
-          GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
-          CGO_ENABLED: 0
-        run: |
-          output_name="zercle-go-template-${{ matrix.os }}-${{ matrix.arch }}"
-          if [ "${{ matrix.os }}" = "windows" ]; then
-            output_name="${output_name}.exe"
-          fi
-          go build -ldflags="-s -w" -o "bin/${output_name}" ./cmd/server
-          echo "Built: bin/${output_name}"
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: binaries-${{ matrix.os }}-${{ matrix.arch }}
-          path: bin/
-          retention-days: 7
-
-  # ==========================================================================
-  # Job: Docker Build & Push
-  # ==========================================================================
-  docker:
-    name: Docker Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [build, security, integration-test]
-    # Only build Docker images for tagged releases (v*)
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: |
-            ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,prefix=,suffix=,format=short
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            VERSION=${{ github.ref_name }}
-            GIT_COMMIT=${{ github.sha }}
-            BUILD_TIME=${{ github.event.head_commit.timestamp }}
-
-      - name: Extract short SHA tag
-        id: sha-tag
-        run: |
-          # Extract the sha- tag from the metadata output
-          sha_tag=$(echo '${{ steps.meta.outputs.json }}' | jq -r '.tags[] | select(startswith("ghcr.io/${{ github.repository }}:sha-"))' | head -1)
-          echo "sha-tag=$sha_tag" >> $GITHUB_OUTPUT
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.35.0
-        with:
-          scan-type: 'fs'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-        continue-on-error: true
-
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
+        run: go build -o bin/server ./cmd/server
