@@ -5,6 +5,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/chat/dto"
 )
 
+// ToRoomResponse converts a domain.Room to a dto.RoomResponse.
 func ToRoomResponse(room *domain.Room) *dto.RoomResponse {
 	return &dto.RoomResponse{
 		ID:          room.ID,
@@ -17,6 +18,7 @@ func ToRoomResponse(room *domain.Room) *dto.RoomResponse {
 	}
 }
 
+// ToMessageResponse converts a domain.Message to a dto.MessageResponse.
 func ToMessageResponse(msg *domain.Message) *dto.MessageResponse {
 	resp := &dto.MessageResponse{
 		ID:             msg.ID,

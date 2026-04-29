@@ -13,6 +13,7 @@ import (
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
 )
 
+// AuthService provides authentication operations including registration, login, and session management.
 type AuthService struct {
 	userRepo      domain.UserRepository
 	sessionRepo   domain.SessionRepository
@@ -23,6 +24,7 @@ type AuthService struct {
 
 var _ AuthServiceInterface = (*AuthService)(nil)
 
+// NewAuthService creates a new AuthService with the given dependencies.
 func NewAuthService(
 	userRepo domain.UserRepository,
 	sessionRepo domain.SessionRepository,
@@ -38,6 +40,7 @@ func NewAuthService(
 	}
 }
 
+// RegisterInput holds the data required to register a new user.
 type RegisterInput struct {
 	Username    string
 	Email       string
@@ -45,11 +48,13 @@ type RegisterInput struct {
 	DisplayName string
 }
 
+// LoginInput holds the data required to authenticate a user.
 type LoginInput struct {
 	Email    string
 	Password string
 }
 
+// AuthResult contains the authentication tokens and user information.
 type AuthResult struct {
 	AccessToken  string
 	RefreshToken string
@@ -57,6 +62,7 @@ type AuthResult struct {
 	ExpiresAt    int64
 }
 
+// Register creates a new user account and returns authentication tokens.
 func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*AuthResult, error) {
 	existingUser, err := s.userRepo.FindByEmail(ctx, input.Email)
 	if err == nil && existingUser != nil {
@@ -84,6 +90,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*AuthR
 	return s.generateAuthResult(ctx, user)
 }
 
+// Login authenticates a user with email and password and returns tokens.
 func (s *AuthService) Login(ctx context.Context, input LoginInput) (*AuthResult, error) {
 	user, err := s.userRepo.FindByEmail(ctx, input.Email)
 	if err != nil {
@@ -100,6 +107,7 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*AuthResult,
 	return s.generateAuthResult(ctx, user)
 }
 
+// ValidateToken validates a JWT token and returns the associated user.
 func (s *AuthService) ValidateToken(ctx context.Context, tokenString string) (*domain.User, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -135,6 +143,7 @@ func (s *AuthService) ValidateToken(ctx context.Context, tokenString string) (*d
 	return user, nil
 }
 
+// RefreshToken issues new authentication tokens using a valid refresh token.
 func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*AuthResult, error) {
 	session, err := s.sessionRepo.FindByToken(ctx, refreshToken)
 	if err != nil {
@@ -156,6 +165,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*A
 	return s.generateAuthResult(ctx, user)
 }
 
+// Logout invalidates all sessions for the specified user.
 func (s *AuthService) Logout(ctx context.Context, userID uuid.UUID) error {
 	return s.sessionRepo.DeleteByUserID(ctx, userID)
 }

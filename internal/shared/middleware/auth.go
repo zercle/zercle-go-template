@@ -11,12 +11,14 @@ import (
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
+// JWTClaims represents the claims stored in a JWT token for authenticated users.
 type JWTClaims struct {
 	jwt.RegisteredClaims
 	UserID   uuid.UUID `json:"user_id"`
 	Username string    `json:"username"`
 }
 
+// AuthMiddleware returns an Echo middleware that validates JWT tokens from the Authorization header.
 func AuthMiddleware(jwtSecret []byte) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
@@ -56,6 +58,7 @@ func AuthMiddleware(jwtSecret []byte) echo.MiddlewareFunc {
 	}
 }
 
+// GetUserID extracts the user ID from the Echo context, returning an error if not set.
 func GetUserID(c *echo.Context) (uuid.UUID, error) {
 	userID, ok := c.Get("user_id").(uuid.UUID)
 	if !ok {
@@ -64,6 +67,7 @@ func GetUserID(c *echo.Context) (uuid.UUID, error) {
 	return userID, nil
 }
 
+// GetUsername extracts the username from the Echo context.
 func GetUsername(c *echo.Context) string {
 	username, _ := c.Get("username").(string)
 	return username

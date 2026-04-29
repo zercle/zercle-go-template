@@ -10,14 +10,17 @@ import (
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
+// MessageRepository handles message persistence in PostgreSQL.
 type MessageRepository struct {
 	db *DB
 }
 
+// NewMessageRepository creates a new MessageRepository.
 func NewMessageRepository(db *DB) *MessageRepository {
 	return &MessageRepository{db: db}
 }
 
+// Create inserts a new message into the database.
 func (r *MessageRepository) Create(ctx context.Context, message *domain.Message) error {
 	query := `
 		INSERT INTO messages (id, room_id, sender_id, content, message_type, reply_to, created_at, updated_at)
@@ -36,6 +39,7 @@ func (r *MessageRepository) Create(ctx context.Context, message *domain.Message)
 	return err
 }
 
+// FindByID retrieves a message by its ID.
 func (r *MessageRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Message, error) {
 	query := `
 		SELECT m.id, m.room_id, m.sender_id, u.username, m.content, m.message_type, m.reply_to, m.created_at, m.updated_at, m.deleted_at
@@ -62,6 +66,7 @@ func (r *MessageRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain
 	return &message, err
 }
 
+// FindByRoomID retrieves messages for a room with pagination.
 func (r *MessageRepository) FindByRoomID(ctx context.Context, roomID uuid.UUID, limit, offset int, before *uuid.UUID) ([]*domain.Message, bool, error) {
 	var query string
 	var rows pgx.Rows
@@ -109,6 +114,7 @@ func (r *MessageRepository) FindByRoomID(ctx context.Context, roomID uuid.UUID, 
 	return messages, hasMore, nil
 }
 
+// Delete soft-deletes a message by ID.
 func (r *MessageRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE messages SET deleted_at = NOW() WHERE id = $1`
 	_, err := r.db.Pool.Exec(ctx, query, id)

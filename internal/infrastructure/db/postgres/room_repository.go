@@ -10,14 +10,17 @@ import (
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
+// RoomRepository handles room persistence in PostgreSQL.
 type RoomRepository struct {
 	db *DB
 }
 
+// NewRoomRepository creates a new RoomRepository.
 func NewRoomRepository(db *DB) *RoomRepository {
 	return &RoomRepository{db: db}
 }
 
+// Create inserts a new room and adds the owner as a member.
 func (r *RoomRepository) Create(ctx context.Context, room *domain.Room) error {
 	query := `
 		INSERT INTO rooms (id, name, description, type, owner_id, created_at, updated_at)
@@ -44,6 +47,7 @@ func (r *RoomRepository) Create(ctx context.Context, room *domain.Room) error {
 	return err
 }
 
+// FindByID retrieves a room by its ID.
 func (r *RoomRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Room, error) {
 	query := `
 		SELECT r.id, r.name, r.description, r.type, r.owner_id, 
@@ -71,6 +75,7 @@ func (r *RoomRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Ro
 	return &room, err
 }
 
+// FindByUserID retrieves rooms for a user with pagination.
 func (r *RoomRepository) FindByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.Room, int, error) {
 	countQuery := `
 		SELECT COUNT(*)
@@ -122,6 +127,7 @@ func (r *RoomRepository) FindByUserID(ctx context.Context, userID uuid.UUID, lim
 	return rooms, total, nil
 }
 
+// Update modifies an existing room.
 func (r *RoomRepository) Update(ctx context.Context, room *domain.Room) error {
 	query := `
 		UPDATE rooms
@@ -138,12 +144,14 @@ func (r *RoomRepository) Update(ctx context.Context, room *domain.Room) error {
 	return err
 }
 
+// Delete soft-deletes a room by ID.
 func (r *RoomRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE rooms SET deleted_at = NOW() WHERE id = $1`
 	_, err := r.db.Pool.Exec(ctx, query, id)
 	return err
 }
 
+// AddMember adds a user to a room.
 func (r *RoomRepository) AddMember(ctx context.Context, roomID, userID uuid.UUID, role string) error {
 	query := `
 		INSERT INTO room_members (room_id, user_id, role, joined_at)
@@ -154,12 +162,14 @@ func (r *RoomRepository) AddMember(ctx context.Context, roomID, userID uuid.UUID
 	return err
 }
 
+// RemoveMember removes a user from a room.
 func (r *RoomRepository) RemoveMember(ctx context.Context, roomID, userID uuid.UUID) error {
 	query := `DELETE FROM room_members WHERE room_id = $1 AND user_id = $2`
 	_, err := r.db.Pool.Exec(ctx, query, roomID, userID)
 	return err
 }
 
+// GetMembers retrieves all members of a room.
 func (r *RoomRepository) GetMembers(ctx context.Context, roomID uuid.UUID) ([]*domain.RoomMember, error) {
 	query := `
 		SELECT rm.room_id, rm.user_id, u.username, u.display_name, u.avatar_url, rm.role, rm.joined_at
@@ -184,6 +194,7 @@ func (r *RoomRepository) GetMembers(ctx context.Context, roomID uuid.UUID) ([]*d
 	return members, nil
 }
 
+// IsMember checks if a user is a member of a room.
 func (r *RoomRepository) IsMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
 	query := `SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)`
 	var exists bool

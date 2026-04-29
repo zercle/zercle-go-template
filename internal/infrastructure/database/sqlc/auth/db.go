@@ -2,11 +2,7 @@
 // versions:
 //   sqlc v1.30.0
 
-<<<<<<<< HEAD:internal/infrastructure/db/postgres/db.go
-package postgres
-========
 package sqlcauth
->>>>>>>> 955a9e9 (feat(test): add comprehensive test coverage and performance optimizations):internal/infrastructure/database/sqlc/auth/db.go
 
 import (
 	"context"

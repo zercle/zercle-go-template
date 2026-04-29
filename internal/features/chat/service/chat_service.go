@@ -10,6 +10,7 @@ import (
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
+// ChatService implements ChatServiceInterface with room and message operations.
 type ChatService struct {
 	roomRepo    domain.RoomRepository
 	messageRepo domain.MessageRepository
@@ -18,6 +19,7 @@ type ChatService struct {
 
 var _ ChatServiceInterface = (*ChatService)(nil)
 
+// NewChatService creates a ChatService without pub/sub support.
 func NewChatService(roomRepo domain.RoomRepository, messageRepo domain.MessageRepository) *ChatService {
 	return &ChatService{
 		roomRepo:    roomRepo,
@@ -26,6 +28,7 @@ func NewChatService(roomRepo domain.RoomRepository, messageRepo domain.MessageRe
 	}
 }
 
+// NewChatServiceWithPubSub creates a ChatService with pub/sub support for real-time events.
 func NewChatServiceWithPubSub(roomRepo domain.RoomRepository, messageRepo domain.MessageRepository, ps messaging.PubSubServiceInterface) *ChatService {
 	return &ChatService{
 		roomRepo:    roomRepo,
@@ -34,6 +37,7 @@ func NewChatServiceWithPubSub(roomRepo domain.RoomRepository, messageRepo domain
 	}
 }
 
+// CreateRoomInput contains the required fields to create a new chat room.
 type CreateRoomInput struct {
 	Name        string
 	Description string
@@ -42,6 +46,7 @@ type CreateRoomInput struct {
 	MemberIDs   []uuid.UUID
 }
 
+// CreateRoom creates a new chat room with the owner as first member.
 func (s *ChatService) CreateRoom(ctx context.Context, input CreateRoomInput) (*domain.Room, error) {
 	room := domain.NewRoom(input.Name, input.Description, input.Type, input.OwnerID)
 	if err := room.Validate(); err != nil {
@@ -67,6 +72,7 @@ func (s *ChatService) CreateRoom(ctx context.Context, input CreateRoomInput) (*d
 	return room, nil
 }
 
+// GetRoom retrieves a room by ID or returns ErrRoomNotFound.
 func (s *ChatService) GetRoom(ctx context.Context, roomID uuid.UUID) (*domain.Room, error) {
 	room, err := s.roomRepo.FindByID(ctx, roomID)
 	if err != nil {
@@ -75,6 +81,7 @@ func (s *ChatService) GetRoom(ctx context.Context, roomID uuid.UUID) (*domain.Ro
 	return room, nil
 }
 
+// ListRooms retrieves paginated rooms for a user with enforced limits.
 func (s *ChatService) ListRooms(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.Room, int, error) {
 	if limit <= 0 {
 		limit = 20
@@ -86,6 +93,7 @@ func (s *ChatService) ListRooms(ctx context.Context, userID uuid.UUID, limit, of
 	return s.roomRepo.FindByUserID(ctx, userID, limit, offset)
 }
 
+// UpdateRoom updates room name and description.
 func (s *ChatService) UpdateRoom(ctx context.Context, roomID uuid.UUID, name, description string) (*domain.Room, error) {
 	room, err := s.roomRepo.FindByID(ctx, roomID)
 	if err != nil {
@@ -102,10 +110,12 @@ func (s *ChatService) UpdateRoom(ctx context.Context, roomID uuid.UUID, name, de
 	return room, nil
 }
 
+// DeleteRoom deletes a room by ID.
 func (s *ChatService) DeleteRoom(ctx context.Context, roomID uuid.UUID) error {
 	return s.roomRepo.Delete(ctx, roomID)
 }
 
+// JoinRoom adds a user to a room; returns ErrAlreadyJoined if already a member.
 func (s *ChatService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID) error {
 	isMember, err := s.roomRepo.IsMember(ctx, roomID, userID)
 	if err != nil {
@@ -119,6 +129,7 @@ func (s *ChatService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID) er
 	return s.roomRepo.AddMember(ctx, roomID, userID, "member")
 }
 
+// LeaveRoom removes a user from a room; returns ErrNotMember if not a member.
 func (s *ChatService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error {
 	isMember, err := s.roomRepo.IsMember(ctx, roomID, userID)
 	if err != nil {
@@ -132,10 +143,12 @@ func (s *ChatService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) e
 	return s.roomRepo.RemoveMember(ctx, roomID, userID)
 }
 
+// GetRoomMembers retrieves all members of a room.
 func (s *ChatService) GetRoomMembers(ctx context.Context, roomID uuid.UUID) ([]*domain.RoomMember, error) {
 	return s.roomRepo.GetMembers(ctx, roomID)
 }
 
+// SendMessageInput contains the required fields to send a message.
 type SendMessageInput struct {
 	RoomID      uuid.UUID
 	SenderID    uuid.UUID
@@ -144,6 +157,7 @@ type SendMessageInput struct {
 	ReplyTo     *uuid.UUID
 }
 
+// SendMessage sends a message to a room and publishes to pub/sub if configured.
 func (s *ChatService) SendMessage(ctx context.Context, input SendMessageInput) (*domain.Message, error) {
 	isMember, err := s.roomRepo.IsMember(ctx, input.RoomID, input.SenderID)
 	if err != nil {
@@ -184,6 +198,7 @@ func (s *ChatService) SendMessage(ctx context.Context, input SendMessageInput) (
 	return message, nil
 }
 
+// GetMessageHistory retrieves paginated message history for a room.
 func (s *ChatService) GetMessageHistory(ctx context.Context, roomID uuid.UUID, limit, offset int, before *uuid.UUID) ([]*domain.Message, bool, error) {
 	if limit <= 0 {
 		limit = 50

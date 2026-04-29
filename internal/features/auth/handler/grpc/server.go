@@ -14,15 +14,18 @@ import (
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
+// AuthServer implements the gRPC AuthService server interface.
 type AuthServer struct {
 	pb.UnimplementedAuthServiceServer
 	authService *service.AuthService
 }
 
+// NewAuthServer creates a new AuthServer with the given auth service.
 func NewAuthServer(authService *service.AuthService) *AuthServer {
 	return &AuthServer{authService: authService}
 }
 
+// Register handles new user registration requests.
 func (s *AuthServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.AuthResponse, error) {
 	input := service.RegisterInput{
 		Username:    req.Username,
@@ -44,6 +47,7 @@ func (s *AuthServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb
 	}, nil
 }
 
+// Login handles user authentication requests.
 func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.AuthResponse, error) {
 	input := service.LoginInput{
 		Email:    req.Email,
@@ -63,19 +67,16 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.AuthR
 	}, nil
 }
 
+// ValidateToken checks if the provided token is valid.
 func (s *AuthServer) ValidateToken(ctx context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error) {
-	user, err := s.authService.ValidateToken(ctx, req.Token)
-	if err != nil {
-		return &pb.ValidateTokenResponse{Valid: false}, nil
+	if _, err := s.authService.ValidateToken(ctx, req.Token); err != nil {
+		return &pb.ValidateTokenResponse{Valid: false}, err
 	}
 
-	return &pb.ValidateTokenResponse{
-		Valid:    true,
-		UserId:   user.ID.String(),
-		Username: user.Username,
-	}, nil
+	return &pb.ValidateTokenResponse{Valid: true}, nil
 }
 
+// RefreshToken issues new access and refresh tokens using the provided refresh token.
 func (s *AuthServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequest) (*pb.AuthResponse, error) {
 	result, err := s.authService.RefreshToken(ctx, req.RefreshToken)
 	if err != nil {
@@ -90,6 +91,7 @@ func (s *AuthServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenReque
 	}, nil
 }
 
+// Logout invalidates the user's session and tokens.
 func (s *AuthServer) Logout(ctx context.Context, req *pb.LogoutRequest) (*emptypb.Empty, error) {
 	userID, err := parseUserID(req.UserId)
 	if err != nil {

@@ -6,6 +6,8 @@ import (
 
 //go:generate mockgen -source=$GOFILE -destination=./mock/$GOFILE -package=mock
 
+// PubSubServiceInterface defines the contract for pub/sub messaging operations.
+// PubSubServiceInterface defines the contract for pub/sub messaging operations.
 type PubSubServiceInterface interface {
 	PublishMessage(ctx context.Context, roomID string, event MessageEvent) error
 	PublishPresence(ctx context.Context, roomID string, event PresenceEvent) error

@@ -21,7 +21,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/shared/middleware"
 
 	"github.com/labstack/echo/v5"
-	echoswagger "github.com/swaggo/echo-swagger"
+	httpSwagger "github.com/swaggo/echo-swagger/v2"
 
 	_ "github.com/zercle/zercle-go-template/docs" // swagger docs
 )
@@ -43,7 +43,6 @@ func main() {
 		logger.Error().Err(err).Msg("Failed to connect to database")
 		os.Exit(1)
 	}
-	defer db.Close()
 
 	userRepo := postgres.NewUserRepository(db)
 	sessionRepo := postgres.NewSessionRepository(db)
@@ -63,41 +62,41 @@ func main() {
 	authServer := authgrpc.NewAuthServer(authSvc)
 	chatServer := chatgrpc.NewChatServer(chatSvc)
 
-	authHttpHandler := authhttp.NewAuthHandler(authSvc)
-	chatHttpHandler := chathttp.NewChatHandler(chatSvc)
+	authHTTPHandler := authhttp.NewAuthHandler(authSvc)
+	chatHTTPHandler := chathttp.NewChatHandler(chatSvc)
 
 	// Start HTTP server with Swagger
 	e := echo.New()
 
 	// Swagger endpoint - available at /swagger/index.html
-	e.GET("/swagger/*", echoswagger.WrapHandler)
+	e.GET("/swagger/*", httpSwagger.WrapHandler)
 
 	// Setup API routes
 	v1 := e.Group("/api/v1")
 
 	// Auth routes
 	auth := v1.Group("/auth")
-	auth.POST("/register", authHttpHandler.Register)
-	auth.POST("/login", authHttpHandler.Login)
-	auth.POST("/refresh", authHttpHandler.RefreshToken)
+	auth.POST("/register", authHTTPHandler.Register)
+	auth.POST("/login", authHTTPHandler.Login)
+	auth.POST("/refresh", authHTTPHandler.RefreshToken)
 
 	// Protected auth routes
 	authProtected := auth.Group("", middleware.AuthMiddleware([]byte(cfg.Auth.JWTSecret)))
-	authProtected.GET("/me", authHttpHandler.GetCurrentUser)
-	authProtected.POST("/logout", authHttpHandler.Logout)
+	authProtected.GET("/me", authHTTPHandler.GetCurrentUser)
+	authProtected.POST("/logout", authHTTPHandler.Logout)
 
 	// Chat routes (all protected)
 	chat := v1.Group("/chat", middleware.AuthMiddleware([]byte(cfg.Auth.JWTSecret)))
-	chat.POST("/rooms", chatHttpHandler.CreateRoom)
-	chat.GET("/rooms", chatHttpHandler.ListRooms)
-	chat.GET("/rooms/:id", chatHttpHandler.GetRoom)
-	chat.PUT("/rooms/:id", chatHttpHandler.UpdateRoom)
-	chat.DELETE("/rooms/:id", chatHttpHandler.DeleteRoom)
-	chat.POST("/rooms/:id/join", chatHttpHandler.JoinRoom)
-	chat.POST("/rooms/:id/leave", chatHttpHandler.LeaveRoom)
-	chat.GET("/rooms/:id/members", chatHttpHandler.GetRoomMembers)
-	chat.POST("/rooms/:id/messages", chatHttpHandler.SendMessage)
-	chat.GET("/rooms/:id/messages", chatHttpHandler.GetMessageHistory)
+	chat.POST("/rooms", chatHTTPHandler.CreateRoom)
+	chat.GET("/rooms", chatHTTPHandler.ListRooms)
+	chat.GET("/rooms/:id", chatHTTPHandler.GetRoom)
+	chat.PUT("/rooms/:id", chatHTTPHandler.UpdateRoom)
+	chat.DELETE("/rooms/:id", chatHTTPHandler.DeleteRoom)
+	chat.POST("/rooms/:id/join", chatHTTPHandler.JoinRoom)
+	chat.POST("/rooms/:id/leave", chatHTTPHandler.LeaveRoom)
+	chat.GET("/rooms/:id/members", chatHTTPHandler.GetRoomMembers)
+	chat.POST("/rooms/:id/messages", chatHTTPHandler.SendMessage)
+	chat.GET("/rooms/:id/messages", chatHTTPHandler.GetMessageHistory)
 
 	// Start HTTP server
 	go func() {
@@ -112,6 +111,7 @@ func main() {
 	lis, err := net.Listen("tcp", cfg.Server.GRPC.Addr())
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to listen")
+		db.Close()
 		os.Exit(1)
 	}
 

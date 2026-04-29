@@ -9,6 +9,7 @@ import (
 
 //go:generate mockgen -source=$GOFILE -destination=./mock/$GOFILE -package=mock
 
+// ChatServiceInterface defines the contract for chat service operations.
 type ChatServiceInterface interface {
 	CreateRoom(ctx context.Context, input CreateRoomInput) (*domain.Room, error)
 	GetRoom(ctx context.Context, roomID uuid.UUID) (*domain.Room, error)

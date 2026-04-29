@@ -2,6 +2,7 @@ package errors
 
 import "errors"
 
+// Common sentinel errors for general API usage.
 var (
 	ErrNotFound      = errors.New("resource not found")
 	ErrUnauthorized  = errors.New("unauthorized")
@@ -11,6 +12,7 @@ var (
 	ErrInternalError = errors.New("internal error")
 )
 
+// Authentication and user-related errors.
 var (
 	ErrUsernameRequired   = errors.New("username is required")
 	ErrEmailRequired      = errors.New("email is required")

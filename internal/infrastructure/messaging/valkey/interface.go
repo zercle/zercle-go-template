@@ -7,6 +7,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// PubSubClient defines the interface for Valkey pub/sub and cache operations.
 type PubSubClient interface {
 	Publish(ctx context.Context, channel string, message any) error
 	Subscribe(ctx context.Context, channels ...string) *redis.PubSub

@@ -11,21 +11,25 @@ import (
 	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
 )
 
+// ProvideRoomRepository provides a domain.RoomRepository implementation backed by PostgreSQL.
 func ProvideRoomRepository(i *do.Injector) (domain.RoomRepository, error) {
 	db := do.MustInvoke[*postgres.DB](i)
 	return postgres.NewRoomRepository(db), nil
 }
 
+// ProvideMessageRepository provides a domain.MessageRepository implementation backed by PostgreSQL.
 func ProvideMessageRepository(i *do.Injector) (domain.MessageRepository, error) {
 	db := do.MustInvoke[*postgres.DB](i)
 	return postgres.NewMessageRepository(db), nil
 }
 
+// ProvidePubSubService provides a PubSubServiceInterface implementation backed by Valkey.
 func ProvidePubSubService(i *do.Injector) (messaging.PubSubServiceInterface, error) {
 	client := do.MustInvoke[*valkey.Client](i)
 	return messaging.New(client), nil
 }
 
+// ProvideChatService provides a service.ChatServiceInterface implementation with pub/sub support.
 func ProvideChatService(i *do.Injector) (service.ChatServiceInterface, error) {
 	roomRepo := do.MustInvoke[domain.RoomRepository](i)
 	messageRepo := do.MustInvoke[domain.MessageRepository](i)
@@ -34,16 +38,19 @@ func ProvideChatService(i *do.Injector) (service.ChatServiceInterface, error) {
 	return service.NewChatServiceWithPubSub(roomRepo, messageRepo, pubsub), nil
 }
 
+// ProvideChatHandler provides an HTTP chat handler with chat service dependency.
 func ProvideChatHandler(i *do.Injector) (*http.ChatHandler, error) {
 	chatSvc := do.MustInvoke[service.ChatServiceInterface](i)
 	return http.NewChatHandler(chatSvc), nil
 }
 
+// ProvideSSEHandler provides an SSE handler for real-time chat events.
 func ProvideSSEHandler(i *do.Injector) (*sse.Handler, error) {
 	client := do.MustInvoke[*valkey.Client](i)
 	return sse.NewHandler(client), nil
 }
 
+// RegisterChatProviders registers all chat-related dependency injection providers.
 func RegisterChatProviders(i *do.Injector) {
 	do.Provide(i, ProvideRoomRepository)
 	do.Provide(i, ProvideMessageRepository)

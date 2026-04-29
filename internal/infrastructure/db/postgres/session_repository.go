@@ -12,14 +12,17 @@ import (
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
 )
 
+// SessionRepository handles session/token persistence in PostgreSQL.
 type SessionRepository struct {
 	db *DB
 }
 
+// NewSessionRepository creates a new SessionRepository.
 func NewSessionRepository(db *DB) *SessionRepository {
 	return &SessionRepository{db: db}
 }
 
+// Create stores a new refresh token session.
 func (r *SessionRepository) Create(ctx context.Context, session *domain.Session) error {
 	query := `
 		INSERT INTO refresh_tokens (id, user_id, token, expires_at, created_at)
@@ -35,6 +38,7 @@ func (r *SessionRepository) Create(ctx context.Context, session *domain.Session)
 	return err
 }
 
+// FindByToken retrieves a session by its token.
 func (r *SessionRepository) FindByToken(ctx context.Context, token string) (*domain.Session, error) {
 	query := `
 		SELECT user_id, token, expires_at
@@ -53,12 +57,14 @@ func (r *SessionRepository) FindByToken(ctx context.Context, token string) (*dom
 	return &session, err
 }
 
+// Delete revokes a session by token.
 func (r *SessionRepository) Delete(ctx context.Context, token string) error {
 	query := `UPDATE refresh_tokens SET revoked_at = NOW() WHERE token = $1`
 	_, err := r.db.Pool.Exec(ctx, query, token)
 	return err
 }
 
+// DeleteByUserID revokes all sessions for a user.
 func (r *SessionRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
 	query := `UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1`
 	_, err := r.db.Pool.Exec(ctx, query, userID)
