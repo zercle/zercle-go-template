@@ -107,7 +107,11 @@ func (s *Service) SubscribeToRoom(ctx context.Context, roomID string, handler fu
 	msgChannel := fmt.Sprintf(ChannelRoomMessages, roomID)
 	presenceChannel := fmt.Sprintf(ChannelRoomPresence, roomID)
 
-	pubsub := s.client.Subscribe(ctx, msgChannel, presenceChannel)
+	pubsub, err := s.client.Subscribe(ctx, msgChannel, presenceChannel)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to subscribe to room")
+		return
+	}
 	ch := pubsub.Channel()
 
 	go func() {

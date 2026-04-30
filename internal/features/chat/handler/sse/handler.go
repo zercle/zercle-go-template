@@ -49,7 +49,10 @@ func (h *Handler) HandleSSE(c *echo.Context) error {
 	}
 
 	channel := fmt.Sprintf("room:%s", roomID)
-	pubsub := h.valkeyClient.Subscribe(c.Request().Context(), channel)
+	pubsub, err := h.valkeyClient.Subscribe(c.Request().Context(), channel)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to subscribe")
+	}
 	defer func() { _ = pubsub.Close() }()
 
 	c.Response().Header().Set("Content-Type", "text/event-stream")
