@@ -7,6 +7,7 @@ import (
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
 )
 
+// Message represents a chat message within a room.
 type Message struct {
 	ID             uuid.UUID  `json:"id"`
 	RoomID         uuid.UUID  `json:"room_id"`
@@ -20,6 +21,7 @@ type Message struct {
 	DeletedAt      *time.Time `json:"deleted_at,omitempty"`
 }
 
+// NewMessage creates a new message with generated UUID and timestamps.
 func NewMessage(roomID, senderID uuid.UUID, content, messageType string) *Message {
 	now := time.Now()
 	return &Message{
@@ -33,6 +35,7 @@ func NewMessage(roomID, senderID uuid.UUID, content, messageType string) *Messag
 	}
 }
 
+// Validate checks if the message content is not empty.
 func (m *Message) Validate() error {
 	if m.Content == "" {
 		return ErrMessageContentRequired
@@ -40,4 +43,5 @@ func (m *Message) Validate() error {
 	return nil
 }
 
+// ErrMessageContentRequired is returned when message content is empty.
 var ErrMessageContentRequired = NewError("message content is required")

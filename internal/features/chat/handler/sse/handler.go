@@ -12,19 +12,24 @@ import (
 	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
 )
 
+// Handler manages Server-Sent Events for real-time chat updates.
+// Handler manages Server-Sent Events for real-time chat updates.
 type Handler struct {
 	valkeyClient valkey.PubSubClient
 }
 
+// NewHandler creates a new SSE handler with the given Valkey client.
 func NewHandler(valkeyClient valkey.PubSubClient) *Handler {
 	return &Handler{valkeyClient: valkeyClient}
 }
 
+// Event represents a Server-Sent Event with type and payload.
 type Event struct {
 	Type    string `json:"type"`
 	Payload any    `json:"payload"`
 }
 
+// HandleSSE handles SSE connections for a chat room.
 func (h *Handler) HandleSSE(c *echo.Context) error {
 	roomID := c.Param("id")
 	if roomID == "" {
@@ -44,7 +49,10 @@ func (h *Handler) HandleSSE(c *echo.Context) error {
 	}
 
 	channel := fmt.Sprintf("room:%s", roomID)
-	pubsub := h.valkeyClient.Subscribe(c.Request().Context(), channel)
+	pubsub, err := h.valkeyClient.Subscribe(c.Request().Context(), channel)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to subscribe")
+	}
 	defer func() { _ = pubsub.Close() }()
 
 	c.Response().Header().Set("Content-Type", "text/event-stream")
@@ -85,6 +93,8 @@ func (h *Handler) HandleSSE(c *echo.Context) error {
 	}
 }
 
+// PublishMessage publishes a message event to a room's SSE channel.
+// PublishMessage publishes a message event to a room's SSE channel.
 func (h *Handler) PublishMessage(ctx context.Context, roomID string, message any) error {
 	event := Event{
 		Type:    "message",

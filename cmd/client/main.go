@@ -40,14 +40,13 @@ func main() {
 		logger.Error().Err(err).Msg("Failed to connect to database")
 		os.Exit(1)
 	}
-	defer db.Close()
 
 	valkeyClient, err := valkey.New(cfg.Valkey)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to connect to Valkey")
+		db.Close()
 		os.Exit(1)
 	}
-	defer func() { _ = valkeyClient.Close() }()
 
 	userRepo := postgres.NewUserRepository(db)
 	sessionRepo := postgres.NewSessionRepository(db)
@@ -126,4 +125,6 @@ func main() {
 	<-quit
 
 	logger.Info().Msg("Shutting down server")
+	db.Close()
+	_ = valkeyClient.Close()
 }

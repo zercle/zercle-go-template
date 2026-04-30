@@ -8,6 +8,7 @@ import (
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
 )
 
+// User represents an authenticated user entity.
 type User struct {
 	ID          uuid.UUID  `json:"id"`
 	Username    string     `json:"username"`
@@ -21,6 +22,7 @@ type User struct {
 	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
 }
 
+// NewUser creates a new User with the specified attributes.
 func NewUser(username, email, password, displayName string) *User {
 	now := time.Now()
 	return &User{
@@ -35,6 +37,7 @@ func NewUser(username, email, password, displayName string) *User {
 	}
 }
 
+// Validate checks if the user data is valid.
 func (u *User) Validate() error {
 	if u.Username == "" {
 		return errors.ErrUsernameRequired
@@ -48,14 +51,17 @@ func (u *User) Validate() error {
 	return nil
 }
 
+// Session represents an active user session.
 type Session struct {
 	UserID    uuid.UUID `json:"user_id"`
 	Token     string    `json:"token"`
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
+// UserStatus represents the online status of a user.
 type UserStatus string
 
+// User status constants.
 const (
 	StatusOnline  UserStatus = "online"
 	StatusAway    UserStatus = "away"

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zercle-go-template
+  labels:
+    app.kubernetes.io/name: zercle-go-template
+    app.kubernetes.io/part-of: zercle-go-template

@@ -10,10 +10,12 @@ import (
 	"github.com/zercle/zercle-go-template/internal/shared/middleware"
 )
 
+// AuthHandler handles HTTP requests for authentication operations.
 type AuthHandler struct {
 	authService service.AuthServiceInterface
 }
 
+// NewAuthHandler creates a new AuthHandler with the given auth service.
 func NewAuthHandler(authService service.AuthServiceInterface) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }

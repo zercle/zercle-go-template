@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: zercle-go-template-migrate
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: zercle-go-template-migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: zercle-go-template
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: zercle-go-template-migrate:latest
+          command: ["/migrate"]
+          args: ["-action=up"]
+          env:
+            - name: APP_DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: zercle-go-template-config
+                  key: DB_HOST
+            - name: APP_DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: zercle-go-template-config
+                  key: DB_PORT
+            - name: APP_DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: zercle-go-template-config
+                  key: DB_NAME
+            - name: APP_DATABASE_SSL_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: zercle-go-template-config
+                  key: DB_SSLMODE
+            - name: APP_DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: zercle-go-template-secrets
+                  key: DB_USER
+            - name: APP_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: zercle-go-template-secrets
+                  key: DB_PASSWORD
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

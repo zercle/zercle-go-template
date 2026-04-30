@@ -13,15 +13,18 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/chat/service"
 )
 
+// ChatServer implements the gRPC chat service server.
 type ChatServer struct {
 	pb.UnimplementedChatServiceServer
 	chatService *service.ChatService
 }
 
+// NewChatServer creates a new ChatServer with the given chat service.
 func NewChatServer(chatService *service.ChatService) *ChatServer {
 	return &ChatServer{chatService: chatService}
 }
 
+// CreateRoom creates a new chat room.
 func (s *ChatServer) CreateRoom(ctx context.Context, req *pb.CreateRoomRequest) (*pb.Room, error) {
 	ownerID, err := uuid.Parse(req.GetOwnerId())
 	if err != nil {
@@ -53,6 +56,7 @@ func (s *ChatServer) CreateRoom(ctx context.Context, req *pb.CreateRoomRequest) 
 	return toProtoRoom(room), nil
 }
 
+// GetRoom retrieves a room by ID.
 func (s *ChatServer) GetRoom(ctx context.Context, req *pb.GetRoomRequest) (*pb.Room, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
@@ -67,6 +71,7 @@ func (s *ChatServer) GetRoom(ctx context.Context, req *pb.GetRoomRequest) (*pb.R
 	return toProtoRoom(room), nil
 }
 
+// UpdateRoom updates room name and description.
 func (s *ChatServer) UpdateRoom(ctx context.Context, req *pb.UpdateRoomRequest) (*pb.Room, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
@@ -81,6 +86,7 @@ func (s *ChatServer) UpdateRoom(ctx context.Context, req *pb.UpdateRoomRequest) 
 	return toProtoRoom(room), nil
 }
 
+// DeleteRoom deletes a room by ID.
 func (s *ChatServer) DeleteRoom(ctx context.Context, req *pb.DeleteRoomRequest) (*emptypb.Empty, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
@@ -94,6 +100,7 @@ func (s *ChatServer) DeleteRoom(ctx context.Context, req *pb.DeleteRoomRequest) 
 	return &emptypb.Empty{}, nil
 }
 
+// ListRooms lists rooms for a user with pagination.
 func (s *ChatServer) ListRooms(ctx context.Context, req *pb.ListRoomsRequest) (*pb.ListRoomsResponse, error) {
 	userID, err := uuid.Parse(req.UserId)
 	if err != nil {
@@ -116,6 +123,7 @@ func (s *ChatServer) ListRooms(ctx context.Context, req *pb.ListRoomsRequest) (*
 	}, nil
 }
 
+// JoinRoom adds a user to a room.
 func (s *ChatServer) JoinRoom(ctx context.Context, req *pb.JoinRoomRequest) (*emptypb.Empty, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
@@ -134,6 +142,7 @@ func (s *ChatServer) JoinRoom(ctx context.Context, req *pb.JoinRoomRequest) (*em
 	return &emptypb.Empty{}, nil
 }
 
+// LeaveRoom removes a user from a room.
 func (s *ChatServer) LeaveRoom(ctx context.Context, req *pb.LeaveRoomRequest) (*emptypb.Empty, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
@@ -152,6 +161,7 @@ func (s *ChatServer) LeaveRoom(ctx context.Context, req *pb.LeaveRoomRequest) (*
 	return &emptypb.Empty{}, nil
 }
 
+// GetRoomMembers retrieves all members of a room.
 func (s *ChatServer) GetRoomMembers(ctx context.Context, req *pb.GetRoomMembersRequest) (*pb.GetRoomMembersResponse, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
@@ -178,6 +188,7 @@ func (s *ChatServer) GetRoomMembers(ctx context.Context, req *pb.GetRoomMembersR
 	return &pb.GetRoomMembersResponse{Members: protoMembers}, nil
 }
 
+// SendMessage sends a message to a room.
 func (s *ChatServer) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*pb.Message, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
@@ -213,6 +224,7 @@ func (s *ChatServer) SendMessage(ctx context.Context, req *pb.SendMessageRequest
 	return toProtoMessage(message), nil
 }
 
+// GetMessageHistory retrieves paginated message history for a room.
 func (s *ChatServer) GetMessageHistory(ctx context.Context, req *pb.GetMessageHistoryRequest) (*pb.GetMessageHistoryResponse, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
@@ -243,6 +255,7 @@ func (s *ChatServer) GetMessageHistory(ctx context.Context, req *pb.GetMessageHi
 	}, nil
 }
 
+// ChatStream handles bidirectional streaming for real-time chat.
 func (s *ChatServer) ChatStream(stream pb.ChatService_ChatStreamServer) error {
 	for {
 		req, err := stream.Recv()
@@ -291,6 +304,7 @@ func (s *ChatServer) ChatStream(stream pb.ChatService_ChatStreamServer) error {
 	}
 }
 
+// SetPresence updates user presence status in a room.
 func (s *ChatServer) SetPresence(ctx context.Context, req *pb.SetPresenceRequest) (*emptypb.Empty, error) {
 	_ = ctx
 	_ = req

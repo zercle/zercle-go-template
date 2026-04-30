@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: zercle-go-template-dev
+
+namePrefix: dev-
+
+resources:
+  - ../../base
+
+configMapGenerator:
+  - name: zercle-go-template-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=debug
+      - LOG_FORMAT=text
+      - METRICS_ENABLED=false
+
+secretGenerator:
+  - name: zercle-go-template-secrets
+    behavior: merge
+    literals:
+      - DB_PASSWORD=postgres
+      - DB_USER=postgres
+
+patches:
+  - path: patches/deployment-patch.yaml

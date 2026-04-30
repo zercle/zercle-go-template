@@ -7,6 +7,7 @@ import (
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
 )
 
+// Room represents a chat room with members and metadata.
 type Room struct {
 	ID          uuid.UUID  `json:"id"`
 	Name        string     `json:"name"`
@@ -19,6 +20,7 @@ type Room struct {
 	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
 }
 
+// NewRoom creates a new room with generated UUID and timestamps.
 func NewRoom(name, description, roomType string, ownerID uuid.UUID) *Room {
 	now := time.Now()
 	return &Room{
@@ -33,6 +35,7 @@ func NewRoom(name, description, roomType string, ownerID uuid.UUID) *Room {
 	}
 }
 
+// Validate checks room name and type validity.
 func (r *Room) Validate() error {
 	if r.Name == "" {
 		return ErrRoomNameRequired
@@ -43,6 +46,7 @@ func (r *Room) Validate() error {
 	return nil
 }
 
+// RoomMember represents a user's membership in a room with role and metadata.
 type RoomMember struct {
 	RoomID      uuid.UUID `json:"room_id"`
 	UserID      uuid.UUID `json:"user_id"`
@@ -53,15 +57,18 @@ type RoomMember struct {
 	JoinedAt    time.Time `json:"joined_at"`
 }
 
+// ErrRoomNameRequired is returned when room name is empty.
 var (
 	ErrRoomNameRequired = NewError("room name is required")
 	ErrInvalidRoomType  = NewError("invalid room type")
 )
 
+// NewError creates a new ValidationError with the given message.
 func NewError(message string) error {
 	return &ValidationError{Message: message}
 }
 
+// ValidationError represents a room validation failure.
 type ValidationError struct {
 	Message string
 }

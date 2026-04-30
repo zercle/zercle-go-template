@@ -12,10 +12,12 @@ import (
 	"github.com/zercle/zercle-go-template/internal/shared/middleware"
 )
 
+// ChatHandler handles HTTP endpoints for chat operations.
 type ChatHandler struct {
 	chatService service.ChatServiceInterface
 }
 
+// NewChatHandler creates a new ChatHandler with the given chat service.
 func NewChatHandler(chatService service.ChatServiceInterface) *ChatHandler {
 	return &ChatHandler{chatService: chatService}
 }

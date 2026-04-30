@@ -10,14 +10,17 @@ import (
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
+// UserRepository handles user persistence in PostgreSQL.
 type UserRepository struct {
 	db *DB
 }
 
+// NewUserRepository creates a new UserRepository.
 func NewUserRepository(db *DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
+// Create inserts a new user into the database.
 func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 	query := `
 		INSERT INTO users (id, username, email, password_hash, display_name, avatar_url, status, created_at, updated_at)
@@ -37,6 +40,7 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 	return err
 }
 
+// FindByID retrieves a user by ID.
 func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, display_name, avatar_url, status, created_at, updated_at, deleted_at
@@ -62,6 +66,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 	return &user, err
 }
 
+// FindByEmail retrieves a user by email.
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, display_name, avatar_url, status, created_at, updated_at, deleted_at
@@ -87,6 +92,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 	return &user, err
 }
 
+// FindByUsername retrieves a user by username.
 func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, display_name, avatar_url, status, created_at, updated_at, deleted_at
@@ -112,6 +118,7 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 	return &user, err
 }
 
+// Update modifies an existing user.
 func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 	query := `
 		UPDATE users
@@ -131,6 +138,7 @@ func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 	return err
 }
 
+// Delete soft-deletes a user by ID.
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE users SET deleted_at = NOW() WHERE id = $1`
 	_, err := r.db.Pool.Exec(ctx, query, id)
