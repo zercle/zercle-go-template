@@ -14,9 +14,10 @@ import (
 	reflect "reflect"
 
 	uuid "github.com/google/uuid"
+	gomock "go.uber.org/mock/gomock"
+
 	domain "github.com/zercle/zercle-go-template/internal/features/auth/domain"
 	service "github.com/zercle/zercle-go-template/internal/features/auth/service"
-	gomock "go.uber.org/mock/gomock"
 )
 
 // MockAuthServiceInterface is a mock of AuthServiceInterface interface.

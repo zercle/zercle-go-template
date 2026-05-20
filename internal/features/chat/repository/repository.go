@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
 	"github.com/zercle/zercle-go-template/internal/features/chat/domain"
 )
 

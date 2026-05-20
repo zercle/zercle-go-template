@@ -3,11 +3,20 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
 	"github.com/zercle/zercle-go-template/internal/features/chat/domain"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+)
+
+const (
+	// RoleOwner is the role for room owners.
+	RoleOwner = "owner"
+	// RoleMember is the role for room members.
+	RoleMember = "member"
 )
 
 // RoomRepository handles room persistence in PostgreSQL.
@@ -36,15 +45,18 @@ func (r *RoomRepository) Create(ctx context.Context, room *domain.Room) error {
 		room.UpdatedAt,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create room: %w", err)
 	}
 
 	memberQuery := `
 		INSERT INTO room_members (room_id, user_id, role, joined_at)
 		VALUES ($1, $2, $3, $4)
 	`
-	_, err = r.db.Pool.Exec(ctx, memberQuery, room.ID, room.OwnerID, "owner", room.CreatedAt)
-	return err
+	_, err = r.db.Pool.Exec(ctx, memberQuery, room.ID, room.OwnerID, RoleOwner, room.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("failed to add room owner: %w", err)
+	}
+	return nil
 }
 
 // FindByID retrieves a room by its ID.
@@ -72,7 +84,10 @@ func (r *RoomRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Ro
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperrors.ErrRoomNotFound
 	}
-	return &room, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to find room by ID: %w", err)
+	}
+	return &room, nil
 }
 
 // FindByUserID retrieves rooms for a user with pagination.
@@ -86,7 +101,7 @@ func (r *RoomRepository) FindByUserID(ctx context.Context, userID uuid.UUID, lim
 	var total int
 	err := r.db.Pool.QueryRow(ctx, countQuery, userID).Scan(&total)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("failed to count rooms: %w", err)
 	}
 
 	query := `
@@ -102,7 +117,7 @@ func (r *RoomRepository) FindByUserID(ctx context.Context, userID uuid.UUID, lim
 	`
 	rows, err := r.db.Pool.Query(ctx, query, userID, limit, offset)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, fmt.Errorf("failed to find rooms by user ID: %w", err)
 	}
 	defer rows.Close()
 
@@ -120,7 +135,7 @@ func (r *RoomRepository) FindByUserID(ctx context.Context, userID uuid.UUID, lim
 			&room.UpdatedAt,
 			&room.DeletedAt,
 		); err != nil {
-			return nil, 0, err
+			return nil, 0, fmt.Errorf("failed to scan room row: %w", err)
 		}
 		rooms = append(rooms, &room)
 	}
@@ -141,14 +156,20 @@ func (r *RoomRepository) Update(ctx context.Context, room *domain.Room) error {
 		room.Type,
 		room.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to update room: %w", err)
+	}
+	return nil
 }
 
 // Delete soft-deletes a room by ID.
 func (r *RoomRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE rooms SET deleted_at = NOW() WHERE id = $1`
 	_, err := r.db.Pool.Exec(ctx, query, id)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete room: %w", err)
+	}
+	return nil
 }
 
 // AddMember adds a user to a room.
@@ -159,14 +180,20 @@ func (r *RoomRepository) AddMember(ctx context.Context, roomID, userID uuid.UUID
 		ON CONFLICT (room_id, user_id) DO UPDATE SET role = $3
 	`
 	_, err := r.db.Pool.Exec(ctx, query, roomID, userID, role)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to add member: %w", err)
+	}
+	return nil
 }
 
 // RemoveMember removes a user from a room.
 func (r *RoomRepository) RemoveMember(ctx context.Context, roomID, userID uuid.UUID) error {
 	query := `DELETE FROM room_members WHERE room_id = $1 AND user_id = $2`
 	_, err := r.db.Pool.Exec(ctx, query, roomID, userID)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to remove member: %w", err)
+	}
+	return nil
 }
 
 // GetMembers retrieves all members of a room.
@@ -179,7 +206,7 @@ func (r *RoomRepository) GetMembers(ctx context.Context, roomID uuid.UUID) ([]*d
 	`
 	rows, err := r.db.Pool.Query(ctx, query, roomID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get room members: %w", err)
 	}
 	defer rows.Close()
 
@@ -187,7 +214,7 @@ func (r *RoomRepository) GetMembers(ctx context.Context, roomID uuid.UUID) ([]*d
 	for rows.Next() {
 		var m domain.RoomMember
 		if err := rows.Scan(&m.RoomID, &m.UserID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.Role, &m.JoinedAt); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan member row: %w", err)
 		}
 		members = append(members, &m)
 	}
@@ -199,5 +226,8 @@ func (r *RoomRepository) IsMember(ctx context.Context, roomID, userID uuid.UUID)
 	query := `SELECT EXISTS(SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2)`
 	var exists bool
 	err := r.db.Pool.QueryRow(ctx, query, roomID, userID).Scan(&exists)
-	return exists, err
+	if err != nil {
+		return false, fmt.Errorf("failed to check membership: %w", err)
+	}
+	return exists, nil
 }

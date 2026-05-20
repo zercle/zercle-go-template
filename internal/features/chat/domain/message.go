@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/zercle/zercle-go-template/internal/shared/errors"
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
 )
 
@@ -44,4 +46,4 @@ func (m *Message) Validate() error {
 }
 
 // ErrMessageContentRequired is returned when message content is empty.
-var ErrMessageContentRequired = NewError("message content is required")
+var ErrMessageContentRequired = errors.ErrMessageContentRequired

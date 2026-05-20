@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -10,13 +11,14 @@ import (
 )
 
 func TestAuthService_Register(t *testing.T) {
-	userRepo := NewUserRepoMock()
-	sessionRepo := NewSessionRepoMock()
-	authSvc := NewAuthService(userRepo, sessionRepo, "test-secret", time.Hour, time.Hour*24*7)
-
-	ctx := context.Background()
+	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		userRepo := NewUserRepoMock()
+		sessionRepo := NewSessionRepoMock()
+		authSvc := NewAuthService(userRepo, sessionRepo, "test-secret", time.Hour, time.Hour*24*7)
+
 		input := RegisterInput{
 			Username:    "testuser",
 			Email:       "test@example.com",
@@ -24,7 +26,7 @@ func TestAuthService_Register(t *testing.T) {
 			DisplayName: "Test User",
 		}
 
-		result, err := authSvc.Register(ctx, input)
+		result, err := authSvc.Register(context.Background(), input)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -44,6 +46,16 @@ func TestAuthService_Register(t *testing.T) {
 	})
 
 	t.Run("duplicate email", func(t *testing.T) {
+		t.Parallel()
+		userRepo := NewUserRepoMock()
+		sessionRepo := NewSessionRepoMock()
+		authSvc := NewAuthService(userRepo, sessionRepo, "test-secret", time.Hour, time.Hour*24*7)
+
+		existingUser := domain.NewUser("existinguser", "test@example.com", "hashedpassword", "Existing User")
+		if err := userRepo.Create(context.Background(), existingUser); err != nil {
+			t.Fatalf("failed to create existing user: %v", err)
+		}
+
 		input := RegisterInput{
 			Username:    "testuser2",
 			Email:       "test@example.com",
@@ -51,14 +63,15 @@ func TestAuthService_Register(t *testing.T) {
 			DisplayName: "Test User 2",
 		}
 
-		_, err := authSvc.Register(ctx, input)
-		if err != apperrors.ErrAlreadyExists {
+		_, err := authSvc.Register(context.Background(), input)
+		if !errors.Is(err, apperrors.ErrAlreadyExists) {
 			t.Errorf("expected ErrAlreadyExists, got %v", err)
 		}
 	})
 }
 
 func TestAuthService_Login(t *testing.T) {
+	t.Parallel()
 	userRepo := NewUserRepoMock()
 	sessionRepo := NewSessionRepoMock()
 	authSvc := NewAuthService(userRepo, sessionRepo, "test-secret", time.Hour, time.Hour*24*7)
@@ -71,31 +84,34 @@ func TestAuthService_Login(t *testing.T) {
 	}
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		input := LoginInput{
 			Email:    "test@example.com",
 			Password: "password123",
 		}
 
 		_, err := authSvc.Login(ctx, input)
-		if err != apperrors.ErrInvalidCredentials {
+		if !errors.Is(err, apperrors.ErrInvalidCredentials) {
 			t.Fatalf("expected ErrInvalidCredentials for wrong password, got %v", err)
 		}
 	})
 
 	t.Run("user not found", func(t *testing.T) {
+		t.Parallel()
 		input := LoginInput{
 			Email:    "nonexistent@example.com",
 			Password: "password123",
 		}
 
 		_, err := authSvc.Login(ctx, input)
-		if err != apperrors.ErrInvalidCredentials {
+		if !errors.Is(err, apperrors.ErrInvalidCredentials) {
 			t.Errorf("expected ErrInvalidCredentials, got %v", err)
 		}
 	})
 }
 
 func TestAuthService_ValidateToken(t *testing.T) {
+	t.Parallel()
 	userRepo := NewUserRepoMock()
 	sessionRepo := NewSessionRepoMock()
 	authSvc := NewAuthService(userRepo, sessionRepo, "test-secret", time.Hour, time.Hour*24*7)
@@ -117,6 +133,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 	}
 
 	t.Run("valid token", func(t *testing.T) {
+		t.Parallel()
 		resultUser, err := authSvc.ValidateToken(ctx, registerResult.AccessToken)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -127,14 +144,16 @@ func TestAuthService_ValidateToken(t *testing.T) {
 	})
 
 	t.Run("invalid token", func(t *testing.T) {
+		t.Parallel()
 		_, err := authSvc.ValidateToken(ctx, "invalid-token")
-		if err != apperrors.ErrTokenInvalid {
+		if !errors.Is(err, apperrors.ErrTokenInvalid) {
 			t.Errorf("expected ErrTokenInvalid, got %v", err)
 		}
 	})
 }
 
 func TestAuthService_RefreshToken(t *testing.T) {
+	t.Parallel()
 	userRepo := NewUserRepoMock()
 	sessionRepo := NewSessionRepoMock()
 	authSvc := NewAuthService(userRepo, sessionRepo, "test-secret", time.Hour, time.Hour*24*7)
@@ -151,6 +170,7 @@ func TestAuthService_RefreshToken(t *testing.T) {
 	}
 
 	t.Run("valid refresh token", func(t *testing.T) {
+		t.Parallel()
 		result, err := authSvc.RefreshToken(ctx, registerResult.RefreshToken)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -161,14 +181,16 @@ func TestAuthService_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("invalid refresh token", func(t *testing.T) {
+		t.Parallel()
 		_, err := authSvc.RefreshToken(ctx, "invalid-token")
-		if err != apperrors.ErrTokenInvalid {
+		if !errors.Is(err, apperrors.ErrTokenInvalid) {
 			t.Errorf("expected ErrTokenInvalid, got %v", err)
 		}
 	})
 }
 
 func TestAuthService_Logout(t *testing.T) {
+	t.Parallel()
 	userRepo := NewUserRepoMock()
 	sessionRepo := NewSessionRepoMock()
 	authSvc := NewAuthService(userRepo, sessionRepo, "test-secret", time.Hour, time.Hour*24*7)
@@ -192,7 +214,7 @@ func TestAuthService_Logout(t *testing.T) {
 	}
 
 	_, err = authSvc.RefreshToken(ctx, registerResult.RefreshToken)
-	if err != apperrors.ErrTokenInvalid {
+	if !errors.Is(err, apperrors.ErrTokenInvalid) {
 		t.Errorf("expected ErrTokenInvalid after logout, got %v", err)
 	}
 }

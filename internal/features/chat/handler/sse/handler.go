@@ -2,17 +2,17 @@ package sse
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
+
 	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
 )
 
-// Handler manages Server-Sent Events for real-time chat updates.
 // Handler manages Server-Sent Events for real-time chat updates.
 type Handler struct {
 	valkeyClient valkey.PubSubClient
@@ -38,7 +38,7 @@ func (h *Handler) HandleSSE(c *echo.Context) error {
 
 	roomUUID, err := uuid.Parse(roomID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid room ID")
+		return fmt.Errorf("failed to parse room ID: %w", err)
 	}
 
 	_ = roomUUID
@@ -51,7 +51,7 @@ func (h *Handler) HandleSSE(c *echo.Context) error {
 	channel := fmt.Sprintf("room:%s", roomID)
 	pubsub, err := h.valkeyClient.Subscribe(c.Request().Context(), channel)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to subscribe")
+		return fmt.Errorf("failed to subscribe to room: %w", err)
 	}
 	defer func() { _ = pubsub.Close() }()
 
@@ -64,7 +64,7 @@ func (h *Handler) HandleSSE(c *echo.Context) error {
 		"room_id": roomID,
 		"user_id": userID.String(),
 	}); err != nil {
-		return err
+		return fmt.Errorf("failed to send connected event: %w", err)
 	}
 
 	ticker := time.NewTicker(30 * time.Second)
@@ -83,7 +83,7 @@ func (h *Handler) HandleSSE(c *echo.Context) error {
 				return nil
 			}
 			var event Event
-			if err := json.Unmarshal([]byte(msg.Payload), &event); err != nil {
+			if err := sonic.Unmarshal([]byte(msg.Payload), &event); err != nil {
 				continue
 			}
 			if err := h.sendEvent(c, event.Type, event.Payload); err != nil {
@@ -94,17 +94,19 @@ func (h *Handler) HandleSSE(c *echo.Context) error {
 }
 
 // PublishMessage publishes a message event to a room's SSE channel.
-// PublishMessage publishes a message event to a room's SSE channel.
 func (h *Handler) PublishMessage(ctx context.Context, roomID string, message any) error {
 	event := Event{
 		Type:    "message",
 		Payload: message,
 	}
-	data, err := json.Marshal(event)
+	data, err := sonic.Marshal(event)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal event: %w", err)
 	}
-	return h.valkeyClient.Publish(ctx, fmt.Sprintf("room:%s", roomID), string(data))
+	if err := h.valkeyClient.Publish(ctx, fmt.Sprintf("room:%s", roomID), string(data)); err != nil {
+		return fmt.Errorf("failed to publish message: %w", err)
+	}
+	return nil
 }
 
 func (h *Handler) sendEvent(c *echo.Context, eventType string, data any) error {
@@ -112,12 +114,14 @@ func (h *Handler) sendEvent(c *echo.Context, eventType string, data any) error {
 		Type:    eventType,
 		Payload: data,
 	}
-	jsonData, err := json.Marshal(event)
+	jsonData, err := sonic.Marshal(event)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal event data: %w", err)
 	}
-	_, err = fmt.Fprintf(c.Response(), "data: %s\n\n", jsonData)
-	return err
+	if _, err := fmt.Fprintf(c.Response(), "data: %s\n\n", jsonData); err != nil {
+		return fmt.Errorf("failed to send SSE event: %w", err)
+	}
+	return nil
 }
 
 func (h *Handler) getUserID(c *echo.Context) (uuid.UUID, error) {

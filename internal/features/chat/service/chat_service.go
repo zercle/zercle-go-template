@@ -2,12 +2,27 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 
 	"github.com/zercle/zercle-go-template/internal/features/chat/domain"
 	"github.com/zercle/zercle-go-template/internal/features/chat/messaging"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+)
+
+const (
+	// MessageTypeText is the standard text message type.
+	MessageTypeText = "text"
+	// DefaultRoomPageSize is the default number of rooms to return per page.
+	DefaultRoomPageSize = 20
+	// MaxRoomPageSize defines the maximum number of rooms returned per page.
+	MaxRoomPageSize = 100
+	// DefaultMessagePageSize is the default number of messages to return per page.
+	DefaultMessagePageSize = 50
+	// MaxMessagePageSize defines the maximum number of messages returned per page.
+	MaxMessagePageSize = 100
 )
 
 // ChatService implements ChatServiceInterface with room and message operations.
@@ -50,21 +65,21 @@ type CreateRoomInput struct {
 func (s *ChatService) CreateRoom(ctx context.Context, input CreateRoomInput) (*domain.Room, error) {
 	room := domain.NewRoom(input.Name, input.Description, input.Type, input.OwnerID)
 	if err := room.Validate(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to validate room: %w", err)
 	}
 
 	if err := s.roomRepo.Create(ctx, room); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create room: %w", err)
 	}
 
 	if err := s.roomRepo.AddMember(ctx, room.ID, input.OwnerID, "owner"); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add room owner: %w", err)
 	}
 
 	for _, memberID := range input.MemberIDs {
 		if memberID != input.OwnerID {
 			if err := s.roomRepo.AddMember(ctx, room.ID, memberID, "member"); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to add room member: %w", err)
 			}
 		}
 	}
@@ -84,13 +99,17 @@ func (s *ChatService) GetRoom(ctx context.Context, roomID uuid.UUID) (*domain.Ro
 // ListRooms retrieves paginated rooms for a user with enforced limits.
 func (s *ChatService) ListRooms(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*domain.Room, int, error) {
 	if limit <= 0 {
-		limit = 20
+		limit = DefaultRoomPageSize
 	}
-	if limit > 100 {
-		limit = 100
+	if limit > MaxRoomPageSize {
+		limit = MaxRoomPageSize
 	}
 
-	return s.roomRepo.FindByUserID(ctx, userID, limit, offset)
+	rooms, total, err := s.roomRepo.FindByUserID(ctx, userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to find rooms by user ID: %w", err)
+	}
+	return rooms, total, nil
 }
 
 // UpdateRoom updates room name and description.
@@ -104,7 +123,7 @@ func (s *ChatService) UpdateRoom(ctx context.Context, roomID uuid.UUID, name, de
 	room.Description = description
 
 	if err := s.roomRepo.Update(ctx, room); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update room: %w", err)
 	}
 
 	return room, nil
@@ -112,40 +131,53 @@ func (s *ChatService) UpdateRoom(ctx context.Context, roomID uuid.UUID, name, de
 
 // DeleteRoom deletes a room by ID.
 func (s *ChatService) DeleteRoom(ctx context.Context, roomID uuid.UUID) error {
-	return s.roomRepo.Delete(ctx, roomID)
+	if err := s.roomRepo.Delete(ctx, roomID); err != nil {
+		return fmt.Errorf("failed to delete room: %w", err)
+	}
+	return nil
 }
 
 // JoinRoom adds a user to a room; returns ErrAlreadyJoined if already a member.
 func (s *ChatService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID) error {
 	isMember, err := s.roomRepo.IsMember(ctx, roomID, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check room membership: %w", err)
 	}
 
 	if isMember {
 		return apperrors.ErrAlreadyJoined
 	}
 
-	return s.roomRepo.AddMember(ctx, roomID, userID, "member")
+	if err := s.roomRepo.AddMember(ctx, roomID, userID, "member"); err != nil {
+		return fmt.Errorf("failed to add member to room: %w", err)
+	}
+	return nil
 }
 
 // LeaveRoom removes a user from a room; returns ErrNotMember if not a member.
 func (s *ChatService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error {
 	isMember, err := s.roomRepo.IsMember(ctx, roomID, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check room membership: %w", err)
 	}
 
 	if !isMember {
 		return apperrors.ErrNotMember
 	}
 
-	return s.roomRepo.RemoveMember(ctx, roomID, userID)
+	if err := s.roomRepo.RemoveMember(ctx, roomID, userID); err != nil {
+		return fmt.Errorf("failed to remove member from room: %w", err)
+	}
+	return nil
 }
 
 // GetRoomMembers retrieves all members of a room.
 func (s *ChatService) GetRoomMembers(ctx context.Context, roomID uuid.UUID) ([]*domain.RoomMember, error) {
-	return s.roomRepo.GetMembers(ctx, roomID)
+	members, err := s.roomRepo.GetMembers(ctx, roomID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get room members: %w", err)
+	}
+	return members, nil
 }
 
 // SendMessageInput contains the required fields to send a message.
@@ -161,7 +193,7 @@ type SendMessageInput struct {
 func (s *ChatService) SendMessage(ctx context.Context, input SendMessageInput) (*domain.Message, error) {
 	isMember, err := s.roomRepo.IsMember(ctx, input.RoomID, input.SenderID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to check room membership: %w", err)
 	}
 
 	if !isMember {
@@ -169,18 +201,18 @@ func (s *ChatService) SendMessage(ctx context.Context, input SendMessageInput) (
 	}
 
 	if input.MessageType == "" {
-		input.MessageType = "text"
+		input.MessageType = MessageTypeText
 	}
 
 	message := domain.NewMessage(input.RoomID, input.SenderID, input.Content, input.MessageType)
 	message.ReplyTo = input.ReplyTo
 
 	if err := message.Validate(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to validate message: %w", err)
 	}
 
 	if err := s.messageRepo.Create(ctx, message); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create message: %w", err)
 	}
 
 	if s.pubsub != nil {
@@ -192,7 +224,9 @@ func (s *ChatService) SendMessage(ctx context.Context, input SendMessageInput) (
 			Content:   message.Content,
 			Timestamp: message.CreatedAt.Unix(),
 		}
-		_ = s.pubsub.PublishMessage(ctx, message.RoomID.String(), event)
+		if err := s.pubsub.PublishMessage(ctx, message.RoomID.String(), event); err != nil {
+			slog.Error("failed to publish message event", "error", err, "room_id", message.RoomID.String())
+		}
 	}
 
 	return message, nil
@@ -201,11 +235,15 @@ func (s *ChatService) SendMessage(ctx context.Context, input SendMessageInput) (
 // GetMessageHistory retrieves paginated message history for a room.
 func (s *ChatService) GetMessageHistory(ctx context.Context, roomID uuid.UUID, limit, offset int, before *uuid.UUID) ([]*domain.Message, bool, error) {
 	if limit <= 0 {
-		limit = 50
+		limit = DefaultMessagePageSize
 	}
-	if limit > 100 {
-		limit = 100
+	if limit > MaxMessagePageSize {
+		limit = MaxMessagePageSize
 	}
 
-	return s.messageRepo.FindByRoomID(ctx, roomID, limit, offset, before)
+	messages, hasMore, err := s.messageRepo.FindByRoomID(ctx, roomID, limit, offset, before)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to find messages by room ID: %w", err)
+	}
+	return messages, hasMore, nil
 }

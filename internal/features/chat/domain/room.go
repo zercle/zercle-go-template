@@ -4,7 +4,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/zercle/zercle-go-template/internal/shared/errors"
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
+)
+
+// RoomTypePublic indicates a public chat room.
+const (
+	RoomTypePublic  = "public"
+	RoomTypePrivate = "private"
+	RoomTypeDirect  = "direct"
 )
 
 // Room represents a chat room with members and metadata.
@@ -40,7 +49,7 @@ func (r *Room) Validate() error {
 	if r.Name == "" {
 		return ErrRoomNameRequired
 	}
-	if r.Type != "public" && r.Type != "private" && r.Type != "direct" {
+	if r.Type != RoomTypePublic && r.Type != RoomTypePrivate && r.Type != RoomTypeDirect {
 		return ErrInvalidRoomType
 	}
 	return nil
@@ -59,20 +68,6 @@ type RoomMember struct {
 
 // ErrRoomNameRequired is returned when room name is empty.
 var (
-	ErrRoomNameRequired = NewError("room name is required")
-	ErrInvalidRoomType  = NewError("invalid room type")
+	ErrRoomNameRequired = errors.ErrRoomNameRequired
+	ErrInvalidRoomType  = errors.ErrInvalidRoomType
 )
-
-// NewError creates a new ValidationError with the given message.
-func NewError(message string) error {
-	return &ValidationError{Message: message}
-}
-
-// ValidationError represents a room validation failure.
-type ValidationError struct {
-	Message string
-}
-
-func (e *ValidationError) Error() string {
-	return e.Message
-}

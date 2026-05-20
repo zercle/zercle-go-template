@@ -1,14 +1,14 @@
 package di
 
 import (
-	"github.com/samber/do"
+	"github.com/samber/do/v2"
 )
 
-// Container is an alias to do.Injector, the dependency injection container.
+// Container is a dependency injection container.
 type Container = do.Injector
 
-// Root is the global dependency injection container used throughout the application.
-var Root *Container
+// Root is the global application DI container.
+var Root do.Injector
 
 func init() {
 	Root = do.New()

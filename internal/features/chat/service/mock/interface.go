@@ -14,9 +14,10 @@ import (
 	reflect "reflect"
 
 	uuid "github.com/google/uuid"
+	gomock "go.uber.org/mock/gomock"
+
 	domain "github.com/zercle/zercle-go-template/internal/features/chat/domain"
 	service "github.com/zercle/zercle-go-template/internal/features/chat/service"
-	gomock "go.uber.org/mock/gomock"
 )
 
 // MockChatServiceInterface is a mock of ChatServiceInterface interface.

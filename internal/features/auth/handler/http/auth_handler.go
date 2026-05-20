@@ -1,7 +1,9 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v5"
 
@@ -46,10 +48,10 @@ func (h *AuthHandler) Register(c *echo.Context) error {
 
 	result, err := h.authService.Register(c.Request().Context(), input)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("failed to register user: %w", err).Error())
 	}
 
-	return c.JSON(http.StatusCreated, dto.AuthResponse{
+	if err := c.JSON(http.StatusCreated, dto.AuthResponse{
 		AccessToken:  result.AccessToken,
 		RefreshToken: result.RefreshToken,
 		User: &dto.UserDTO{
@@ -61,7 +63,10 @@ func (h *AuthHandler) Register(c *echo.Context) error {
 			Status:      result.User.Status,
 		},
 		ExpiresAt: result.ExpiresAt,
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to send register response: %w", err)
+	}
+	return nil
 }
 
 // Login godoc
@@ -88,10 +93,10 @@ func (h *AuthHandler) Login(c *echo.Context) error {
 
 	result, err := h.authService.Login(c.Request().Context(), input)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
+		return echo.NewHTTPError(http.StatusUnauthorized, fmt.Errorf("failed to login user: %w", err).Error())
 	}
 
-	return c.JSON(http.StatusOK, dto.AuthResponse{
+	if err := c.JSON(http.StatusOK, dto.AuthResponse{
 		AccessToken:  result.AccessToken,
 		RefreshToken: result.RefreshToken,
 		User: &dto.UserDTO{
@@ -103,7 +108,10 @@ func (h *AuthHandler) Login(c *echo.Context) error {
 			Status:      result.User.Status,
 		},
 		ExpiresAt: result.ExpiresAt,
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to send login response: %w", err)
+	}
+	return nil
 }
 
 // GetCurrentUser godoc
@@ -122,19 +130,24 @@ func (h *AuthHandler) GetCurrentUser(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, err.Error())
 	}
 
-	user, err := h.authService.ValidateToken(c.Request().Context(), c.Request().Header.Get("Authorization"))
+	authHeader := c.Request().Header.Get("Authorization")
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	user, err := h.authService.ValidateToken(c.Request().Context(), tokenString)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
+		return echo.NewHTTPError(http.StatusUnauthorized, fmt.Errorf("failed to validate token: %w", err).Error())
 	}
 
-	return c.JSON(http.StatusOK, dto.UserDTO{
+	if err := c.JSON(http.StatusOK, dto.UserDTO{
 		ID:          user.ID,
 		Username:    user.Username,
 		Email:       user.Email,
 		DisplayName: user.DisplayName,
 		AvatarURL:   user.AvatarURL,
 		Status:      user.Status,
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to send user response: %w", err)
+	}
+	return nil
 }
 
 // Logout godoc
@@ -155,10 +168,13 @@ func (h *AuthHandler) Logout(c *echo.Context) error {
 	}
 
 	if err := h.authService.Logout(c.Request().Context(), userID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("failed to logout user: %w", err).Error())
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	if err := c.NoContent(http.StatusNoContent); err != nil {
+		return fmt.Errorf("failed to send logout response: %w", err)
+	}
+	return nil
 }
 
 // RefreshToken godoc
@@ -180,10 +196,10 @@ func (h *AuthHandler) RefreshToken(c *echo.Context) error {
 
 	result, err := h.authService.RefreshToken(c.Request().Context(), req.RefreshToken)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "invalid refresh token")
+		return echo.NewHTTPError(http.StatusUnauthorized, fmt.Errorf("failed to refresh token: %w", err).Error())
 	}
 
-	return c.JSON(http.StatusOK, dto.AuthResponse{
+	if err := c.JSON(http.StatusOK, dto.AuthResponse{
 		AccessToken:  result.AccessToken,
 		RefreshToken: result.RefreshToken,
 		User: &dto.UserDTO{
@@ -195,5 +211,8 @@ func (h *AuthHandler) RefreshToken(c *echo.Context) error {
 			Status:      result.User.Status,
 		},
 		ExpiresAt: result.ExpiresAt,
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to send refresh response: %w", err)
+	}
+	return nil
 }

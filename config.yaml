@@ -1,0 +1,44 @@
+# Server Configuration
+server_host: "0.0.0.0"
+server_port: 8080
+grpc_host: "0.0.0.0"
+grpc_port: 9090
+
+# Database Configuration
+db_host: "localhost"
+db_port: 5432
+db_name: "zercle_chat"
+db_user: "postgres"
+db_password: "postgres"
+db_ssl_mode: "disable"
+db_max_conns: 10
+db_max_idle_conns: 5
+
+# Cache (Valkey/Redis) Configuration
+cache_host: "localhost"
+cache_port: 6379
+cache_password: ""
+cache_db: 0
+
+# Authentication
+auth_access_token_secret: "your-256-bit-secret-key-here-minimum-32-chars"
+auth_refresh_token_secret: "another-256-bit-secret-key-here-minimum-32-chars"
+auth_access_token_ttl: "24h"
+auth_refresh_token_ttl: "168h"
+auth_issuer: "zercle-go-template"
+
+# Logging
+log_level: "info"
+log_format: "json"
+
+# Metrics
+metrics_enabled: false
+metrics_port: 9090
+
+# Tracing (OpenTelemetry)
+tracing_enabled: false
+tracing_endpoint: ""
+otel_service_name: "zercle-go-template"
+
+# Application
+app_environment: "development"

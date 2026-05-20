@@ -1,4 +1,4 @@
-# Binary files (ผลลัพธ์จากการ build)
+# Binary files
 *.exe
 *.exe~
 *.dll
@@ -6,19 +6,32 @@
 *.dylib
 bin/
 
-# Output ของ go build
+# Output of go build
 *.bin
 
 # Test coverage files
 *.out
 *.test
 *.prof
+coverage.*
 
 # Dependency directories
-# vendor/
+vendor/
 
-# IDE และ Editor
+# Environment files
+.env
+
+# IDE and Editor
 .idea/
 .vscode/
 *.swp
 *.swo
+*.swn
+.DS_Store
+
+# Build artifacts
+dist/
+build/
+
+# Test data
+test/testdata/

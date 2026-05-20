@@ -14,8 +14,9 @@ import (
 	reflect "reflect"
 
 	uuid "github.com/google/uuid"
-	domain "github.com/zercle/zercle-go-template/internal/features/chat/domain"
 	gomock "go.uber.org/mock/gomock"
+
+	domain "github.com/zercle/zercle-go-template/internal/features/chat/domain"
 )
 
 // MockRoomReader is a mock of RoomReader interface.

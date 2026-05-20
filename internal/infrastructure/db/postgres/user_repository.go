@@ -3,9 +3,11 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
 	"github.com/zercle/zercle-go-template/internal/features/auth/domain"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
@@ -37,7 +39,10 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+	return nil
 }
 
 // FindByID retrieves a user by ID.
@@ -63,7 +68,10 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperrors.ErrUserNotFound
 	}
-	return &user, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user by ID: %w", err)
+	}
+	return &user, nil
 }
 
 // FindByEmail retrieves a user by email.
@@ -89,7 +97,10 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperrors.ErrUserNotFound
 	}
-	return &user, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user by email: %w", err)
+	}
+	return &user, nil
 }
 
 // FindByUsername retrieves a user by username.
@@ -115,7 +126,10 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperrors.ErrUserNotFound
 	}
-	return &user, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user by username: %w", err)
+	}
+	return &user, nil
 }
 
 // Update modifies an existing user.
@@ -135,12 +149,18 @@ func (r *UserRepository) Update(ctx context.Context, user *domain.User) error {
 		user.Status,
 		user.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+	return nil
 }
 
 // Delete soft-deletes a user by ID.
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE users SET deleted_at = NOW() WHERE id = $1`
 	_, err := r.db.Pool.Exec(ctx, query, id)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+	return nil
 }

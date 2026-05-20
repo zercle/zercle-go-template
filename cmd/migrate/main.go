@@ -11,7 +11,8 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
+
+	"github.com/zercle/zercle-go-template/internal/config"
 )
 
 func main() {
@@ -43,13 +44,9 @@ func parseFlags() (action string, version int, steps int) {
 }
 
 func initMigration() *migrate.Migrate {
-	cfg, err := config.Load(".")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
-		os.Exit(1)
-	}
+	cfg := config.Load()
 
-	dsn := cfg.Database.ConnString()
+	dsn := cfg.DBConnString()
 	m, err := migrate.New(
 		"file:///migrations",
 		dsn,

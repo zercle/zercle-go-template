@@ -3,10 +3,12 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
 	"github.com/zercle/zercle-go-template/internal/features/auth/domain"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
@@ -35,7 +37,10 @@ func (r *SessionRepository) Create(ctx context.Context, session *domain.Session)
 		session.ExpiresAt,
 		time.Now(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to create session: %w", err)
+	}
+	return nil
 }
 
 // FindByToken retrieves a session by its token.
@@ -54,19 +59,28 @@ func (r *SessionRepository) FindByToken(ctx context.Context, token string) (*dom
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperrors.ErrTokenInvalid
 	}
-	return &session, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to find session by token: %w", err)
+	}
+	return &session, nil
 }
 
 // Delete revokes a session by token.
 func (r *SessionRepository) Delete(ctx context.Context, token string) error {
 	query := `UPDATE refresh_tokens SET revoked_at = NOW() WHERE token = $1`
 	_, err := r.db.Pool.Exec(ctx, query, token)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete session: %w", err)
+	}
+	return nil
 }
 
 // DeleteByUserID revokes all sessions for a user.
 func (r *SessionRepository) DeleteByUserID(ctx context.Context, userID uuid.UUID) error {
 	query := `UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1`
 	_, err := r.db.Pool.Exec(ctx, query, userID)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete sessions by user ID: %w", err)
+	}
+	return nil
 }

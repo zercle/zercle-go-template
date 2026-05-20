@@ -2,6 +2,8 @@ package grpc
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 
 	"github.com/google/uuid"
@@ -28,7 +30,7 @@ func NewChatServer(chatService *service.ChatService) *ChatServer {
 func (s *ChatServer) CreateRoom(ctx context.Context, req *pb.CreateRoomRequest) (*pb.Room, error) {
 	ownerID, err := uuid.Parse(req.GetOwnerId())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse owner ID: %w", err)
 	}
 
 	memberIDs := make([]uuid.UUID, 0)
@@ -50,7 +52,7 @@ func (s *ChatServer) CreateRoom(ctx context.Context, req *pb.CreateRoomRequest) 
 
 	room, err := s.chatService.CreateRoom(ctx, input)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create room: %w", err)
 	}
 
 	return toProtoRoom(room), nil
@@ -60,12 +62,12 @@ func (s *ChatServer) CreateRoom(ctx context.Context, req *pb.CreateRoomRequest) 
 func (s *ChatServer) GetRoom(ctx context.Context, req *pb.GetRoomRequest) (*pb.Room, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse room ID: %w", err)
 	}
 
 	room, err := s.chatService.GetRoom(ctx, roomID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get room: %w", err)
 	}
 
 	return toProtoRoom(room), nil
@@ -75,12 +77,12 @@ func (s *ChatServer) GetRoom(ctx context.Context, req *pb.GetRoomRequest) (*pb.R
 func (s *ChatServer) UpdateRoom(ctx context.Context, req *pb.UpdateRoomRequest) (*pb.Room, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse room ID: %w", err)
 	}
 
 	room, err := s.chatService.UpdateRoom(ctx, roomID, req.Name, req.Description)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update room: %w", err)
 	}
 
 	return toProtoRoom(room), nil
@@ -90,11 +92,11 @@ func (s *ChatServer) UpdateRoom(ctx context.Context, req *pb.UpdateRoomRequest) 
 func (s *ChatServer) DeleteRoom(ctx context.Context, req *pb.DeleteRoomRequest) (*emptypb.Empty, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse room ID: %w", err)
 	}
 
 	if err := s.chatService.DeleteRoom(ctx, roomID); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to delete room: %w", err)
 	}
 
 	return &emptypb.Empty{}, nil
@@ -104,12 +106,12 @@ func (s *ChatServer) DeleteRoom(ctx context.Context, req *pb.DeleteRoomRequest) 
 func (s *ChatServer) ListRooms(ctx context.Context, req *pb.ListRoomsRequest) (*pb.ListRoomsResponse, error) {
 	userID, err := uuid.Parse(req.UserId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse user ID: %w", err)
 	}
 
 	rooms, total, err := s.chatService.ListRooms(ctx, userID, int(req.Limit), int(req.Offset))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list rooms: %w", err)
 	}
 
 	protoRooms := make([]*pb.Room, len(rooms))
@@ -119,7 +121,7 @@ func (s *ChatServer) ListRooms(ctx context.Context, req *pb.ListRoomsRequest) (*
 
 	return &pb.ListRoomsResponse{
 		Rooms: protoRooms,
-		Total: int32(total),
+		Total: int32(total), //nolint:gosec // safe: total from DB count, fits in int32
 	}, nil
 }
 
@@ -127,16 +129,16 @@ func (s *ChatServer) ListRooms(ctx context.Context, req *pb.ListRoomsRequest) (*
 func (s *ChatServer) JoinRoom(ctx context.Context, req *pb.JoinRoomRequest) (*emptypb.Empty, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse room ID: %w", err)
 	}
 
 	userID, err := uuid.Parse(req.UserId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse user ID: %w", err)
 	}
 
 	if err := s.chatService.JoinRoom(ctx, roomID, userID); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to join room: %w", err)
 	}
 
 	return &emptypb.Empty{}, nil
@@ -146,16 +148,16 @@ func (s *ChatServer) JoinRoom(ctx context.Context, req *pb.JoinRoomRequest) (*em
 func (s *ChatServer) LeaveRoom(ctx context.Context, req *pb.LeaveRoomRequest) (*emptypb.Empty, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse room ID: %w", err)
 	}
 
 	userID, err := uuid.Parse(req.UserId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse user ID: %w", err)
 	}
 
 	if err := s.chatService.LeaveRoom(ctx, roomID, userID); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to leave room: %w", err)
 	}
 
 	return &emptypb.Empty{}, nil
@@ -165,12 +167,12 @@ func (s *ChatServer) LeaveRoom(ctx context.Context, req *pb.LeaveRoomRequest) (*
 func (s *ChatServer) GetRoomMembers(ctx context.Context, req *pb.GetRoomMembersRequest) (*pb.GetRoomMembersResponse, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse room ID: %w", err)
 	}
 
 	members, err := s.chatService.GetRoomMembers(ctx, roomID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get room members: %w", err)
 	}
 
 	protoMembers := make([]*pb.RoomMember, len(members))
@@ -192,12 +194,12 @@ func (s *ChatServer) GetRoomMembers(ctx context.Context, req *pb.GetRoomMembersR
 func (s *ChatServer) SendMessage(ctx context.Context, req *pb.SendMessageRequest) (*pb.Message, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse room ID: %w", err)
 	}
 
 	senderID, err := uuid.Parse(req.SenderId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse sender ID: %w", err)
 	}
 
 	var replyTo *uuid.UUID
@@ -218,7 +220,7 @@ func (s *ChatServer) SendMessage(ctx context.Context, req *pb.SendMessageRequest
 
 	message, err := s.chatService.SendMessage(ctx, input)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to send message: %w", err)
 	}
 
 	return toProtoMessage(message), nil
@@ -228,7 +230,7 @@ func (s *ChatServer) SendMessage(ctx context.Context, req *pb.SendMessageRequest
 func (s *ChatServer) GetMessageHistory(ctx context.Context, req *pb.GetMessageHistoryRequest) (*pb.GetMessageHistoryResponse, error) {
 	roomID, err := uuid.Parse(req.RoomId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse room ID: %w", err)
 	}
 
 	var before *uuid.UUID
@@ -241,7 +243,7 @@ func (s *ChatServer) GetMessageHistory(ctx context.Context, req *pb.GetMessageHi
 
 	messages, hasMore, err := s.chatService.GetMessageHistory(ctx, roomID, int(req.Limit), int(req.Offset), before)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get message history: %w", err)
 	}
 
 	protoMessages := make([]*pb.Message, len(messages))
@@ -259,11 +261,11 @@ func (s *ChatServer) GetMessageHistory(ctx context.Context, req *pb.GetMessageHi
 func (s *ChatServer) ChatStream(stream pb.ChatService_ChatStreamServer) error {
 	for {
 		req, err := stream.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to receive stream message: %w", err)
 		}
 
 		switch payload := req.Payload.(type) {
@@ -271,13 +273,13 @@ func (s *ChatServer) ChatStream(stream pb.ChatService_ChatStreamServer) error {
 			roomID, _ := uuid.Parse(payload.Join.RoomId)
 			userID, _ := uuid.Parse(payload.Join.UserId)
 			if err := s.chatService.JoinRoom(stream.Context(), roomID, userID); err != nil {
-				return err
+				return fmt.Errorf("failed to join room via stream: %w", err)
 			}
 		case *pb.ChatStreamRequest_Leave:
 			roomID, _ := uuid.Parse(payload.Leave.RoomId)
 			userID, _ := uuid.Parse(payload.Leave.UserId)
 			if err := s.chatService.LeaveRoom(stream.Context(), roomID, userID); err != nil {
-				return err
+				return fmt.Errorf("failed to leave room via stream: %w", err)
 			}
 		case *pb.ChatStreamRequest_Message:
 			msg := payload.Message
@@ -291,14 +293,14 @@ func (s *ChatServer) ChatStream(stream pb.ChatService_ChatStreamServer) error {
 			}
 			sentMsg, err := s.chatService.SendMessage(stream.Context(), input)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to send message via stream: %w", err)
 			}
 			if err := stream.Send(&pb.ChatStreamResponse{
 				Payload: &pb.ChatStreamResponse_Message{
 					Message: toProtoMessage(sentMsg),
 				},
 			}); err != nil {
-				return err
+				return fmt.Errorf("failed to send stream response: %w", err)
 			}
 		}
 	}
@@ -321,7 +323,7 @@ func toProtoRoom(room *domain.Room) *pb.Room {
 		Description: room.Description,
 		Type:        room.Type,
 		OwnerId:     room.OwnerID.String(),
-		MemberCount: int32(room.MemberCount),
+		MemberCount: int32(room.MemberCount), //nolint:gosec // safe: member count fits in int32
 		CreatedAt:   timestamppb.New(room.CreatedAt),
 		UpdatedAt:   timestamppb.New(room.UpdatedAt),
 	}

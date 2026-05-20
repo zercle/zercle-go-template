@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -36,7 +37,7 @@ func (s *AuthServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb
 
 	result, err := s.authService.Register(ctx, input)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to register user: %w", err)
 	}
 
 	return &pb.AuthResponse{
@@ -56,7 +57,7 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.AuthR
 
 	result, err := s.authService.Login(ctx, input)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to login user: %w", err)
 	}
 
 	return &pb.AuthResponse{
@@ -70,7 +71,7 @@ func (s *AuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.AuthR
 // ValidateToken checks if the provided token is valid.
 func (s *AuthServer) ValidateToken(ctx context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error) {
 	if _, err := s.authService.ValidateToken(ctx, req.Token); err != nil {
-		return &pb.ValidateTokenResponse{Valid: false}, err
+		return &pb.ValidateTokenResponse{Valid: false}, fmt.Errorf("failed to validate token: %w", err)
 	}
 
 	return &pb.ValidateTokenResponse{Valid: true}, nil
@@ -80,7 +81,7 @@ func (s *AuthServer) ValidateToken(ctx context.Context, req *pb.ValidateTokenReq
 func (s *AuthServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequest) (*pb.AuthResponse, error) {
 	result, err := s.authService.RefreshToken(ctx, req.RefreshToken)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}
 
 	return &pb.AuthResponse{
@@ -99,7 +100,7 @@ func (s *AuthServer) Logout(ctx context.Context, req *pb.LogoutRequest) (*emptyp
 	}
 
 	if err := s.authService.Logout(ctx, userID); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to logout user: %w", err)
 	}
 
 	return &emptypb.Empty{}, nil
@@ -126,7 +127,7 @@ func parseUserID(userIDStr string) (uuid.UUID, error) {
 	}
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, fmt.Errorf("failed to parse user ID: %w", err)
 	}
 	return userID, nil
 }

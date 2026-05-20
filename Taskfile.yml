@@ -1,0 +1,48 @@
+version: '3'
+
+vars:
+  BIN_DIR: bin
+
+tasks:
+  build:
+    cmds:
+      - go build -ldflags="-s -w" -o {{.BIN_DIR}}/server ./cmd/server
+
+  test:
+    cmds:
+      - go test -race -coverprofile=coverage.out ./...
+
+  test-integration:
+    cmds:
+      - go test -v -race -tags=integration ./test/integration/...
+
+  lint:
+    cmds:
+      - golangci-lint run --timeout=5m
+
+  fmt:
+    cmds:
+      - gofumpt -w .
+      - goimports -w .
+
+  mocks:
+    cmds:
+      - go generate ./...
+
+  docker-build:
+    cmds:
+      - docker build -t zercle-go-template:latest .
+
+  run:
+    cmds:
+      - go run ./cmd/server
+
+  verify:
+    cmds:
+      - go mod verify
+      - go mod tidy
+      - git diff --exit-code go.mod go.sum
+
+  cover-html:
+    cmds:
+      - go tool cover -html=coverage.out -o coverage.html

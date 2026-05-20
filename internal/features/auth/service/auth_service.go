@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -71,7 +72,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*AuthR
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, apperrors.ErrInternalError
+		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	user := domain.NewUser(input.Username, input.Email, string(hashedPassword), input.DisplayName)
@@ -80,11 +81,11 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*AuthR
 	}
 
 	if err := user.Validate(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to validate user: %w", err)
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	return s.generateAuthResult(ctx, user)
@@ -167,7 +168,10 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*A
 
 // Logout invalidates all sessions for the specified user.
 func (s *AuthService) Logout(ctx context.Context, userID uuid.UUID) error {
-	return s.sessionRepo.DeleteByUserID(ctx, userID)
+	if err := s.sessionRepo.DeleteByUserID(ctx, userID); err != nil {
+		return fmt.Errorf("failed to delete session: %w", err)
+	}
+	return nil
 }
 
 func (s *AuthService) generateAuthResult(ctx context.Context, user *domain.User) (*AuthResult, error) {
@@ -183,7 +187,7 @@ func (s *AuthService) generateAuthResult(ctx context.Context, user *domain.User)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	accessToken, err := token.SignedString(s.jwtSecret)
 	if err != nil {
-		return nil, apperrors.ErrInternalError
+		return nil, fmt.Errorf("failed to sign token: %w", err)
 	}
 
 	refreshToken := uuidgen.NewString()
@@ -196,7 +200,7 @@ func (s *AuthService) generateAuthResult(ctx context.Context, user *domain.User)
 	}
 
 	if err := s.sessionRepo.Create(ctx, session); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 
 	return &AuthResult{

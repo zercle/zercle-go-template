@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -64,10 +65,13 @@ func (h *ChatHandler) CreateRoom(c *echo.Context) error {
 
 	room, err := h.chatService.CreateRoom(c.Request().Context(), input)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("failed to create room: %w", err).Error())
 	}
 
-	return c.JSON(http.StatusCreated, ToRoomResponse(room))
+	if err := c.JSON(http.StatusCreated, ToRoomResponse(room)); err != nil {
+		return fmt.Errorf("failed to send create room response: %w", err)
+	}
+	return nil
 }
 
 // GetRoom godoc
@@ -90,10 +94,13 @@ func (h *ChatHandler) GetRoom(c *echo.Context) error {
 
 	room, err := h.chatService.GetRoom(c.Request().Context(), roomID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, "room not found")
+		return echo.NewHTTPError(http.StatusNotFound, fmt.Errorf("failed to get room: %w", err).Error())
 	}
 
-	return c.JSON(http.StatusOK, ToRoomResponse(room))
+	if err := c.JSON(http.StatusOK, ToRoomResponse(room)); err != nil {
+		return fmt.Errorf("failed to send get room response: %w", err)
+	}
+	return nil
 }
 
 // ListRooms godoc
@@ -129,7 +136,7 @@ func (h *ChatHandler) ListRooms(c *echo.Context) error {
 
 	rooms, total, err := h.chatService.ListRooms(c.Request().Context(), userID, limit, offset)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("failed to list rooms: %w", err).Error())
 	}
 
 	roomResponses := make([]*dto.RoomResponse, len(rooms))
@@ -137,10 +144,13 @@ func (h *ChatHandler) ListRooms(c *echo.Context) error {
 		roomResponses[i] = ToRoomResponse(room)
 	}
 
-	return c.JSON(http.StatusOK, dto.ListRoomsResponse{
+	if err := c.JSON(http.StatusOK, dto.ListRoomsResponse{
 		Rooms: roomResponses,
 		Total: total,
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to send list rooms response: %w", err)
+	}
+	return nil
 }
 
 // UpdateRoom godoc
@@ -169,10 +179,13 @@ func (h *ChatHandler) UpdateRoom(c *echo.Context) error {
 
 	room, err := h.chatService.UpdateRoom(c.Request().Context(), roomID, req.Name, req.Description)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("failed to update room: %w", err).Error())
 	}
 
-	return c.JSON(http.StatusOK, ToRoomResponse(room))
+	if err := c.JSON(http.StatusOK, ToRoomResponse(room)); err != nil {
+		return fmt.Errorf("failed to send update room response: %w", err)
+	}
+	return nil
 }
 
 // DeleteRoom godoc
@@ -195,10 +208,13 @@ func (h *ChatHandler) DeleteRoom(c *echo.Context) error {
 	}
 
 	if err := h.chatService.DeleteRoom(c.Request().Context(), roomID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("failed to delete room: %w", err).Error())
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	if err := c.NoContent(http.StatusNoContent); err != nil {
+		return fmt.Errorf("failed to send delete room response: %w", err)
+	}
+	return nil
 }
 
 // JoinRoom godoc
@@ -225,10 +241,13 @@ func (h *ChatHandler) JoinRoom(c *echo.Context) error {
 	}
 
 	if err := h.chatService.JoinRoom(c.Request().Context(), roomID, userID); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("failed to join room: %w", err).Error())
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	if err := c.NoContent(http.StatusNoContent); err != nil {
+		return fmt.Errorf("failed to send join room response: %w", err)
+	}
+	return nil
 }
 
 // LeaveRoom godoc
@@ -255,10 +274,13 @@ func (h *ChatHandler) LeaveRoom(c *echo.Context) error {
 	}
 
 	if err := h.chatService.LeaveRoom(c.Request().Context(), roomID, userID); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("failed to leave room: %w", err).Error())
 	}
 
-	return c.NoContent(http.StatusNoContent)
+	if err := c.NoContent(http.StatusNoContent); err != nil {
+		return fmt.Errorf("failed to send leave room response: %w", err)
+	}
+	return nil
 }
 
 // GetRoomMembers godoc
@@ -281,10 +303,13 @@ func (h *ChatHandler) GetRoomMembers(c *echo.Context) error {
 
 	members, err := h.chatService.GetRoomMembers(c.Request().Context(), roomID)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("failed to get room members: %w", err).Error())
 	}
 
-	return c.JSON(http.StatusOK, members)
+	if err := c.JSON(http.StatusOK, members); err != nil {
+		return fmt.Errorf("failed to send room members response: %w", err)
+	}
+	return nil
 }
 
 // SendMessage godoc
@@ -334,10 +359,13 @@ func (h *ChatHandler) SendMessage(c *echo.Context) error {
 
 	message, err := h.chatService.SendMessage(c.Request().Context(), input)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("failed to send message: %w", err).Error())
 	}
 
-	return c.JSON(http.StatusCreated, ToMessageResponse(message))
+	if err := c.JSON(http.StatusCreated, ToMessageResponse(message)); err != nil {
+		return fmt.Errorf("failed to send message response: %w", err)
+	}
+	return nil
 }
 
 // GetMessageHistory godoc
@@ -382,7 +410,7 @@ func (h *ChatHandler) GetMessageHistory(c *echo.Context) error {
 
 	messages, hasMore, err := h.chatService.GetMessageHistory(c.Request().Context(), roomID, limit, offset, before)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("failed to get message history: %w", err).Error())
 	}
 
 	msgResponses := make([]*dto.MessageResponse, len(messages))
@@ -390,10 +418,13 @@ func (h *ChatHandler) GetMessageHistory(c *echo.Context) error {
 		msgResponses[i] = ToMessageResponse(msg)
 	}
 
-	return c.JSON(http.StatusOK, dto.GetMessagesResponse{
+	if err := c.JSON(http.StatusOK, dto.GetMessagesResponse{
 		Messages: msgResponses,
 		HasMore:  hasMore,
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to send message history response: %w", err)
+	}
+	return nil
 }
 
 func parseIntDefault(s string, defaultVal int) int {

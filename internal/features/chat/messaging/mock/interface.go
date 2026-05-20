@@ -13,8 +13,9 @@ import (
 	context "context"
 	reflect "reflect"
 
-	messaging "github.com/zercle/zercle-go-template/internal/features/chat/messaging"
 	gomock "go.uber.org/mock/gomock"
+
+	messaging "github.com/zercle/zercle-go-template/internal/features/chat/messaging"
 )
 
 // MockPubSubServiceInterface is a mock of PubSubServiceInterface interface.

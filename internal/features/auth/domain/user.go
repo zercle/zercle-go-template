@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	"github.com/zercle/zercle-go-template/internal/shared/errors"
 	"github.com/zercle/zercle-go-template/pkg/uuidgen"
 )
@@ -31,7 +32,7 @@ func NewUser(username, email, password, displayName string) *User {
 		Email:       email,
 		Password:    password,
 		DisplayName: displayName,
-		Status:      "offline",
+		Status:      string(StatusOffline),
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}

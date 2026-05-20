@@ -3,9 +3,11 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
 	"github.com/zercle/zercle-go-template/internal/features/chat/domain"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
@@ -36,7 +38,10 @@ func (r *MessageRepository) Create(ctx context.Context, message *domain.Message)
 		message.CreatedAt,
 		message.UpdatedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to create message: %w", err)
+	}
+	return nil
 }
 
 // FindByID retrieves a message by its ID.
@@ -63,7 +68,10 @@ func (r *MessageRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperrors.ErrMessageNotFound
 	}
-	return &message, err
+	if err != nil {
+		return nil, fmt.Errorf("failed to find message by ID: %w", err)
+	}
+	return &message, nil
 }
 
 // FindByRoomID retrieves messages for a room with pagination.
@@ -97,7 +105,7 @@ func (r *MessageRepository) FindByRoomID(ctx context.Context, roomID uuid.UUID, 
 	}
 
 	if err != nil {
-		return nil, false, err
+		return nil, false, fmt.Errorf("failed to query messages by room ID: %w", err)
 	}
 	defer rows.Close()
 
@@ -105,7 +113,7 @@ func (r *MessageRepository) FindByRoomID(ctx context.Context, roomID uuid.UUID, 
 	for rows.Next() {
 		var m domain.Message
 		if err := rows.Scan(&m.ID, &m.RoomID, &m.SenderID, &m.SenderUsername, &m.Content, &m.MessageType, &m.ReplyTo, &m.CreatedAt, &m.UpdatedAt, &m.DeletedAt); err != nil {
-			return nil, false, err
+			return nil, false, fmt.Errorf("failed to scan message row: %w", err)
 		}
 		messages = append(messages, &m)
 	}
@@ -118,5 +126,8 @@ func (r *MessageRepository) FindByRoomID(ctx context.Context, roomID uuid.UUID, 
 func (r *MessageRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE messages SET deleted_at = NOW() WHERE id = $1`
 	_, err := r.db.Pool.Exec(ctx, query, id)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete message: %w", err)
+	}
+	return nil
 }

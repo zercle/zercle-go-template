@@ -1,48 +1,66 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
 	pb "github.com/zercle/zercle-go-template/api/pb"
+	"github.com/zercle/zercle-go-template/internal/config"
 	authgrpc "github.com/zercle/zercle-go-template/internal/features/auth/handler/grpc"
 	authhttp "github.com/zercle/zercle-go-template/internal/features/auth/handler/http"
 	authservice "github.com/zercle/zercle-go-template/internal/features/auth/service"
 	chatgrpc "github.com/zercle/zercle-go-template/internal/features/chat/handler/grpc"
 	chathttp "github.com/zercle/zercle-go-template/internal/features/chat/handler/http"
 	chatservice "github.com/zercle/zercle-go-template/internal/features/chat/service"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/db/postgres"
-	"github.com/zercle/zercle-go-template/internal/shared/logger"
 	"github.com/zercle/zercle-go-template/internal/shared/middleware"
+	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
 
 	"github.com/labstack/echo/v5"
-	httpSwagger "github.com/swaggo/echo-swagger/v2"
+)
 
-	_ "github.com/zercle/zercle-go-template/docs" // swagger docs
+var (
+	Version   = "dev"
+	CommitSHA = "unknown"
+	BuildTime = "unknown"
 )
 
 func main() {
-	cfg, err := config.Load("./configs")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+	cfg := config.Load()
+
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid config: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := logger.Init(cfg.Logging.Level, cfg.Logging.Format); err != nil {
+	logger, err := telemetry.New(cfg.LogLevel, cfg.LogFormat)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
 
-	db, err := postgres.NewConnection(cfg.Database)
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to connect to database")
+	if err := run(&cfg, logger); err != nil {
+		logger.Error("server error", "error", err)
 		os.Exit(1)
 	}
+}
+
+func run(cfg *config.Config, logger *telemetry.Logger) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	db, err := postgres.NewPool(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+	defer db.Close()
 
 	userRepo := postgres.NewUserRepository(db)
 	sessionRepo := postgres.NewSessionRepository(db)
@@ -52,9 +70,9 @@ func main() {
 	authSvc := authservice.NewAuthService(
 		userRepo,
 		sessionRepo,
-		cfg.Auth.JWTSecret,
-		cfg.Auth.JWTExpiry,
-		cfg.Auth.RefreshExpiry,
+		cfg.AuthAccessTokenSecret,
+		cfg.AuthAccessTokenTTL,
+		cfg.AuthRefreshTokenTTL,
 	)
 
 	chatSvc := chatservice.NewChatService(roomRepo, messageRepo)
@@ -65,28 +83,20 @@ func main() {
 	authHTTPHandler := authhttp.NewAuthHandler(authSvc)
 	chatHTTPHandler := chathttp.NewChatHandler(chatSvc)
 
-	// Start HTTP server with Swagger
 	e := echo.New()
 
-	// Swagger endpoint - available at /swagger/index.html
-	e.GET("/swagger/*", httpSwagger.WrapHandler)
-
-	// Setup API routes
 	v1 := e.Group("/api/v1")
 
-	// Auth routes
 	auth := v1.Group("/auth")
 	auth.POST("/register", authHTTPHandler.Register)
 	auth.POST("/login", authHTTPHandler.Login)
 	auth.POST("/refresh", authHTTPHandler.RefreshToken)
 
-	// Protected auth routes
-	authProtected := auth.Group("", middleware.AuthMiddleware([]byte(cfg.Auth.JWTSecret)))
+	authProtected := auth.Group("", middleware.AuthMiddleware([]byte(cfg.AuthAccessTokenSecret)))
 	authProtected.GET("/me", authHTTPHandler.GetCurrentUser)
 	authProtected.POST("/logout", authHTTPHandler.Logout)
 
-	// Chat routes (all protected)
-	chat := v1.Group("/chat", middleware.AuthMiddleware([]byte(cfg.Auth.JWTSecret)))
+	chat := v1.Group("/chat", middleware.AuthMiddleware([]byte(cfg.AuthAccessTokenSecret)))
 	chat.POST("/rooms", chatHTTPHandler.CreateRoom)
 	chat.GET("/rooms", chatHTTPHandler.ListRooms)
 	chat.GET("/rooms/:id", chatHTTPHandler.GetRoom)
@@ -98,37 +108,29 @@ func main() {
 	chat.POST("/rooms/:id/messages", chatHTTPHandler.SendMessage)
 	chat.GET("/rooms/:id/messages", chatHTTPHandler.GetMessageHistory)
 
-	// Start HTTP server
 	go func() {
-		logger.Info().Str("addr", cfg.Server.HTTP.Addr()).Msg("HTTP server listening")
-		if err := e.Start(cfg.Server.HTTP.Addr()); err != nil {
-			logger.Error().Err(err).Msg("HTTP server error")
+		logger.Info("HTTP server listening", "addr", cfg.ServerAddr())
+		if err := e.Start(cfg.ServerAddr()); err != nil {
+			logger.Error("HTTP server error", "error", err)
 		}
 	}()
 
-	logger.Info().Msg("Starting gRPC server")
-
-	lis, err := net.Listen("tcp", cfg.Server.GRPC.Addr())
+	grpcLis, err := net.Listen("tcp", cfg.GRPCAddr())
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to listen")
-		db.Close()
-		os.Exit(1)
+		return fmt.Errorf("failed to listen for gRPC: %w", err)
 	}
 
 	grpcServer := grpc.NewServer()
 	reflection.Register(grpcServer)
 
-	RegisterServers(grpcServer, authServer, chatServer)
-
-	logger.Info().Str("addr", lis.Addr().String()).Msg("gRPC server listening")
-
-	if err := grpcServer.Serve(lis); err != nil {
-		logger.Error().Err(err).Msg("gRPC server error")
-		os.Exit(1)
-	}
-}
-
-func RegisterServers(grpcServer *grpc.Server, authServer *authgrpc.AuthServer, chatServer *chatgrpc.ChatServer) {
 	pb.RegisterAuthServiceServer(grpcServer, authServer)
 	pb.RegisterChatServiceServer(grpcServer, chatServer)
+
+	logger.Info("gRPC server listening", "addr", grpcLis.Addr().String())
+
+	if err := grpcServer.Serve(grpcLis); err != nil {
+		return fmt.Errorf("gRPC server error: %w", err)
+	}
+
+	return nil
 }

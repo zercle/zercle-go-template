@@ -14,9 +14,7 @@ linters:
     - ineffassign
     - unconvert
     - goconst
-    # - depguard
     - prealloc
-    # - dupl
     - misspell
     - bodyclose
     - sqlclosecheck
@@ -25,17 +23,22 @@ linters:
     - forcetypeassert
     - exhaustive
     - funlen
-    # - wsl_v5
     - testifylint
     - modernize
+    - gosec
+    - errorlint
+    - wrapcheck
+    - paralleltest
+    - tparallel
+    - thelper
+    - forbidigo
 
-  # disable noisy/controversial ones which you might enable later
   disable:
-    - lll # line length — handled by gfmt/gofumpt
+    - lll
 
   settings:
     dupl:
-      threshold: 20 # lower => stricter (tokens)
+      threshold: 20
     errcheck:
       check-type-assertions: true
     funlen:
@@ -45,14 +48,19 @@ linters:
       min-len: 2
       min-occurrences: 3
     gocyclo:
-      min-complexity: 15 # strict; lower => stricter
-    wsl_v5:
-      allow-first-in-block: true
-      allow-whole-block: false
-      branch-max-lines: 2
+      min-complexity: 15
+    forbidigo:
+      forbid:
+        - pattern: '^zerolog\.'
+          desc: "use log/slog instead"
+        - pattern: '^github\.com/rs/zerolog'
+          desc: "use log/slog instead"
+        - pattern: '^viper\.'
+          desc: "use standard JSON env instead"
+        - pattern: '^github\.com/spf13/viper'
+          desc: "use standard JSON env instead"
     testifylint:
       disable:
-        - require-error
         - float-compare
 
   exclusions:
@@ -68,8 +76,7 @@ linters:
         text: "^package-comments:"
       - linters:
           - errcheck
-        text: "Error return value of `.*\\.Body\\.Close` is not checked"
-      # linters disabled in tests
+        text: 'Error return value of `.*\.Body\.Close` is not checked'
       - linters:
           - dupl
           - goconst
@@ -77,13 +84,13 @@ linters:
           - errcheck
           - forcetypeassert
           - revive
-        path: "_test\\.go$"
+        path: '_test\.go$'
       - linters:
           - revive
         path: "tests/"
 
 issues:
-  max-issues-per-linter: 0 # 0 = unlimited (we want ALL issues)
+  max-issues-per-linter: 0
   max-same-issues: 100
 
 formatters:
