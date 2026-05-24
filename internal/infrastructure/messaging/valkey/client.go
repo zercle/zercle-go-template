@@ -4,19 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/valkey-io/valkey-go"
 )
 
 // Client wraps a Valkey client for pub/sub and cache operations.
 type Client struct {
-	RDB valkey.Client
+	RDB    valkey.Client
+	logger *zerolog.Logger
 }
 
 // New creates a new Client connected to the Valkey server.
-func New(cfg ValkeyConfig) (*Client, error) {
+func New(cfg ValkeyConfig, logger *zerolog.Logger) (*Client, error) {
+	if logger == nil {
+		l := zerolog.Nop()
+		logger = &l
+	}
+
 	rdb, err := valkey.NewClient(valkey.ClientOption{
 		InitAddress: []string{cfg.Addr()},
 		Password:    cfg.Password,
@@ -30,9 +36,12 @@ func New(cfg ValkeyConfig) (*Client, error) {
 		return nil, fmt.Errorf("failed to connect to Valkey: %w", err)
 	}
 
-	slog.Default().Info("Valkey connected", "host", cfg.Host, "port", cfg.Port)
+	logger.Info().
+		Str("host", cfg.Host).
+		Int("port", cfg.Port).
+		Msg("Valkey connected")
 
-	return &Client{RDB: rdb}, nil
+	return &Client{RDB: rdb, logger: logger}, nil
 }
 
 // Close closes the Valkey client connection.
@@ -73,7 +82,9 @@ func (c *Client) Subscribe(ctx context.Context, channels ...string) (*Subscripti
 			}
 		})
 		if err != nil && !errors.Is(err, context.Canceled) {
-			slog.Default().Error("subscription closed with error", "error", fmt.Errorf("failed to subscribe to channel: %w", err))
+			c.logger.Error().
+				Err(fmt.Errorf("failed to subscribe to channel: %w", err)).
+				Msg("subscription closed with error")
 		}
 	}()
 

@@ -49,16 +49,6 @@ linters:
       min-occurrences: 3
     gocyclo:
       min-complexity: 15
-    forbidigo:
-      forbid:
-        - pattern: '^zerolog\.'
-          desc: "use log/slog instead"
-        - pattern: '^github\.com/rs/zerolog'
-          desc: "use log/slog instead"
-        - pattern: '^viper\.'
-          desc: "use standard JSON env instead"
-        - pattern: '^github\.com/spf13/viper'
-          desc: "use standard JSON env instead"
     testifylint:
       disable:
         - float-compare

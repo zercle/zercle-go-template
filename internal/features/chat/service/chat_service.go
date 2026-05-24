@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 
 	"github.com/zercle/zercle-go-template/internal/features/chat/domain"
 	"github.com/zercle/zercle-go-template/internal/features/chat/messaging"
@@ -30,25 +30,36 @@ type ChatService struct {
 	roomRepo    domain.RoomRepository
 	messageRepo domain.MessageRepository
 	pubsub      messaging.PubSubServiceInterface
+	logger      *zerolog.Logger
 }
 
 var _ ChatServiceInterface = (*ChatService)(nil)
 
 // NewChatService creates a ChatService without pub/sub support.
-func NewChatService(roomRepo domain.RoomRepository, messageRepo domain.MessageRepository) *ChatService {
+func NewChatService(roomRepo domain.RoomRepository, messageRepo domain.MessageRepository, logger *zerolog.Logger) *ChatService {
+	if logger == nil {
+		l := zerolog.Nop()
+		logger = &l
+	}
 	return &ChatService{
 		roomRepo:    roomRepo,
 		messageRepo: messageRepo,
 		pubsub:      nil,
+		logger:      logger,
 	}
 }
 
 // NewChatServiceWithPubSub creates a ChatService with pub/sub support for real-time events.
-func NewChatServiceWithPubSub(roomRepo domain.RoomRepository, messageRepo domain.MessageRepository, ps messaging.PubSubServiceInterface) *ChatService {
+func NewChatServiceWithPubSub(roomRepo domain.RoomRepository, messageRepo domain.MessageRepository, ps messaging.PubSubServiceInterface, logger *zerolog.Logger) *ChatService {
+	if logger == nil {
+		l := zerolog.Nop()
+		logger = &l
+	}
 	return &ChatService{
 		roomRepo:    roomRepo,
 		messageRepo: messageRepo,
 		pubsub:      ps,
+		logger:      logger,
 	}
 }
 
@@ -225,7 +236,10 @@ func (s *ChatService) SendMessage(ctx context.Context, input SendMessageInput) (
 			Timestamp: message.CreatedAt.Unix(),
 		}
 		if err := s.pubsub.PublishMessage(ctx, message.RoomID.String(), event); err != nil {
-			slog.Error("failed to publish message event", "error", err, "room_id", message.RoomID.String())
+			s.logger.Error().
+				Err(err).
+				Str("room_id", message.RoomID.String()).
+				Msg("failed to publish message event")
 		}
 	}
 

@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
@@ -40,14 +41,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger, err := telemetry.New(cfg.LogLevel, cfg.LogFormat)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
-		os.Exit(1)
-	}
+	logger := telemetry.New(cfg.LogLevel, cfg.LogFormat)
+
+	// Set the global zerolog level for packages that use the global logger (e.g. uuidgen).
+	zerolog.SetGlobalLevel(logger.GetLevel())
 
 	if err := run(&cfg, logger); err != nil {
-		logger.Error("server error", "error", err)
+		logger.Err(err).Msg("server error")
 		os.Exit(1)
 	}
 }
@@ -75,7 +75,7 @@ func run(cfg *config.Config, logger *telemetry.Logger) error {
 		cfg.AuthRefreshTokenTTL,
 	)
 
-	chatSvc := chatservice.NewChatService(roomRepo, messageRepo)
+	chatSvc := chatservice.NewChatService(roomRepo, messageRepo, &logger.Logger)
 
 	authServer := authgrpc.NewAuthServer(authSvc)
 	chatServer := chatgrpc.NewChatServer(chatSvc)
@@ -109,9 +109,9 @@ func run(cfg *config.Config, logger *telemetry.Logger) error {
 	chat.GET("/rooms/:id/messages", chatHTTPHandler.GetMessageHistory)
 
 	go func() {
-		logger.Info("HTTP server listening", "addr", cfg.ServerAddr())
+		logger.Info().Str("addr", cfg.ServerAddr()).Msg("HTTP server listening")
 		if err := e.Start(cfg.ServerAddr()); err != nil {
-			logger.Error("HTTP server error", "error", err)
+			logger.Err(err).Msg("HTTP server error")
 		}
 	}()
 
@@ -126,7 +126,7 @@ func run(cfg *config.Config, logger *telemetry.Logger) error {
 	pb.RegisterAuthServiceServer(grpcServer, authServer)
 	pb.RegisterChatServiceServer(grpcServer, chatServer)
 
-	logger.Info("gRPC server listening", "addr", grpcLis.Addr().String())
+	logger.Info().Str("addr", grpcLis.Addr().String()).Msg("gRPC server listening")
 
 	if err := grpcServer.Serve(grpcLis); err != nil {
 		return fmt.Errorf("gRPC server error: %w", err)

@@ -10,6 +10,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/chat/service"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/db/postgres"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
+	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
 )
 
 // ProvideRoomRepository creates and provides a room repository.
@@ -27,7 +28,8 @@ func ProvideMessageRepository(i do.Injector) (domain.MessageRepository, error) {
 // ProvidePubSubService creates and provides the PubSub messaging service.
 func ProvidePubSubService(i do.Injector) (messaging.PubSubServiceInterface, error) {
 	client := do.MustInvoke[*valkey.Client](i)
-	return messaging.New(client), nil
+	logger := do.MustInvoke[*telemetry.Logger](i)
+	return messaging.New(client, &logger.Logger), nil
 }
 
 // ProvideChatService creates and provides the chat service.
@@ -35,8 +37,9 @@ func ProvideChatService(i do.Injector) (service.ChatServiceInterface, error) {
 	roomRepo := do.MustInvoke[domain.RoomRepository](i)
 	messageRepo := do.MustInvoke[domain.MessageRepository](i)
 	pubsub := do.MustInvoke[messaging.PubSubServiceInterface](i)
+	logger := do.MustInvoke[*telemetry.Logger](i)
 
-	return service.NewChatServiceWithPubSub(roomRepo, messageRepo, pubsub), nil
+	return service.NewChatServiceWithPubSub(roomRepo, messageRepo, pubsub, &logger.Logger), nil
 }
 
 // ProvideChatHandler creates and provides the chat HTTP handler.

@@ -3,9 +3,9 @@ package messaging
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/bytedance/sonic"
+	"github.com/rs/zerolog"
 
 	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
 )
@@ -48,13 +48,18 @@ type TypingEvent struct {
 // Service provides pub/sub functionality for chat events.
 type Service struct {
 	client *valkey.Client
+	logger *zerolog.Logger
 }
 
 var _ PubSubServiceInterface = (*Service)(nil)
 
 // New creates a new Service with the given Valkey client.
-func New(client *valkey.Client) *Service {
-	return &Service{client: client}
+func New(client *valkey.Client, logger *zerolog.Logger) *Service {
+	if logger == nil {
+		l := zerolog.Nop()
+		logger = &l
+	}
+	return &Service{client: client, logger: logger}
 }
 
 // PublishMessage publishes a message event to the room channel.
@@ -66,11 +71,17 @@ func (s *Service) PublishMessage(ctx context.Context, roomID string, event Messa
 
 	channel := fmt.Sprintf(ChannelRoomMessages, roomID)
 	if err := s.client.Publish(ctx, channel, data); err != nil {
-		slog.Default().Error("failed to publish message", "error", err, "room", roomID)
+		s.logger.Error().
+			Err(err).
+			Str("room", roomID).
+			Msg("failed to publish message")
 		return fmt.Errorf("failed to publish message: %w", err)
 	}
 
-	slog.Default().Debug("message published", "room", roomID, "message_id", event.MessageID)
+	s.logger.Debug().
+		Str("room", roomID).
+		Str("message_id", event.MessageID).
+		Msg("message published")
 	return nil
 }
 
@@ -109,7 +120,10 @@ func (s *Service) SubscribeToRoom(ctx context.Context, roomID string, handler fu
 
 	pubsub, err := s.client.Subscribe(ctx, msgChannel, presenceChannel)
 	if err != nil {
-		slog.Default().Error("failed to subscribe to room", "error", err)
+		s.logger.Error().
+			Err(err).
+			Str("room", roomID).
+			Msg("failed to subscribe to room")
 		return
 	}
 	ch := pubsub.Channel()
@@ -123,7 +137,10 @@ func (s *Service) SubscribeToRoom(ctx context.Context, roomID string, handler fu
 			case msg := <-ch:
 				var event MessageEvent
 				if err := sonic.Unmarshal([]byte(msg.Payload), &event); err != nil {
-					slog.Default().Error("failed to unmarshal event", "error", err)
+					s.logger.Error().
+						Err(err).
+						Str("room", roomID).
+						Msg("failed to unmarshal event")
 					continue
 				}
 				handler(event.Type, []byte(msg.Payload))

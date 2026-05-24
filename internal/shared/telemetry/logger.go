@@ -1,40 +1,49 @@
 package telemetry
 
 import (
-	"log/slog"
+	"io"
 	"os"
+	"time"
+
+	"github.com/rs/zerolog"
 )
 
-// Logger wraps slog.Logger with structured logging capabilities.
+// Logger wraps zerolog.Logger with structured logging capabilities.
 type Logger struct {
-	*slog.Logger
+	zerolog.Logger
 }
 
 // New creates a new Logger with the specified level and format.
-func New(level, format string) (*Logger, error) {
-	opts := &slog.HandlerOptions{
-		Level: parseLevel(level),
-	}
+// Supported formats: "json" (default), "text".
+func New(level, format string) *Logger {
+	zlLevel := parseLevel(level)
 
-	var handler slog.Handler
+	var output io.Writer = os.Stdout
 	if format == "text" {
-		handler = slog.NewTextHandler(os.Stdout, opts)
-	} else {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+		output = zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
+			w.TimeFormat = time.RFC3339
+			w.Out = os.Stdout
+		})
 	}
 
-	return &Logger{slog.New(handler)}, nil
+	zl := zerolog.New(output).
+		Level(zlLevel).
+		With().
+		Timestamp().
+		Logger()
+
+	return &Logger{zl}
 }
 
-func parseLevel(level string) slog.Level {
+func parseLevel(level string) zerolog.Level {
 	switch level {
 	case "debug":
-		return slog.LevelDebug
+		return zerolog.DebugLevel
 	case "warn":
-		return slog.LevelWarn
+		return zerolog.WarnLevel
 	case "error":
-		return slog.LevelError
+		return zerolog.ErrorLevel
 	default:
-		return slog.LevelInfo
+		return zerolog.InfoLevel
 	}
 }

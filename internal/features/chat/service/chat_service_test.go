@@ -189,7 +189,7 @@ func TestChatService_CreateRoom(t *testing.T) {
 			t.Parallel()
 			roomRepo := newMockRoomRepo()
 			messageRepo := newMockMessageRepo()
-			svc := NewChatService(roomRepo, messageRepo)
+			svc := NewChatService(roomRepo, messageRepo, nil)
 
 			room, err := svc.CreateRoom(context.Background(), tc.input)
 
@@ -232,7 +232,7 @@ func TestChatService_GetRoom(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		ownerID := uuid.New()
 		room := domain.NewRoom("Test Room", "Description", domain.RoomTypePublic, ownerID)
@@ -251,7 +251,7 @@ func TestChatService_GetRoom(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		_, err := svc.GetRoom(context.Background(), uuid.New())
 		if err == nil {
@@ -270,7 +270,7 @@ func TestChatService_ListRooms(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		userID := uuid.New()
 		for range 5 {
@@ -295,7 +295,7 @@ func TestChatService_ListRooms(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		userID := uuid.New()
 		for range 10 {
@@ -320,7 +320,7 @@ func TestChatService_ListRooms(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		userID := uuid.New()
 		for range 150 {
@@ -346,7 +346,7 @@ func TestChatService_JoinRoom(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		ownerID := uuid.New()
 		room := domain.NewRoom("Test Room", "", domain.RoomTypePublic, ownerID)
@@ -368,7 +368,7 @@ func TestChatService_JoinRoom(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		ownerID := uuid.New()
 		room := domain.NewRoom("Test Room", "", domain.RoomTypePublic, ownerID)
@@ -392,7 +392,7 @@ func TestChatService_LeaveRoom(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		ownerID := uuid.New()
 		room := domain.NewRoom("Test Room", "", domain.RoomTypePublic, ownerID)
@@ -413,7 +413,7 @@ func TestChatService_LeaveRoom(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		ownerID := uuid.New()
 		room := domain.NewRoom("Test Room", "", domain.RoomTypePublic, ownerID)
@@ -437,7 +437,7 @@ func TestChatService_SendMessage(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		ownerID := uuid.New()
 		room := domain.NewRoom("Test Room", "", domain.RoomTypePublic, ownerID)
@@ -464,7 +464,7 @@ func TestChatService_SendMessage(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		ownerID := uuid.New()
 		room := domain.NewRoom("Test Room", "", domain.RoomTypePublic, ownerID)
@@ -495,7 +495,7 @@ func TestChatService_GetMessageHistory(t *testing.T) {
 		t.Parallel()
 		roomRepo := newMockRoomRepo()
 		messageRepo := newMockMessageRepo()
-		svc := NewChatService(roomRepo, messageRepo)
+		svc := NewChatService(roomRepo, messageRepo, nil)
 
 		ownerID := uuid.New()
 		room := domain.NewRoom("Test Room", "", domain.RoomTypePublic, ownerID)

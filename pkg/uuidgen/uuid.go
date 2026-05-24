@@ -1,9 +1,8 @@
 package uuidgen
 
 import (
-	"log/slog"
-
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 )
 
 // New generates a new UUIDv7 (or falls back to uuid.New).
@@ -12,7 +11,7 @@ func New() uuid.UUID {
 	if err == nil {
 		return id
 	}
-	slog.Warn("Failed to generate UUIDv7, falling back to uuid.New()", "err", err)
+	log.Warn().Err(err).Msg("Failed to generate UUIDv7, falling back to uuid.New()")
 	return uuid.New()
 }
 
@@ -22,6 +21,6 @@ func NewString() string {
 	if err == nil {
 		return id.String()
 	}
-	slog.Warn("Failed to generate UUIDv7, falling back to uuid.NewString()", "err", err)
+	log.Warn().Err(err).Msg("Failed to generate UUIDv7, falling back to uuid.NewString()")
 	return uuid.NewString()
 }
