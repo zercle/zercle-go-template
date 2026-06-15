@@ -1,49 +1,35 @@
+// Package telemetry provides observability building blocks: zerolog logger,
+// OpenTelemetry tracer, Prometheus metrics, and health probes.
 package telemetry
 
 import (
-	"io"
+	"fmt"
 	"os"
-	"time"
 
 	"github.com/rs/zerolog"
+
+	"github.com/zercle/zercle-go-template/internal/config"
 )
 
-// Logger wraps zerolog.Logger with structured logging capabilities.
-type Logger struct {
-	zerolog.Logger
-}
-
-// New creates a new Logger with the specified level and format.
-// Supported formats: "json" (default), "text".
-func New(level, format string) *Logger {
-	zlLevel := parseLevel(level)
-
-	var output io.Writer = os.Stdout
-	if format == "text" {
-		output = zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
-			w.TimeFormat = time.RFC3339
-			w.Out = os.Stdout
-		})
+// NewLogger builds a zerolog.Logger from configuration, sets the global level,
+// and returns the configured logger. The logger writes JSON to stdout by default;
+// switch to a human-readable console format when cfg.Log.Format is "console".
+func NewLogger(cfg *config.Config) (*zerolog.Logger, error) {
+	level, err := zerolog.ParseLevel(cfg.Log.Level)
+	if err != nil {
+		return nil, fmt.Errorf("parse log level %q: %w", cfg.Log.Level, err)
 	}
 
-	zl := zerolog.New(output).
-		Level(zlLevel).
-		With().
-		Timestamp().
-		Logger()
+	zerolog.SetGlobalLevel(level)
 
-	return &Logger{zl}
-}
-
-func parseLevel(level string) zerolog.Level {
-	switch level {
-	case "debug":
-		return zerolog.DebugLevel
-	case "warn":
-		return zerolog.WarnLevel
-	case "error":
-		return zerolog.ErrorLevel
-	default:
-		return zerolog.InfoLevel
+	var logger zerolog.Logger
+	if cfg.Log.Format == "console" {
+		logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout})
+	} else {
+		logger = zerolog.New(os.Stdout)
 	}
+
+	logger = logger.With().Timestamp().Logger()
+
+	return &logger, nil
 }

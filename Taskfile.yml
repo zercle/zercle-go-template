@@ -2,47 +2,102 @@ version: '3'
 
 vars:
   BIN_DIR: bin
+  COVERAGE_OUT: coverage.out
+
+env:
+  CGO_ENABLED: "0"
 
 tasks:
   build:
+    desc: Build the server binary
     cmds:
-      - go build -ldflags="-s -w" -o {{.BIN_DIR}}/server ./cmd/server
+      - go build -ldflags="-s -w -X main.Version={{.GIT_VERSION | default "dev"}} -X main.CommitSHA={{.GIT_COMMIT | default "unknown"}} -X main.BuildTime={{.BUILD_TIME | default "unknown"}}" -o {{.BIN_DIR}}/server ./cmd/server
+
+  run:
+    desc: Run the server locally
+    deps: [build]
+    cmds:
+      - ./{{.BIN_DIR}}/server
 
   test:
+    desc: Run all tests (default unit tag)
     cmds:
-      - go test -race -coverprofile=coverage.out ./...
+      - go test -race -tags=unit -coverprofile={{.COVERAGE_OUT}} -coverpkg=./internal/...,./pkg/... ./internal/... ./pkg/...
+
+  test-unit:
+    desc: Run unit tests only
+    cmds:
+      - go test -race -tags=unit -coverprofile={{.COVERAGE_OUT}} -coverpkg=./internal/...,./pkg/... ./internal/... ./pkg/...
 
   test-integration:
+    desc: Run integration tests (requires postgres + valkey)
     cmds:
-      - go test -v -race -tags=integration ./test/integration/...
+      - go test -v -race -tags=integration ./...
+
+  test-e2e:
+    desc: Run end-to-end tests (boots full server)
+    cmds:
+      - go test -v -race -tags=e2e ./...
 
   lint:
+    desc: Run golangci-lint
     cmds:
-      - golangci-lint run --timeout=5m
+      - golangci-lint run --timeout=5m ./...
 
   fmt:
+    desc: Format Go source
     cmds:
       - gofumpt -w .
       - goimports -w .
 
-  mocks:
+  tidy:
+    desc: Tidy go.mod and verify
     cmds:
-      - go generate ./...
-
-  docker-build:
-    cmds:
-      - docker build -t zercle-go-template:latest .
-
-  run:
-    cmds:
-      - go run ./cmd/server
+      - go mod tidy
+      - go mod verify
 
   verify:
+    desc: Verify module state and no diff
     cmds:
-      - go mod verify
-      - go mod tidy
+      - task: tidy
       - git diff --exit-code go.mod go.sum
 
-  cover-html:
+  generate:
+    desc: Generate mocks, sqlc, and protobuf code
     cmds:
-      - go tool cover -html=coverage.out -o coverage.html
+      - go generate ./...
+      - sqlc generate
+      - task: proto
+
+  proto:
+    desc: Generate protobuf code
+    cmds:
+      - |
+        protoc --go_out=api/pb --go_opt=paths=source_relative \
+               --go-grpc_out=api/pb --go-grpc_opt=paths=source_relative \
+               api/proto/example/v1/example.proto
+
+  migrate-up:
+    desc: Run database migrations
+    cmds:
+      - migrate -path internal/infrastructure/db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
+
+  migrate-down:
+    desc: Rollback one database migration
+    cmds:
+      - migrate -path internal/infrastructure/db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" down 1
+
+  migrate-create:
+    desc: "Create a new migration: task migrate-create NAME=add_users"
+    cmds:
+      - migrate create -ext sql -dir internal/infrastructure/db/migrations {{.NAME}}
+
+  docker-build:
+    desc: Build server container image
+    cmds:
+      - docker build -f Containerfile -t zercle-go-template:latest .
+
+  cover-html:
+    desc: Render coverage report to HTML
+    cmds:
+      - go tool cover -html={{.COVERAGE_OUT}} -o coverage.html

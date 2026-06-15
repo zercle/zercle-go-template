@@ -1,14 +1,11 @@
-# Multi-stage Containerfile for zercle-go-template
-# Optimized for Podman with Docker CLI compatibility
+# syntax=docker/dockerfile:1
 
-# =============================================================================
-# Builder stage
-# =============================================================================
-FROM mirror.gcr.io/golang:alpine AS builder
+# -----------------------------------------------------------------------------
+# Builder
+# -----------------------------------------------------------------------------
+FROM golang:1.26 AS builder
 
 WORKDIR /build
-
-RUN apk add --no-cache git ca-certificates tzdata
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -26,26 +23,17 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
       -X main.BuildTime=${BUILD_TIME}" \
     -o /server ./cmd/server
 
-# =============================================================================
-# Runtime stage
-# =============================================================================
-FROM mirror.gcr.io/alpine:latest
+# -----------------------------------------------------------------------------
+# Final
+# -----------------------------------------------------------------------------
+FROM gcr.io/distroless/static-debian12:nonroot
 
-RUN apk add --no-cache ca-certificates tzdata curl git
+COPY --from=builder --chown=nonroot:nonroot /server /server
+COPY --from=builder --chown=nonroot:nonroot /build/config.yaml /config.yaml
 
-RUN addgroup -g 65534 -S appgroup && \
-    adduser -u 65534 -S appuser -G appgroup
+USER nonroot:nonroot
 
-COPY --from=builder /server /usr/local/bin/server
-COPY --from=builder /build/internal/infrastructure/database/migrate/migrations /migrations
+EXPOSE 8080
+EXPOSE 50051
 
-RUN chown -R appuser:appgroup /usr/local/bin/server /migrations
-
-USER appuser:appgroup
-
-EXPOSE 8080 9090
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/healthz || exit 1
-
-ENTRYPOINT ["server"]
+ENTRYPOINT ["/server"]
