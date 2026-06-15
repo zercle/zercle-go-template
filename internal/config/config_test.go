@@ -3,6 +3,7 @@
 package config_test
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -219,8 +220,14 @@ func TestDBConnString(t *testing.T) {
 	cfg.DB.Password = "p@ss w#rd"
 
 	dsn := cfg.DBConnString()
-	require.Contains(t, dsn, "postgres://postgres:p%40ss+w%23rd@127.0.0.1:5432/app?")
-	require.Contains(t, dsn, "sslmode=disable")
+
+	parsed, err := url.Parse(dsn)
+	require.NoError(t, err)
+	require.Equal(t, "postgres", parsed.User.Username())
+	password, hasPassword := parsed.User.Password()
+	require.True(t, hasPassword)
+	require.Equal(t, "p@ss w#rd", password)
+	require.Equal(t, "disable", parsed.Query().Get("sslmode"))
 }
 
 func TestGRPCAddr(t *testing.T) {

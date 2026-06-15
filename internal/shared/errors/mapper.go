@@ -22,9 +22,6 @@ func HTTPError(err error) (int, map[string]any) {
 		"error":   app.Code,
 		"message": app.Message,
 	}
-	if app.Cause != nil {
-		body["cause"] = app.Cause.Error()
-	}
 
 	return app.HTTPStatus, body
 }
@@ -51,8 +48,12 @@ func resolveAppError(err error) *AppError {
 	}
 
 	if app := sentinelFor(err); app != nil {
-		return app
+		clone := *app
+		clone.Cause = err
+		return &clone
 	}
 
-	return ErrInternal
+	clone := *ErrInternal
+	clone.Cause = err
+	return &clone
 }

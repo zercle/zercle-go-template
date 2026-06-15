@@ -188,16 +188,16 @@ func (c *Config) GRPCAddr() string {
 
 // DBConnString returns a pgx-compatible DSN.
 func (c *Config) DBConnString() string {
-	password := url.QueryEscape(c.DB.Password)
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		c.DB.User,
-		password,
-		c.DB.Host,
-		c.DB.Port,
-		c.DB.Name,
-		c.DB.SSLMode,
-	)
+	u := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(c.DB.User, c.DB.Password),
+		Host:   net.JoinHostPort(c.DB.Host, strconv.Itoa(c.DB.Port)),
+		Path:   c.DB.Name,
+	}
+	q := u.Query()
+	q.Set("sslmode", c.DB.SSLMode)
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 // ValkeyAddr returns the Valkey server address.

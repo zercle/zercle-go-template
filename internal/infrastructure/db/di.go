@@ -13,11 +13,12 @@ import (
 )
 
 // Register provides *pgxpool.Pool and *sqlcdb.Queries and registers the
-// PostgreSQL readiness checker.
-func Register(c do.Injector) error {
+// PostgreSQL readiness checker. The ctx is used to drive the initial pool
+// construction so startup cancellation/timeouts propagate.
+func Register(ctx context.Context, c do.Injector) error {
 	do.Provide(c, func(i do.Injector) (*pgxpool.Pool, error) {
 		cfg := do.MustInvoke[*config.Config](i)
-		return NewPool(context.Background(), cfg)
+		return NewPool(ctx, cfg)
 	})
 
 	do.Provide(c, func(i do.Injector) (*sqlcdb.Queries, error) {

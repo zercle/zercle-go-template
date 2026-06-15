@@ -11,11 +11,13 @@ import (
 	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
 )
 
-// Register provides valkeygo.Client and registers the Valkey readiness checker.
-func Register(c do.Injector) error {
+// Register provides valkeygo.Client and registers the Valkey readiness
+// checker. The ctx is used to drive the initial client construction so
+// startup cancellation/timeouts propagate.
+func Register(ctx context.Context, c do.Injector) error {
 	do.Provide(c, func(i do.Injector) (valkeygo.Client, error) {
 		cfg := do.MustInvoke[*config.Config](i)
-		return NewClient(context.Background(), cfg)
+		return NewClient(ctx, cfg)
 	})
 
 	client, err := do.Invoke[valkeygo.Client](c)

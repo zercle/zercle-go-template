@@ -5,6 +5,7 @@ package errors_test
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -48,10 +49,24 @@ func TestHTTPError_AppError(t *testing.T) {
 	if body["message"] != "boom message" {
 		t.Fatalf("expected message, got %v", body["message"])
 	}
+	if _, ok := body["cause"]; ok {
+		t.Fatal("cause must not leak")
+	}
 }
 
 func TestHTTPError_RegisteredSentinel(t *testing.T) {
 	status, body := sharederrors.HTTPError(errDomainSentinel)
+	if status != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, status)
+	}
+	if body["error"] != "NOT_FOUND" {
+		t.Fatalf("expected NOT_FOUND, got %v", body["error"])
+	}
+}
+
+func TestSentinelCausePreserved(t *testing.T) {
+	wrapped := fmt.Errorf("wrap: %w", errDomainSentinel)
+	status, body := sharederrors.HTTPError(wrapped)
 	if status != http.StatusNotFound {
 		t.Fatalf("expected status %d, got %d", http.StatusNotFound, status)
 	}
@@ -67,6 +82,19 @@ func TestHTTPError_Unknown(t *testing.T) {
 	}
 	if body["error"] != "INTERNAL" {
 		t.Fatalf("expected INTERNAL, got %v", body["error"])
+	}
+}
+
+func TestHTTPError_UnknownDoesNotLeakCause(t *testing.T) {
+	status, body := sharederrors.HTTPError(errors.New("secret internal: db query failed"))
+	if status != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, status)
+	}
+	if _, ok := body["cause"]; ok {
+		t.Fatal("cause must not leak")
+	}
+	if body["message"] != "internal error" {
+		t.Fatalf("expected sentinel message, got %v", body["message"])
 	}
 }
 

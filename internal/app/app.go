@@ -50,12 +50,12 @@ func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Inj
 		Str("env", cfg.App.Environment).
 		Msg("starting server")
 
-	if err := db.Register(injector); err != nil {
+	if err := db.Register(ctx, injector); err != nil {
 		_ = injector.Shutdown()
 		return nil, injector, fmt.Errorf("register database: %w", err)
 	}
 
-	if err := valkey.Register(injector); err != nil {
+	if err := valkey.Register(ctx, injector); err != nil {
 		_ = injector.Shutdown()
 		return nil, injector, fmt.Errorf("register valkey: %w", err)
 	}
