@@ -15,25 +15,44 @@ import (
 )
 
 const (
-	defaultPageSize int32 = 20
-	maxPageSize     int32 = 100
-	maxNameLength         = 255
+	defaultPageSizeFallback int32 = 20
+	maxPageSizeFallback     int32 = 100
+	maxNameLengthFallback         = 255
 )
 
 // Service implements the domain.Service inbound use-case port.
 type Service struct {
-	repo domain.Repository
+	repo            domain.Repository
+	defaultPageSize int32
+	maxPageSize     int32
+	maxNameLength   int32
 }
 
-// NewService returns a Service backed by the provided repository.
-func NewService(repo domain.Repository) *Service {
-	return &Service{repo: repo}
+// NewService returns a Service backed by the provided repository. The limit
+// arguments override the package fallback defaults; pass <= 0 to use the
+// built-in defaults (20/100/255).
+func NewService(repo domain.Repository, defaultPageSize, maxPageSize, maxNameLength int32) *Service {
+	if defaultPageSize <= 0 {
+		defaultPageSize = defaultPageSizeFallback
+	}
+	if maxPageSize <= 0 {
+		maxPageSize = maxPageSizeFallback
+	}
+	if maxNameLength <= 0 {
+		maxNameLength = maxNameLengthFallback
+	}
+	return &Service{
+		repo:            repo,
+		defaultPageSize: defaultPageSize,
+		maxPageSize:     maxPageSize,
+		maxNameLength:   maxNameLength,
+	}
 }
 
 // Create validates the name and persists a new item.
 func (s *Service) Create(ctx context.Context, name string) (*domain.Item, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || len(name) > maxNameLength {
+	if name == "" || int32(len(name)) > s.maxNameLength {
 		return nil, domain.ErrInvalidName
 	}
 
@@ -69,10 +88,10 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (*domain.Item, error) {
 // zero-value limit (e.g. no query parameter) never produces LIMIT 0.
 func (s *Service) List(ctx context.Context, limit, offset int32) ([]domain.Item, error) {
 	if limit <= 0 {
-		limit = defaultPageSize
+		limit = s.defaultPageSize
 	}
-	if limit > maxPageSize {
-		limit = maxPageSize
+	if limit > s.maxPageSize {
+		limit = s.maxPageSize
 	}
 	if offset < 0 {
 		offset = 0

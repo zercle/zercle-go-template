@@ -12,6 +12,7 @@ http:
   write_timeout: 15s
   idle_timeout: 60s
   body_limit: 1M
+  health_probe_timeout: 5s
   cors_allow_origins:
     - "*"
   cors_allow_methods:
@@ -61,3 +62,6 @@ otel:
 
 example:
   enabled: true
+  default_page_size: 20
+  max_page_size: 100
+  max_name_length: 255

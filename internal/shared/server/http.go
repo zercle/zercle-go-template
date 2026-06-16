@@ -31,9 +31,11 @@ func (cv *echoValidator) Validate(i any) error {
 	return nil
 }
 
-// probeTimeout caps how long a health probe will wait on registered checkers
-// before returning, so a blocking dependency cannot hang /healthz or /readyz.
-const probeTimeout = 5 * time.Second
+// defaultProbeTimeout is the fallback health-probe timeout used when the
+// configured value is zero or negative. It caps how long a health probe will
+// wait on registered checkers before returning, so a blocking dependency
+// cannot hang /healthz or /readyz.
+const defaultProbeTimeout = 5 * time.Second
 
 // NewHTTP builds and returns an *echo.Echo with the standard middleware stack
 // and shared routes (/healthz, /readyz, /metrics).
@@ -55,8 +57,13 @@ func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Reg
 	// supported hook, but it is set where the server is started, not here).
 	_ = cfg
 
-	e.GET("/healthz", healthzHandler(registry, logger))
-	e.GET("/readyz", readyzHandler(registry, logger))
+	probeTimeout := cfg.HTTP.HealthProbeTimeout
+	if probeTimeout <= 0 {
+		probeTimeout = defaultProbeTimeout
+	}
+
+	e.GET("/healthz", healthzHandler(registry, logger, probeTimeout))
+	e.GET("/readyz", readyzHandler(registry, logger, probeTimeout))
 	e.GET("/metrics", echo.WrapHandler(telemetry.MetricsHandler()))
 
 	return e
@@ -64,7 +71,7 @@ func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Reg
 
 // healthzHandler returns the liveness handler. It returns 200 on success and
 // 500 only if the registry itself reports an unexpected error.
-func healthzHandler(registry *telemetry.Registry, logger *zerolog.Logger) echo.HandlerFunc {
+func healthzHandler(registry *telemetry.Registry, logger *zerolog.Logger, probeTimeout time.Duration) echo.HandlerFunc {
 	return func(c *echo.Context) error {
 		ctx, cancel := context.WithTimeout(c.Request().Context(), probeTimeout)
 		defer cancel()
@@ -79,7 +86,7 @@ func healthzHandler(registry *telemetry.Registry, logger *zerolog.Logger) echo.H
 // readyzHandler returns the readiness handler. It returns 200 when all
 // readiness checkers pass and 503 with a generic body when any fail. The
 // detailed error is logged server-side but never returned to the caller.
-func readyzHandler(registry *telemetry.Registry, logger *zerolog.Logger) echo.HandlerFunc {
+func readyzHandler(registry *telemetry.Registry, logger *zerolog.Logger, probeTimeout time.Duration) echo.HandlerFunc {
 	return func(c *echo.Context) error {
 		ctx, cancel := context.WithTimeout(c.Request().Context(), probeTimeout)
 		defer cancel()

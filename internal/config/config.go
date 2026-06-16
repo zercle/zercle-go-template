@@ -47,15 +47,16 @@ type AppConfig struct {
 
 // HTTPConfig holds the HTTP server settings and CORS options.
 type HTTPConfig struct {
-	Host             string        `mapstructure:"host" yaml:"host" env:"HTTP_HOST" validate:"ip|hostname"`
-	Port             int           `mapstructure:"port" yaml:"port" env:"HTTP_PORT" validate:"required,min=1,max=65535"`
-	ReadTimeout      time.Duration `mapstructure:"read_timeout" yaml:"read_timeout" env:"HTTP_READ_TIMEOUT" validate:"required,min=1s"`
-	WriteTimeout     time.Duration `mapstructure:"write_timeout" yaml:"write_timeout" env:"HTTP_WRITE_TIMEOUT" validate:"required,min=1s"`
-	IdleTimeout      time.Duration `mapstructure:"idle_timeout" yaml:"idle_timeout" env:"HTTP_IDLE_TIMEOUT" validate:"required,min=1s"`
-	BodyLimit        string        `mapstructure:"body_limit" yaml:"body_limit" env:"HTTP_BODY_LIMIT" validate:"required"`
-	CORSAllowOrigins []string      `mapstructure:"cors_allow_origins" yaml:"cors_allow_origins" env:"HTTP_CORS_ALLOW_ORIGINS"`
-	CORSAllowMethods []string      `mapstructure:"cors_allow_methods" yaml:"cors_allow_methods" env:"HTTP_CORS_ALLOW_METHODS"`
-	CORSAllowHeaders []string      `mapstructure:"cors_allow_headers" yaml:"cors_allow_headers" env:"HTTP_CORS_ALLOW_HEADERS"`
+	Host               string        `mapstructure:"host" yaml:"host" env:"HTTP_HOST" validate:"ip|hostname"`
+	Port               int           `mapstructure:"port" yaml:"port" env:"HTTP_PORT" validate:"required,min=1,max=65535"`
+	ReadTimeout        time.Duration `mapstructure:"read_timeout" yaml:"read_timeout" env:"HTTP_READ_TIMEOUT" validate:"required,min=1s"`
+	WriteTimeout       time.Duration `mapstructure:"write_timeout" yaml:"write_timeout" env:"HTTP_WRITE_TIMEOUT" validate:"required,min=1s"`
+	IdleTimeout        time.Duration `mapstructure:"idle_timeout" yaml:"idle_timeout" env:"HTTP_IDLE_TIMEOUT" validate:"required,min=1s"`
+	BodyLimit          string        `mapstructure:"body_limit" yaml:"body_limit" env:"HTTP_BODY_LIMIT" validate:"required"`
+	HealthProbeTimeout time.Duration `mapstructure:"health_probe_timeout" yaml:"health_probe_timeout" env:"HTTP_HEALTH_PROBE_TIMEOUT" validate:"required,min=1s"`
+	CORSAllowOrigins   []string      `mapstructure:"cors_allow_origins" yaml:"cors_allow_origins" env:"HTTP_CORS_ALLOW_ORIGINS"`
+	CORSAllowMethods   []string      `mapstructure:"cors_allow_methods" yaml:"cors_allow_methods" env:"HTTP_CORS_ALLOW_METHODS"`
+	CORSAllowHeaders   []string      `mapstructure:"cors_allow_headers" yaml:"cors_allow_headers" env:"HTTP_CORS_ALLOW_HEADERS"`
 }
 
 // GRPCConfig holds the gRPC server settings.
@@ -104,7 +105,10 @@ type LogConfig struct {
 
 // ExampleConfig is a feature toggle and settings for the stub feature.
 type ExampleConfig struct {
-	Enabled bool `mapstructure:"enabled" yaml:"enabled" env:"EXAMPLE_ENABLED"`
+	Enabled         bool  `mapstructure:"enabled" yaml:"enabled" env:"EXAMPLE_ENABLED"`
+	DefaultPageSize int32 `mapstructure:"default_page_size" yaml:"default_page_size" env:"EXAMPLE_DEFAULT_PAGE_SIZE" validate:"required,min=1"`
+	MaxPageSize     int32 `mapstructure:"max_page_size" yaml:"max_page_size" env:"EXAMPLE_MAX_PAGE_SIZE" validate:"required,min=1"`
+	MaxNameLength   int32 `mapstructure:"max_name_length" yaml:"max_name_length" env:"EXAMPLE_MAX_NAME_LENGTH" validate:"required,min=1"`
 }
 
 // validate is the package-level validator instance.
@@ -224,6 +228,7 @@ func setDefaults(v *viper.Viper) {
 		"http.write_timeout":      15 * time.Second,
 		"http.idle_timeout":       60 * time.Second,
 		"http.body_limit":         "1M",
+		"http.health_probe_timeout": 5 * time.Second,
 		"http.cors_allow_origins": []string{},
 		"http.cors_allow_methods": []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		"http.cors_allow_headers": []string{"Authorization", "Content-Type", "X-Request-ID"},
@@ -248,7 +253,10 @@ func setDefaults(v *viper.Viper) {
 		"log.level":  "info",
 		"log.format": "json",
 
-		"example.enabled": false,
+		"example.enabled":           false,
+		"example.default_page_size": int32(20),
+		"example.max_page_size":     int32(100),
+		"example.max_name_length":   int32(255),
 	}
 
 	for key, value := range defaults {
@@ -272,6 +280,7 @@ func leafBindings() []leafBinding {
 		{"http.write_timeout", "HTTP_WRITE_TIMEOUT"},
 		{"http.idle_timeout", "HTTP_IDLE_TIMEOUT"},
 		{"http.body_limit", "HTTP_BODY_LIMIT"},
+		{"http.health_probe_timeout", "HTTP_HEALTH_PROBE_TIMEOUT"},
 		{"http.cors_allow_origins", "HTTP_CORS_ALLOW_ORIGINS"},
 		{"http.cors_allow_methods", "HTTP_CORS_ALLOW_METHODS"},
 		{"http.cors_allow_headers", "HTTP_CORS_ALLOW_HEADERS"},
@@ -306,6 +315,9 @@ func leafBindings() []leafBinding {
 		{"otel.sampling", "OTEL_TRACES_SAMPLER_ARG"},
 
 		{"example.enabled", "EXAMPLE_ENABLED"},
+		{"example.default_page_size", "EXAMPLE_DEFAULT_PAGE_SIZE"},
+		{"example.max_page_size", "EXAMPLE_MAX_PAGE_SIZE"},
+		{"example.max_name_length", "EXAMPLE_MAX_NAME_LENGTH"},
 	}
 }
 

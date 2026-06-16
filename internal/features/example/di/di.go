@@ -8,6 +8,7 @@ import (
 	"github.com/samber/do/v2"
 
 	pb "github.com/zercle/zercle-go-template/api/pb/example/v1"
+	"github.com/zercle/zercle-go-template/internal/config"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	grpchandler "github.com/zercle/zercle-go-template/internal/features/example/handler/grpc"
 	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"
@@ -33,7 +34,8 @@ func Register(c do.Injector) error {
 
 	do.Provide(c, func(i do.Injector) (domain.Service, error) {
 		repo := do.MustInvoke[domain.Repository](i)
-		return service.NewService(repo), nil
+		cfg := do.MustInvoke[*config.Config](i)
+		return service.NewService(repo, cfg.Example.DefaultPageSize, cfg.Example.MaxPageSize, cfg.Example.MaxNameLength), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (*httphandler.Handler, error) {

@@ -172,6 +172,45 @@ otel:
 	require.Equal(t, []string{"X-Custom"}, cfg.HTTP.CORSAllowHeaders)
 }
 
+func TestLoad_ExampleDefaults(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	content := `
+app:
+  environment: test
+http:
+  port: 8080
+db:
+  host: 127.0.0.1
+  port: 5432
+  name: db
+  user: u
+  password: p
+valkey:
+  host: 127.0.0.1
+  port: 6379
+log:
+  level: info
+  format: json
+otel:
+  exporter: none
+  service_name: svc
+  sampling: 1.0
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0o600))
+	t.Setenv("CONFIG_FILE", cfgPath)
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+
+	require.Equal(t, int32(20), cfg.Example.DefaultPageSize)
+	require.Equal(t, int32(100), cfg.Example.MaxPageSize)
+	require.Equal(t, int32(255), cfg.Example.MaxNameLength)
+	require.Equal(t, 5*time.Second, cfg.HTTP.HealthProbeTimeout)
+}
+
 func TestValidate_InvalidEnvironment(t *testing.T) {
 	cfg := validConfig()
 	cfg.App.Environment = "invalid"
@@ -247,12 +286,13 @@ func validConfig() *config.Config {
 			ShutdownTimeout: 15 * time.Second,
 		},
 		HTTP: config.HTTPConfig{
-			Host:         "127.0.0.1",
-			Port:         8080,
-			ReadTimeout:  15 * time.Second,
-			WriteTimeout: 15 * time.Second,
-			IdleTimeout:  60 * time.Second,
-			BodyLimit:    "1M",
+			Host:               "127.0.0.1",
+			Port:               8080,
+			ReadTimeout:        15 * time.Second,
+			WriteTimeout:       15 * time.Second,
+			IdleTimeout:        60 * time.Second,
+			BodyLimit:          "1M",
+			HealthProbeTimeout: 5 * time.Second,
 		},
 		GRPC: config.GRPCConfig{
 			Host: "127.0.0.1",
@@ -287,7 +327,10 @@ func validConfig() *config.Config {
 			Format: "json",
 		},
 		Example: config.ExampleConfig{
-			Enabled: true,
+			Enabled:         true,
+			DefaultPageSize: 20,
+			MaxPageSize:     100,
+			MaxNameLength:   255,
 		},
 	}
 }
