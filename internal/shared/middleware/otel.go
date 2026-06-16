@@ -19,7 +19,11 @@ func OTel() echo.MiddlewareFunc {
 			echoCtx := c.Request().Context()
 			tracer := trace.SpanFromContext(echoCtx).TracerProvider().Tracer("github.com/zercle/zercle-go-template")
 
-			newCtx, span := tracer.Start(echoCtx, c.Request().Method+" "+c.Request().URL.Path)
+			route := c.Path()
+			if route == "" {
+				route = c.Request().URL.Path
+			}
+			newCtx, span := tracer.Start(echoCtx, c.Request().Method+" "+route)
 			defer span.End()
 
 			req := c.Request().WithContext(newCtx)
@@ -27,7 +31,7 @@ func OTel() echo.MiddlewareFunc {
 
 			span.SetAttributes(
 				attribute.String("http.method", c.Request().Method),
-				attribute.String("http.route", c.Request().URL.Path),
+				attribute.String("http.route", route),
 			)
 
 			err := next(c)
@@ -37,7 +41,7 @@ func OTel() echo.MiddlewareFunc {
 				span.RecordError(err)
 				span.SetStatus(codes.Error, err.Error())
 			}
-			span.SetAttributes(attribute.Int("http.status", status))
+			span.SetAttributes(attribute.Int("http.response.status_code", status))
 
 			return err
 		}

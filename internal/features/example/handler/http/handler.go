@@ -35,11 +35,11 @@ func (h *Handler) Register(g *echo.Group) {
 func (h *Handler) Create(c *echo.Context) error {
 	var req dto.CreateItemRequest
 	if err := c.Bind(&req); err != nil {
-		status, body := sharederrors.HTTPError(domain.ErrInvalidName)
+		status, body := sharederrors.HTTPError(sharederrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
 	if err := c.Validate(req); err != nil {
-		status, body := sharederrors.HTTPError(domain.ErrInvalidName)
+		status, body := sharederrors.HTTPError(sharederrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
 
@@ -57,7 +57,7 @@ func (h *Handler) Create(c *echo.Context) error {
 func (h *Handler) Get(c *echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		status, body := sharederrors.HTTPError(domain.ErrInvalidName)
+		status, body := sharederrors.HTTPError(domain.ErrInvalidID)
 		return c.JSON(status, body)
 	}
 
@@ -74,9 +74,12 @@ func (h *Handler) Get(c *echo.Context) error {
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) List(c *echo.Context) error {
 	var req dto.ListItemsRequest
-	_ = c.Bind(&req) // zero values are valid defaults
+	if err := c.Bind(&req); err != nil {
+		status, body := sharederrors.HTTPError(sharederrors.ErrInvalidInput)
+		return c.JSON(status, body)
+	}
 	if err := c.Validate(req); err != nil {
-		status, body := sharederrors.HTTPError(domain.ErrInvalidName)
+		status, body := sharederrors.HTTPError(sharederrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
 
@@ -90,6 +93,9 @@ func (h *Handler) List(c *echo.Context) error {
 }
 
 func mapItemToResponse(item *domain.Item) dto.ItemResponse {
+	if item == nil {
+		return dto.ItemResponse{}
+	}
 	return dto.ItemResponse{
 		ID:        item.ID.String(),
 		Name:      item.Name,

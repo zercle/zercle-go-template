@@ -47,7 +47,7 @@ func (s *RepositoryIntegrationSuite) SetupSuite() {
 	s.runMigrations(cfg)
 
 	queries := sqlcdb.New(s.pool)
-	s.repo = repository.NewRepository(s.pool, queries)
+	s.repo = repository.NewRepository(queries)
 }
 
 func (s *RepositoryIntegrationSuite) TearDownSuite() {

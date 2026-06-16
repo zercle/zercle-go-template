@@ -17,6 +17,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
@@ -43,6 +44,7 @@ jobs:
   unit:
     name: Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: lint
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +59,7 @@ jobs:
         run: |
           total=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
           echo "Coverage: $total%"
-          if (( $(echo "$total < 60.0" | bc -l) )); then
+          if awk -v t="$total" 'BEGIN { exit !(t < 60.0) }'; then
             echo "Coverage below 60% threshold"
             exit 1
           fi
@@ -75,6 +77,7 @@ jobs:
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: unit
     services:
       postgres:
@@ -136,6 +139,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [lint, unit]
     steps:
       - uses: actions/checkout@v4

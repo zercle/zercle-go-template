@@ -2,8 +2,8 @@
 package errors
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"google.golang.org/grpc/status"
@@ -34,21 +34,38 @@ func GRPCErr(err error) error {
 
 	app := resolveAppError(err)
 
-	return fmt.Errorf("%w", status.Error(app.GRPCCode, app.Message))
+	return status.Error(app.GRPCCode, app.Message)
 }
 
 // resolveAppError converts err into an AppError using, in order:
 //  1. direct *AppError match via errors.As,
 //  2. a registered domain sentinel via errors.Is,
-//  3. the shared ErrInternal as a fallback.
+//  3. the standard context errors (Canceled, DeadlineExceeded),
+//  4. the shared ErrInternal as a fallback.
+//
+// Every successful path returns a clone of the matched AppError so callers can
+// never mutate shared sentinels or the AppError they passed in.
 func resolveAppError(err error) *AppError {
 	var app *AppError
 	if errors.As(err, &app) {
-		return app
+		clone := *app
+		clone.Cause = err
+		return &clone
 	}
 
 	if app := sentinelFor(err); app != nil {
 		clone := *app
+		clone.Cause = err
+		return &clone
+	}
+
+	if errors.Is(err, context.Canceled) {
+		clone := *ErrCanceled
+		clone.Cause = err
+		return &clone
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		clone := *ErrDeadlineExceeded
 		clone.Cause = err
 		return &clone
 	}

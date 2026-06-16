@@ -53,6 +53,7 @@ linters:
         - 'github.com/labstack/echo/v5\.Context\.JSON'
         - 'github.com/zercle/zercle-go-template/internal/shared/errors\.GRPCErr'
         - 'github.com/zercle/zercle-go-template/internal/infrastructure/db/sqlc\.Queries\.CreateItem'
+        - 'google.golang.org/grpc/status\.Error'
   exclusions:
     generated: lax
     paths:

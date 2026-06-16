@@ -14,6 +14,10 @@ import (
 // It parses the DSN, applies pool tuning parameters, creates the pool, and
 // pings it before returning. The caller is responsible for calling Close.
 func NewPool(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("config is nil")
+	}
+
 	poolCfg, err := pgxpool.ParseConfig(cfg.DBConnString())
 	if err != nil {
 		return nil, fmt.Errorf("parse db config: %w", err)

@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	sqlcdb "github.com/zercle/zercle-go-template/internal/infrastructure/db/sqlc"
@@ -17,13 +16,12 @@ import (
 
 // Repository is a pgx + sqlc implementation of the domain.Repository port.
 type Repository struct {
-	pool    *pgxpool.Pool
 	queries *sqlcdb.Queries
 }
 
-// NewRepository returns a Repository backed by the provided pool and sqlc queries.
-func NewRepository(pool *pgxpool.Pool, queries *sqlcdb.Queries) *Repository {
-	return &Repository{pool: pool, queries: queries}
+// NewRepository returns a Repository backed by the provided sqlc queries.
+func NewRepository(queries *sqlcdb.Queries) *Repository {
+	return &Repository{queries: queries}
 }
 
 // Create persists a new item.

@@ -42,8 +42,9 @@ func (r *Registry) AddReadiness(c Checker) {
 	r.readiness = append(r.readiness, c)
 }
 
-// Live always returns nil because process liveness is handled by the endpoint
-// itself responding. Custom liveness checkers may be added for completeness.
+// Live runs all registered liveness checkers concurrently and returns an
+// aggregated error naming every failing checker. With no checkers registered
+// it returns nil (process liveness is implied by the endpoint responding).
 func (r *Registry) Live(ctx context.Context) error {
 	r.livenessMu.RLock()
 	checkers := append([]Checker(nil), r.liveness...)

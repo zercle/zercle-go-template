@@ -52,7 +52,7 @@ func (q *Queries) GetItem(ctx context.Context, id uuid.UUID) (Item, error) {
 
 const listItems = `-- name: ListItems :many
 SELECT id, name, created_at, updated_at FROM items
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 LIMIT $1 OFFSET $2
 `
 

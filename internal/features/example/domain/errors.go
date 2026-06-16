@@ -8,4 +8,5 @@ import "errors"
 var (
 	ErrItemNotFound = errors.New("item not found")
 	ErrInvalidName  = errors.New("item name is invalid")
+	ErrInvalidID    = errors.New("item id is invalid")
 )

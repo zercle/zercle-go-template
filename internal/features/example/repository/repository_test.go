@@ -108,7 +108,7 @@ func (r *mockRows) Conn() *pgx.Conn                              { return nil }
 
 func TestRepository_Create(t *testing.T) {
 	dbtx := &mockDBTX{}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	repo := repository.NewRepository(sqlcdb.New(dbtx))
 
 	item := &domain.Item{
 		ID:        uuid.New(),
@@ -124,7 +124,7 @@ func TestRepository_Create(t *testing.T) {
 
 func TestRepository_Create_Error(t *testing.T) {
 	dbtx := &mockDBTX{err: errors.New("exec failed")}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	repo := repository.NewRepository(sqlcdb.New(dbtx))
 
 	item := &domain.Item{ID: uuid.New(), Name: "x", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 	err := repo.Create(context.Background(), item)
@@ -135,7 +135,7 @@ func TestRepository_Create_Error(t *testing.T) {
 func TestRepository_GetByID(t *testing.T) {
 	id := uuid.New()
 	dbtx := &mockDBTX{items: []sqlcdb.Item{{ID: id, Name: "found", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}}}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	repo := repository.NewRepository(sqlcdb.New(dbtx))
 
 	got, err := repo.GetByID(context.Background(), id)
 	require.NoError(t, err)
@@ -144,7 +144,7 @@ func TestRepository_GetByID(t *testing.T) {
 
 func TestRepository_GetByID_NotFound(t *testing.T) {
 	dbtx := &mockDBTX{}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	repo := repository.NewRepository(sqlcdb.New(dbtx))
 
 	got, err := repo.GetByID(context.Background(), uuid.New())
 	assert.Nil(t, got)
@@ -154,7 +154,7 @@ func TestRepository_GetByID_NotFound(t *testing.T) {
 func TestRepository_List(t *testing.T) {
 	id := uuid.New()
 	dbtx := &mockDBTX{listItems: []sqlcdb.Item{{ID: id, Name: "listed", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}}}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	repo := repository.NewRepository(sqlcdb.New(dbtx))
 
 	items, err := repo.List(context.Background(), 10, 0)
 	require.NoError(t, err)
@@ -164,7 +164,7 @@ func TestRepository_List(t *testing.T) {
 
 func TestRepository_List_Error(t *testing.T) {
 	dbtx := &mockDBTX{listErr: errors.New("query failed")}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	repo := repository.NewRepository(sqlcdb.New(dbtx))
 
 	items, err := repo.List(context.Background(), 10, 0)
 	assert.Error(t, err)

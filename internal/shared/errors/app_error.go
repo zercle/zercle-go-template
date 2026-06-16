@@ -24,9 +24,13 @@ type AppError struct {
 	Cause error
 }
 
-// Error returns the human-readable message.
+// Error returns the human-readable message, falling back to the machine-readable
+// Code when Message is empty so the error string is never empty.
 func (e *AppError) Error() string {
-	return e.Message
+	if e.Message != "" {
+		return e.Message
+	}
+	return e.Code
 }
 
 // Unwrap returns the causal error.
@@ -34,21 +38,16 @@ func (e *AppError) Unwrap() error {
 	return e.Cause
 }
 
-// DomainError is a marker interface that domain sentinel errors may optionally
-// implement so that mappers can recognise them generically.
-type DomainError interface {
-	error
-	DomainError()
-}
-
 // Sentinel boundary errors. These are the shared error responses returned when
 // a domain or infrastructure error cannot be mapped to a feature-specific
 // sentinel.
 var (
-	ErrNotFound     = &AppError{Code: "NOT_FOUND", Message: "resource not found", HTTPStatus: http.StatusNotFound, GRPCCode: codes.NotFound}
-	ErrInvalidInput = &AppError{Code: "INVALID_INPUT", Message: "invalid input", HTTPStatus: http.StatusBadRequest, GRPCCode: codes.InvalidArgument}
-	ErrUnauthorized = &AppError{Code: "UNAUTHORIZED", Message: "unauthorized", HTTPStatus: http.StatusUnauthorized, GRPCCode: codes.Unauthenticated}
-	ErrForbidden    = &AppError{Code: "FORBIDDEN", Message: "forbidden", HTTPStatus: http.StatusForbidden, GRPCCode: codes.PermissionDenied}
-	ErrConflict     = &AppError{Code: "CONFLICT", Message: "conflict", HTTPStatus: http.StatusConflict, GRPCCode: codes.AlreadyExists}
-	ErrInternal     = &AppError{Code: "INTERNAL", Message: "internal error", HTTPStatus: http.StatusInternalServerError, GRPCCode: codes.Internal}
+	ErrNotFound         = &AppError{Code: "NOT_FOUND", Message: "resource not found", HTTPStatus: http.StatusNotFound, GRPCCode: codes.NotFound}
+	ErrInvalidInput     = &AppError{Code: "INVALID_INPUT", Message: "invalid input", HTTPStatus: http.StatusBadRequest, GRPCCode: codes.InvalidArgument}
+	ErrUnauthorized     = &AppError{Code: "UNAUTHORIZED", Message: "unauthorized", HTTPStatus: http.StatusUnauthorized, GRPCCode: codes.Unauthenticated}
+	ErrForbidden        = &AppError{Code: "FORBIDDEN", Message: "forbidden", HTTPStatus: http.StatusForbidden, GRPCCode: codes.PermissionDenied}
+	ErrConflict         = &AppError{Code: "CONFLICT", Message: "conflict", HTTPStatus: http.StatusConflict, GRPCCode: codes.AlreadyExists}
+	ErrCanceled         = &AppError{Code: "CANCELED", Message: "request canceled", HTTPStatus: 499, GRPCCode: codes.Canceled}
+	ErrDeadlineExceeded = &AppError{Code: "DEADLINE_EXCEEDED", Message: "deadline exceeded", HTTPStatus: http.StatusGatewayTimeout, GRPCCode: codes.DeadlineExceeded}
+	ErrInternal         = &AppError{Code: "INTERNAL", Message: "internal error", HTTPStatus: http.StatusInternalServerError, GRPCCode: codes.Internal}
 )

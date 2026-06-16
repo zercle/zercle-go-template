@@ -17,12 +17,19 @@ var defaultCORSMethods = []string{"GET", "HEAD", "PUT", "PATCH", "POST", "DELETE
 var defaultCORSHeaders = []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization}
 
 // CORS returns echo's built-in CORS middleware configured from cfg.HTTP.CORS*.
-// When no origins are configured it defaults to allowing all origins.
+// When no origins are configured it defaults to allowing all origins. A nil
+// cfg yields the echo CORS defaults.
 func CORS(cfg *config.Config) echo.MiddlewareFunc {
+	if cfg == nil {
+		return middleware.CORSWithConfig(middleware.CORSConfig{})
+	}
+
 	corsCfg := middleware.CORSConfig{
-		AllowOrigins: cfg.HTTP.CORSAllowOrigins,
-		AllowMethods: cfg.HTTP.CORSAllowMethods,
-		AllowHeaders: cfg.HTTP.CORSAllowHeaders,
+		AllowOrigins:  cfg.HTTP.CORSAllowOrigins,
+		AllowMethods:  cfg.HTTP.CORSAllowMethods,
+		AllowHeaders:  cfg.HTTP.CORSAllowHeaders,
+		ExposeHeaders: []string{"Content-Length"},
+		MaxAge:        86400,
 	}
 
 	if len(corsCfg.AllowOrigins) == 0 {

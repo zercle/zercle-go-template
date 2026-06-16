@@ -3,6 +3,8 @@
 package di
 
 import (
+	"fmt"
+
 	"github.com/samber/do/v2"
 
 	pb "github.com/zercle/zercle-go-template/api/pb/example/v1"
@@ -14,7 +16,6 @@ import (
 	sqlcdb "github.com/zercle/zercle-go-template/internal/infrastructure/db/sqlc"
 	sharederrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v5"
 	"google.golang.org/grpc"
 )
@@ -23,11 +24,11 @@ import (
 func Register(c do.Injector) error {
 	sharederrors.RegisterSentinel(domain.ErrItemNotFound, sharederrors.ErrNotFound)
 	sharederrors.RegisterSentinel(domain.ErrInvalidName, sharederrors.ErrInvalidInput)
+	sharederrors.RegisterSentinel(domain.ErrInvalidID, sharederrors.ErrInvalidInput)
 
 	do.Provide(c, func(i do.Injector) (domain.Repository, error) {
-		pool := do.MustInvoke[*pgxpool.Pool](i)
 		queries := do.MustInvoke[*sqlcdb.Queries](i)
-		return repository.NewRepository(pool, queries), nil
+		return repository.NewRepository(queries), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (domain.Service, error) {
@@ -47,22 +48,22 @@ func Register(c do.Injector) error {
 
 	h, err := do.Invoke[*httphandler.Handler](c)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve example http handler: %w", err)
 	}
 	e, err := do.Invoke[*echo.Echo](c)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve example echo: %w", err)
 	}
 	g := e.Group("/api/v1")
 	h.Register(g)
 
 	gs, err := do.Invoke[*grpc.Server](c)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve example grpc server: %w", err)
 	}
 	grpcHandler, err := do.Invoke[*grpchandler.Server](c)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve example grpc handler: %w", err)
 	}
 	pb.RegisterExampleServiceServer(gs, grpcHandler)
 

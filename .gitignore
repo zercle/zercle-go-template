@@ -37,3 +37,12 @@ Thumbs.db
 *.code-workspace
 go.work
 go.work.sum
+
+# GoReleaser
+dist/
+
+# Go test fixtures / generated
+testdata/
+
+# Profiling output
+*.prof

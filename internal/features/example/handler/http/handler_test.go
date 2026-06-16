@@ -30,6 +30,7 @@ func setupTest(t *testing.T) (*echo.Echo, *mock.MockService) {
 
 	sharederrors.RegisterSentinel(domain.ErrItemNotFound, sharederrors.ErrNotFound)
 	sharederrors.RegisterSentinel(domain.ErrInvalidName, sharederrors.ErrInvalidInput)
+	sharederrors.RegisterSentinel(domain.ErrInvalidID, sharederrors.ErrInvalidInput)
 
 	e := echo.New()
 	e.Validator = newValidator(t)

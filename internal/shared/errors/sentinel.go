@@ -8,9 +8,16 @@ import (
 	"sync"
 )
 
-// registeredSentinels maps a domain sentinel error to a shared AppError.
+type sentinelEntry struct {
+	sentinel error
+	app      *AppError
+}
+
+// registeredSentinels is an ordered slice (registration order) of domain
+// sentinel -> shared AppError mappings. Slice iteration is deterministic; the
+// first errors.Is match wins.
 var (
-	registeredSentinels   = make(map[error]*AppError)
+	registeredSentinels   []sentinelEntry
 	registeredSentinelsMu sync.RWMutex
 )
 
@@ -19,23 +26,27 @@ var (
 // domain errors without importing feature packages.
 //
 // The sentinel must be comparable (typically a package-level var). The mapping
-// is checked with errors.Is.
+// is checked with errors.Is. Registration order is preserved so the first
+// registered match wins.
 func RegisterSentinel(sentinel error, app *AppError) {
 	registeredSentinelsMu.Lock()
 	defer registeredSentinelsMu.Unlock()
 
-	registeredSentinels[sentinel] = app
+	registeredSentinels = append(registeredSentinels, sentinelEntry{
+		sentinel: sentinel,
+		app:      app,
+	})
 }
 
 // sentinelFor reports whether err matches a registered sentinel using
-// errors.Is.
+// errors.Is. Returns the first match in registration order, or nil.
 func sentinelFor(err error) *AppError {
 	registeredSentinelsMu.RLock()
 	defer registeredSentinelsMu.RUnlock()
 
-	for sentinel, app := range registeredSentinels {
-		if errors.Is(err, sentinel) {
-			return app
+	for _, entry := range registeredSentinels {
+		if errors.Is(err, entry.sentinel) {
+			return entry.app
 		}
 	}
 

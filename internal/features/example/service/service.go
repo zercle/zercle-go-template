@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +17,7 @@ import (
 const (
 	defaultPageSize int32 = 20
 	maxPageSize     int32 = 100
+	maxNameLength         = 255
 )
 
 // Service implements the domain.Service inbound use-case port.
@@ -30,7 +32,8 @@ func NewService(repo domain.Repository) *Service {
 
 // Create validates the name and persists a new item.
 func (s *Service) Create(ctx context.Context, name string) (*domain.Item, error) {
-	if name == "" {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > maxNameLength {
 		return nil, domain.ErrInvalidName
 	}
 

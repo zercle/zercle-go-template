@@ -3,6 +3,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/do/v2"
@@ -16,10 +17,13 @@ import (
 // PostgreSQL readiness checker. The ctx is used to drive the initial pool
 // construction so startup cancellation/timeouts propagate.
 func Register(ctx context.Context, c do.Injector) error {
-	do.Provide(c, func(i do.Injector) (*pgxpool.Pool, error) {
-		cfg := do.MustInvoke[*config.Config](i)
-		return NewPool(ctx, cfg)
-	})
+	cfg := do.MustInvoke[*config.Config](c)
+
+	pool, err := NewPool(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	do.ProvideValue(c, pool)
 
 	do.Provide(c, func(i do.Injector) (*sqlcdb.Queries, error) {
 		pool, err := do.Invoke[*pgxpool.Pool](i)
@@ -29,12 +33,10 @@ func Register(ctx context.Context, c do.Injector) error {
 		return sqlcdb.New(pool), nil
 	})
 
-	pool, err := do.Invoke[*pgxpool.Pool](c)
+	registry, err := do.Invoke[*telemetry.Registry](c)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve health registry: %w", err)
 	}
-
-	registry := do.MustInvoke[*telemetry.Registry](c)
 	registry.AddReadiness(pgxChecker{pool: pool})
 
 	return nil

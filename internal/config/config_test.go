@@ -76,7 +76,7 @@ otel:
 	require.Equal(t, "testdb", cfg.DB.Name)
 	require.Equal(t, int32(5), cfg.DB.MaxConns)
 	require.Equal(t, "127.0.0.1:6379", cfg.ValkeyAddr())
-	require.True(t, cfg.Example.Enabled)
+	require.False(t, cfg.Example.Enabled)
 }
 
 func TestLoad_OverridesFromEnv(t *testing.T) {

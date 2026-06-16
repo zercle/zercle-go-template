@@ -1,5 +1,5 @@
-// Package config loads and validates application configuration from config.yaml
-// and environment variables.
+// Package config loads application configuration from config.yaml and
+// environment variables. Validation is performed by Config.Validate.
 package config
 
 import (
@@ -81,10 +81,11 @@ type DBConfig struct {
 
 // ValkeyConfig holds the Valkey client settings.
 type ValkeyConfig struct {
-	Host     string `mapstructure:"host" yaml:"host" env:"VALKEY_HOST" validate:"required,hostname|ip"`
-	Port     int    `mapstructure:"port" yaml:"port" env:"VALKEY_PORT" validate:"required,min=1,max=65535"`
-	Password string `mapstructure:"password" yaml:"password" env:"VALKEY_PASSWORD"`
-	DB       int    `mapstructure:"db" yaml:"db" env:"VALKEY_DB" validate:"min=0"`
+	Host           string        `mapstructure:"host" yaml:"host" env:"VALKEY_HOST" validate:"required,hostname|ip"`
+	Port           int           `mapstructure:"port" yaml:"port" env:"VALKEY_PORT" validate:"required,min=1,max=65535"`
+	Password       string        `mapstructure:"password" yaml:"password" env:"VALKEY_PASSWORD"`
+	DB             int           `mapstructure:"db" yaml:"db" env:"VALKEY_DB" validate:"min=0"`
+	ConnectTimeout time.Duration `mapstructure:"connect_timeout" yaml:"connect_timeout" env:"VALKEY_CONNECT_TIMEOUT" validate:"omitempty,min=1s"`
 }
 
 // OTelConfig holds OpenTelemetry exporter settings.
@@ -223,7 +224,7 @@ func setDefaults(v *viper.Viper) {
 		"http.write_timeout":      15 * time.Second,
 		"http.idle_timeout":       60 * time.Second,
 		"http.body_limit":         "1M",
-		"http.cors_allow_origins": []string{"*"},
+		"http.cors_allow_origins": []string{},
 		"http.cors_allow_methods": []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		"http.cors_allow_headers": []string{"Authorization", "Content-Type", "X-Request-ID"},
 
@@ -237,7 +238,8 @@ func setDefaults(v *viper.Viper) {
 		"db.max_conn_life":   1 * time.Hour,
 		"db.connect_timeout": 5 * time.Second,
 
-		"valkey.db": 0,
+		"valkey.db":              0,
+		"valkey.connect_timeout": 5 * time.Second,
 
 		"otel.exporter":     "none",
 		"otel.service_name": "zercle-go-template",
@@ -246,7 +248,7 @@ func setDefaults(v *viper.Viper) {
 		"log.level":  "info",
 		"log.format": "json",
 
-		"example.enabled": true,
+		"example.enabled": false,
 	}
 
 	for key, value := range defaults {
@@ -293,6 +295,7 @@ func leafBindings() []leafBinding {
 		{"valkey.port", "VALKEY_PORT"},
 		{"valkey.password", "VALKEY_PASSWORD"},
 		{"valkey.db", "VALKEY_DB"},
+		{"valkey.connect_timeout", "VALKEY_CONNECT_TIMEOUT"},
 
 		{"log.level", "LOG_LEVEL"},
 		{"log.format", "LOG_FORMAT"},

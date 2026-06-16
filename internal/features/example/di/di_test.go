@@ -5,6 +5,7 @@
 package di_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -56,7 +57,7 @@ func TestRegister_WithStubs(t *testing.T) {
 
 	injector := do.New()
 	do.ProvideValue(injector, cfg)
-	require.NoError(t, telemetry.Register(injector))
+	require.NoError(t, telemetry.Register(context.Background(), injector))
 
 	err := di.Register(injector)
 	require.Error(t, err, "expected error because infra providers are missing")

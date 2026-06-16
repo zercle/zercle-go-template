@@ -38,7 +38,7 @@ func TestNewLogger_InvalidLevel(t *testing.T) {
 
 func TestNewTracer_None(t *testing.T) {
 	cfg := &config.Config{OTel: config.OTelConfig{Exporter: "none", ServiceName: "test"}}
-	provider, shutdown, err := telemetry.NewTracer(context.Background(), cfg)
+	provider, shutdown, err := telemetry.NewTracerProvider(context.Background(), cfg)
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 	require.Nil(t, shutdown)
@@ -46,7 +46,7 @@ func TestNewTracer_None(t *testing.T) {
 
 func TestNewTracer_OTLPRequiresEndpoint(t *testing.T) {
 	cfg := &config.Config{OTel: config.OTelConfig{Exporter: "otlp", ServiceName: "test"}}
-	provider, shutdown, err := telemetry.NewTracer(context.Background(), cfg)
+	provider, shutdown, err := telemetry.NewTracerProvider(context.Background(), cfg)
 	require.Error(t, err)
 	require.Nil(t, provider)
 	require.Nil(t, shutdown)

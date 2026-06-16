@@ -50,6 +50,16 @@ func TestService_Create_EmptyName(t *testing.T) {
 	require.Nil(t, item)
 }
 
+func TestService_Create_WhitespaceName(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	repo := mock.NewMockRepository(gomock.NewController(t))
+	svc := service.NewService(repo)
+	item, err := svc.Create(ctx, "   ")
+	require.ErrorIs(t, err, domain.ErrInvalidName)
+	require.Nil(t, item)
+}
+
 func TestService_Get_Happy(t *testing.T) {
 	t.Parallel()
 

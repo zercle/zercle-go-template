@@ -19,6 +19,9 @@ func (pgxChecker) Name() string {
 
 // Check verifies PostgreSQL is reachable by pinging the connection pool.
 func (c pgxChecker) Check(ctx context.Context) error {
+	if c.pool == nil {
+		return fmt.Errorf("postgres pool is not initialized")
+	}
 	if err := c.pool.Ping(ctx); err != nil {
 		return fmt.Errorf("ping postgres: %w", err)
 	}
