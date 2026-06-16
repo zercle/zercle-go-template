@@ -1,5 +1,4 @@
 //go:build integration
-// +build integration
 
 // STUB FEATURE — delete internal/features/example to start your project.
 
