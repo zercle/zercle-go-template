@@ -1,37 +1,39 @@
-# Binary files
+# Binaries
+bin/
 *.exe
-*.exe~
 *.dll
 *.so
 *.dylib
-bin/
-
-# Output of go build
-*.bin
-
-# Test coverage files
-*.out
 *.test
-*.prof
-coverage.*
 
-# Dependency directories
-vendor/
+# Output of go coverage
+coverage.*
+*.out
 
 # Environment files
 .env
+.env.*
+!.env.example
 
-# IDE and Editor
+# Task
+.task/
+
+# Dependency directories
+vendor/
+.kilo/node_modules
+
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-*.swn
+*~
+
+# OS
 .DS_Store
+Thumbs.db
 
-# Build artifacts
-dist/
-build/
-
-# Test data
-test/testdata/
+# Go workspace
+*.code-workspace
+go.work
+go.work.sum

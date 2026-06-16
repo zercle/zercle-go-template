@@ -1,15 +1,29 @@
+version: 2
+
+project_name: zercle-go-template
+
 before:
   hooks:
     - go mod tidy
+    - go generate ./...
 
 builds:
   - id: server
     main: ./cmd/server
     binary: server
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-    ldflags: ['-s -w']
-    env: [CGO_ENABLED=0]
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+      - -X main.CommitSHA={{.Commit}}
+      - -X main.BuildTime={{.Date}}
+    env:
+      - CGO_ENABLED=0
 
 archives:
   - format: tar.gz
@@ -26,3 +40,6 @@ changelog:
       - '^test:'
       - '^chore:'
       - '^ci:'
+
+kos: []
+# Docker images are handled by goreleaser docker pipe if desired; keep minimal single binary for template.

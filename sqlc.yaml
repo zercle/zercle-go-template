@@ -5,11 +5,13 @@ sql:
     schema: "internal/infrastructure/db/migrations"
     gen:
       go:
-        package: "postgres"
-        out: "internal/infrastructure/db/postgres"
+        package: "db"
+        out: "internal/infrastructure/db/sqlc"
         sql_package: "pgx/v5"
         overrides:
           - go_type: "github.com/google/uuid.UUID"
             db_type: "uuid"
           - go_type: "time.Time"
             db_type: "timestamp"
+          - go_type: "time.Time"
+            db_type: "timestamptz"

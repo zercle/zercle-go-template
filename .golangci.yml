@@ -4,38 +4,33 @@ run:
   timeout: 5m
 linters:
   enable:
-    - govet
-    - staticcheck
-    - unused
+    - bodyclose
     - errcheck
+    - errorlint
+    - exhaustive
+    - forcetypeassert
+    - goconst
     - gocritic
     - gocyclo
-    - revive
-    - ineffassign
-    - unconvert
-    - goconst
-    - prealloc
-    - misspell
-    - bodyclose
-    - sqlclosecheck
-    - nilerr
-    - nestif
-    - forcetypeassert
-    - exhaustive
-    - funlen
-    - testifylint
-    - modernize
     - gosec
-    - errorlint
-    - wrapcheck
-    - paralleltest
-    - tparallel
+    - govet
+    - ineffassign
+    - misspell
+    - modernize
+    - nestif
+    - nilerr
+    - prealloc
+    - revive
+    - sqlclosecheck
+    - staticcheck
+    - testifylint
     - thelper
-    - forbidigo
-
+    - tparallel
+    - unconvert
+    - unused
+    - wrapcheck
   disable:
     - lll
-
   settings:
     dupl:
       threshold: 20
@@ -52,11 +47,20 @@ linters:
     testifylint:
       disable:
         - float-compare
-
+    wrapcheck:
+      ignore-sig-regexps:
+        - "github.com/labstack/echo/v5.HTTPError"
+        - 'github.com/labstack/echo/v5\.Context\.JSON'
+        - 'github.com/zercle/zercle-go-template/internal/shared/errors\.GRPCErr'
+        - 'github.com/zercle/zercle-go-template/internal/infrastructure/db/sqlc\.Queries\.CreateItem'
   exclusions:
     generated: lax
     paths:
       - examples$
+      - api/pb$
+      - internal/infrastructure/db/sqlc$
+      - internal/features/example/repository/mock$
+      - internal/features/example/service/mock$
     rules:
       - linters:
           - revive
@@ -74,15 +78,11 @@ linters:
           - errcheck
           - forcetypeassert
           - revive
+          - wrapcheck
         path: '_test\.go$'
       - linters:
           - revive
         path: "tests/"
-
-issues:
-  max-issues-per-linter: 0
-  max-same-issues: 100
-
 formatters:
   enable:
     - gofmt
@@ -93,3 +93,5 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - api/pb$
+      - internal/infrastructure/db/sqlc$

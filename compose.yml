@@ -1,38 +1,16 @@
-# Podman Compose Configuration
-
 services:
-  traefik:
-    image: mirror.gcr.io/traefik:v3
-    container_name: ${APP_NAME:-zercle-go-template}-traefik
-    environment:
-      TZ: Asia/Bangkok
-      LANG: C.UTF-8
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:3000"
-      - "--log.level=INFO"
-    ports:
-      - "3000:3000"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - ${APP_NAME:-zercle-go-template}-network
-    restart: unless-stopped
-
   postgres:
-    image: mirror.gcr.io/postgres:18-alpine
-    container_name: ${APP_NAME:-zercle-go-template}-postgres
+    image: docker.io/library/postgres:18-alpine
+    container_name: zercle-template-postgres
     environment:
-      TZ: Asia/Bangkok
-      LANG: C.UTF-8
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-app}
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./internal/infrastructure/database/migrate/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-app}"]
       interval: 5s
@@ -40,171 +18,139 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - ${APP_NAME:-zercle-go-template}-network
-    restart: unless-stopped
+      - zercle-template
 
   valkey:
-    image: mirror.gcr.io/valkey:9-alpine
-    container_name: ${APP_NAME:-zercle-go-template}-valkey
+    image: docker.io/valkey/valkey:9-alpine
+    container_name: zercle-template-valkey
     command: valkey-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     environment:
-      TZ: Asia/Bangkok
-      LANG: C.UTF-8
-      VALKEY_PASSWORD: ${CACHE_PASSWORD:-}
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
     volumes:
       - valkey_data:/data
+    ports:
+      - "6379:6379"
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
-      - ${APP_NAME:-zercle-go-template}-network
-    restart: unless-stopped
+      - zercle-template
 
-  api:
+  migrate:
     build:
       context: .
-      dockerfile: Containerfile
-    container_name: ${APP_NAME:-zercle-go-template}-api
+      dockerfile: Containerfile.migrate
     environment:
-      TZ: Asia/Bangkok
-      LANG: C.UTF-8
-      # Server
-      SERVER_HOST: 0.0.0.0
-      SERVER_PORT: 8080
-      # Database
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_NAME: ${DB_NAME:-app}
-      DB_SSLMODE: disable
-      # Cache
-      CACHE_HOST: valkey
-      CACHE_PORT: 6379
-      CACHE_PASSWORD: ${CACHE_PASSWORD:-}
-      CACHE_DB: 0
-      # Auth
-      AUTH_ACCESS_TOKEN_SECRET: ${AUTH_ACCESS_TOKEN_SECRET:-change-me-in-production}
-      AUTH_REFRESH_TOKEN_SECRET: ${AUTH_REFRESH_TOKEN_SECRET:-change-me-too-in-production}
-      AUTH_ACCESS_TOKEN_TTL: ${AUTH_ACCESS_TOKEN_TTL:-15m}
-      AUTH_REFRESH_TOKEN_TTL: ${AUTH_REFRESH_TOKEN_TTL:-168h}
-      AUTH_ISSUER: ${AUTH_ISSUER:-zercle-go-template}
-      # Logging
+      DB_SSL_MODE: disable
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - zercle-template
+
+  server:
+    build:
+      context: .
+      dockerfile: Containerfile
+    environment:
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+      APP_NAME: ${APP_NAME:-zercle-go-template}
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 50051
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-app}
+      DB_SSL_MODE: disable
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      LOG_FORMAT: ${LOG_FORMAT:-json}
-      # Observability
-      METRICS_ENABLED: ${METRICS_ENABLED:-true}
-      METRICS_PORT: ${METRICS_PORT:-9090}
-      TRACING_ENABLED: ${TRACING_ENABLED:-false}
-      TRACING_ENDPOINT: ${TRACING_ENDPOINT:-localhost:4317}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-zercle-go-template}
     ports:
       - "8080:8080"
-      - "9090:9090"
+      - "50051:50051"
     depends_on:
       postgres:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
-      - ${APP_NAME:-zercle-go-template}-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Host(`app.localhost`)"
-      - "traefik.http.routers.app.entrypoints=web"
-      - "traefik.http.services.app.loadbalancer.server.port=8080"
+      - zercle-template
 
-  # Database management with dbgate
-  dbgate:
-    image: mirror.gcr.io/dbgate:latest
-    container_name: ${APP_NAME:-zercle-go-template}-dbgate
-    environment:
-      TZ: Asia/Bangkok
-      LANG: C.UTF-8
-      DBGATE_CREATE_SECRET: ${DBGATE_SECRET:-dbgate-secret-change-in-production}
-      CONNECTIONS: >
-        [
-          {"type":"postgres","name":"PostgreSQL","host":"postgres","port":5432,"user":"${DB_USER:-postgres}","password":"${DB_PASSWORD:-postgres}","database":"${DB_NAME:-app}"},
-          {"type":"redis","name":"Valkey","host":"valkey","port":6379,"password":"${CACHE_PASSWORD:-}"}
-        ]
-    networks:
-      - ${APP_NAME:-zercle-go-template}-network
-    restart: unless-stopped
-    profiles:
-      - tools
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dbgate.rule=Host(`db.localhost`)"
-      - "traefik.http.routers.dbgate.entrypoints=web"
-      - "traefik.http.services.dbgate.loadbalancer.server.port=3000"
-
-  # =============================================================================
-  # Observability stack (optional - enable with: docker compose --profile observability up)
-  # =============================================================================
   otel-collector:
-    image: mirror.gcr.io/otel/opentelemetry-collector:0.109.0
-    container_name: ${APP_NAME:-zercle-go-template}-otel-collector
-    command:
-      - "--config=/etc/otel-collector-config.yaml"
-    volumes:
-      - ./deploy/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-    networks:
-      - ${APP_NAME:-zercle-go-template}-network
-    restart: unless-stopped
+    image: docker.io/otel/opentelemetry-collector-contrib:0.114.0
+    container_name: zercle-template-otel-collector
     profiles:
       - observability
+    command:
+      - --config=/etc/otelcol/config.yaml
+    volumes:
+      - ./deployments/observability/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8888:8888"
+      - "8889:8889"
+    networks:
+      - zercle-template
 
   prometheus:
-    image: mirror.gcr.io/prometheus:v3.0.0
-    container_name: ${APP_NAME:-zercle-go-template}-prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yaml'
-      - '--storage.tsdb.path=/prometheus'
-    volumes:
-      - ./deploy/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
-      - prometheus_data:/prometheus
-    networks:
-      - ${APP_NAME:-zercle-go-template}-network
-    restart: unless-stopped
+    image: docker.io/prom/prometheus:v3.0.1
+    container_name: zercle-template-prometheus
     profiles:
       - observability
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+    volumes:
+      - ./deployments/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - zercle-template
 
   grafana:
-    image: mirror.gcr.io/grafana/grafana:11.6.0
-    container_name: ${APP_NAME:-zercle-go-template}-grafana
-    environment:
-      TZ: Asia/Bangkok
-      LANG: C.UTF-8
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    networks:
-      - ${APP_NAME:-zercle-go-template}-network
-    restart: unless-stopped
+    image: docker.io/grafana/grafana:11.4.0
+    container_name: zercle-template-grafana
     profiles:
       - observability
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - zercle-template
 
 volumes:
   postgres_data:
-    driver: local
   valkey_data:
-    driver: local
   prometheus_data:
-    driver: local
   grafana_data:
-    driver: local
 
 networks:
-  ${APP_NAME:-zercle-go-template}-network:
+  zercle-template:
     driver: bridge

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zercle-go-template-config
+data:
+  APP_NAME: "zercle-go-template"
+  APP_ENVIRONMENT: "production"
+  HTTP_HOST: "0.0.0.0"
+  HTTP_PORT: "8080"
+  GRPC_HOST: "0.0.0.0"
+  GRPC_PORT: "50051"
+  DB_SSL_MODE: "prefer"
+  DB_MAX_CONNS: "10"
+  VALKEY_PORT: "6379"
+  LOG_LEVEL: "info"
+  OTEL_EXPORTER: "none"
+  OTEL_SERVICE_NAME: "zercle-go-template"
+  OTEL_TRACES_SAMPLER_ARG: "1.0"

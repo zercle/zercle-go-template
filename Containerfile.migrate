@@ -1,13 +1,28 @@
-FROM golang:1.26-alpine AS builder
+# syntax=docker/dockerfile:1
+
+# -----------------------------------------------------------------------------
+# Builder
+# -----------------------------------------------------------------------------
+FROM golang:1.26 AS builder
+
 WORKDIR /build
-RUN apk add --no-cache git ca-certificates
+
 COPY go.mod go.sum ./
 RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /migrate ./cmd/migrate
 
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-s -w" \
+    -o /migrate ./cmd/migrate
+
+# -----------------------------------------------------------------------------
+# Final
+# -----------------------------------------------------------------------------
 FROM gcr.io/distroless/static-debian12:nonroot
-COPY --from=builder /migrate /usr/local/bin/migrate
-COPY --from=builder /build/internal/infrastructure/database/migrations /migrations
+
+COPY --from=builder --chown=nonroot:nonroot /migrate /migrate
+
 USER nonroot:nonroot
-ENTRYPOINT ["migrate"]
+
+ENTRYPOINT ["/migrate"]

@@ -1,155 +1,293 @@
-package config
+//go:build unit
+
+package config_test
 
 import (
+	"net/url"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/zercle/zercle-go-template/internal/config"
 )
 
-func TestConfig_Validate_RequiresDBName(t *testing.T) {
-	t.Parallel()
-	cfg := Config{
-		DBUser:                 "user",
-		AuthAccessTokenSecret:  "access-secret",
-		AuthRefreshTokenSecret: "refresh-secret",
-	}
-	if err := cfg.Validate(); err == nil {
-		t.Error("expected error for missing DB_NAME, got nil")
-	}
-}
-
-func TestConfig_Validate_RequiresDBUser(t *testing.T) {
-	t.Parallel()
-	cfg := Config{
-		DBName:                 "testdb",
-		AuthAccessTokenSecret:  "access-secret",
-		AuthRefreshTokenSecret: "refresh-secret",
-	}
-	if err := cfg.Validate(); err == nil {
-		t.Error("expected error for missing DB_USER, got nil")
-	}
-}
-
-func TestConfig_Validate_RequiresAccessTokenSecret(t *testing.T) {
-	t.Parallel()
-	cfg := Config{
-		DBName:                 "testdb",
-		DBUser:                 "user",
-		AuthRefreshTokenSecret: "refresh-secret",
-	}
-	if err := cfg.Validate(); err == nil {
-		t.Error("expected error for missing AUTH_ACCESS_TOKEN_SECRET, got nil")
-	}
-}
-
-func TestConfig_Validate_RequiresRefreshTokenSecret(t *testing.T) {
-	t.Parallel()
-	cfg := Config{
-		DBName:                "testdb",
-		DBUser:                "user",
-		AuthAccessTokenSecret: "access-secret",
-	}
-	if err := cfg.Validate(); err == nil {
-		t.Error("expected error for missing AUTH_REFRESH_TOKEN_SECRET, got nil")
-	}
-}
-
-func TestConfig_Validate_AllFieldsPresent(t *testing.T) {
-	t.Parallel()
-	cfg := Config{
-		DBName:                 "testdb",
-		DBUser:                 "user",
-		AuthAccessTokenSecret:  "access-secret",
-		AuthRefreshTokenSecret: "refresh-secret",
-	}
-	if err := cfg.Validate(); err != nil {
-		t.Errorf("expected nil error for valid config, got %v", err)
-	}
-}
-
-func TestConfig_ServerAddr(t *testing.T) {
-	t.Parallel()
-	cfg := Config{
-		ServerHost: "localhost",
-		ServerPort: 8080,
-	}
-	if got := cfg.ServerAddr(); got != "localhost:8080" {
-		t.Errorf("expected localhost:8080, got %s", got)
-	}
-}
-
-func TestConfig_GRPCAddr(t *testing.T) {
-	t.Parallel()
-	cfg := Config{
-		GRPCHost: "0.0.0.0",
-		GRPCPort: 9090,
-	}
-	if got := cfg.GRPCAddr(); got != "0.0.0.0:9090" {
-		t.Errorf("expected 0.0.0.0:9090, got %s", got)
-	}
-}
-
-func TestConfig_DBConnString(t *testing.T) {
-	t.Parallel()
-	cfg := Config{
-		DBUser:     "user",
-		DBPassword: "password",
-		DBHost:     "localhost",
-		DBPort:     5432,
-		DBName:     "testdb",
-		DBSSLMode:  "disable",
-	}
-	expected := "postgres://user:password@localhost:5432/testdb?sslmode=disable" //nolint
-	if got := cfg.DBConnString(); got != expected {
-		t.Errorf("expected %s, got %s", expected, got)
-	}
-}
-
-func TestConfig_CacheAddr(t *testing.T) {
-	t.Parallel()
-	cfg := Config{
-		CacheHost: "localhost",
-		CachePort: 6379,
-	}
-	if got := cfg.CacheAddr(); got != "localhost:6379" {
-		t.Errorf("expected localhost:6379, got %s", got)
-	}
-}
-
-func TestLoad(t *testing.T) {
+func TestLoad_ReadsConfigFile(t *testing.T) {
 	dir := t.TempDir()
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-	defer os.Chdir(cwd)
+	cfgPath := filepath.Join(dir, "config.yaml")
 
-	t.Setenv("DB_NAME", "testdb")
-	t.Setenv("DB_USER", "testuser")
-	t.Setenv("AUTH_ACCESS_TOKEN_SECRET", "access")
-	t.Setenv("AUTH_REFRESH_TOKEN_SECRET", "refresh")
+	content := `
+app:
+  name: test-app
+  environment: test
+  host: 127.0.0.1
+  port: 7000
+  shutdown_timeout: 5s
+http:
+  host: 127.0.0.1
+  port: 7001
+  read_timeout: 10s
+  write_timeout: 10s
+  idle_timeout: 30s
+  body_limit: 2M
+grpc:
+  host: 127.0.0.1
+  port: 7002
+db:
+  host: 127.0.0.1
+  port: 5432
+  name: testdb
+  user: testuser
+  password: testpass
+  ssl_mode: disable
+  max_conns: 5
+  min_conns: 1
+  max_conn_idle: 10m
+  max_conn_life: 20m
+  connect_timeout: 3s
+valkey:
+  host: 127.0.0.1
+  port: 6379
+  password: ""
+  db: 0
+log:
+  level: debug
+  format: console
+otel:
+  exporter: none
+  service_name: test-service
+  sampling: 0.5
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0o600))
 
-	cfg := Load()
+	t.Setenv("CONFIG_FILE", cfgPath)
 
-	if cfg.DBName != "testdb" {
-		t.Errorf("expected DBName=testdb, got %s", cfg.DBName)
-	}
-	if cfg.DBUser != "testuser" {
-		t.Errorf("expected DBUser=testuser, got %s", cfg.DBUser)
-	}
-	if cfg.AuthAccessTokenSecret != "access" {
-		t.Errorf("expected AuthAccessTokenSecret=access, got %s", cfg.AuthAccessTokenSecret)
-	}
-	if cfg.AuthRefreshTokenSecret != "refresh" {
-		t.Errorf("expected AuthRefreshTokenSecret=refresh, got %s", cfg.AuthRefreshTokenSecret)
-	}
-	if cfg.ServerPort != 8080 {
-		t.Errorf("expected default ServerPort=8080, got %d", cfg.ServerPort)
-	}
-	if cfg.AuthAccessTokenTTL != 24*time.Hour {
-		t.Errorf("expected default AuthAccessTokenTTL=24h, got %v", cfg.AuthAccessTokenTTL)
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+
+	require.Equal(t, "test-app", cfg.App.Name)
+	require.Equal(t, "test", cfg.App.Environment)
+	require.Equal(t, "127.0.0.1", cfg.HTTP.Host)
+	require.Equal(t, 7001, cfg.HTTP.Port)
+	require.Equal(t, "127.0.0.1:7001", cfg.HTTPAddr())
+	require.Equal(t, "testdb", cfg.DB.Name)
+	require.Equal(t, int32(5), cfg.DB.MaxConns)
+	require.Equal(t, "127.0.0.1:6379", cfg.ValkeyAddr())
+	require.True(t, cfg.Example.Enabled)
+}
+
+func TestLoad_OverridesFromEnv(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	content := `
+app:
+  environment: test
+http:
+  port: 1111
+db:
+  host: 127.0.0.1
+  port: 5432
+  name: db
+  user: u
+  password: p
+valkey:
+  host: 127.0.0.1
+  port: 6379
+log:
+  level: info
+  format: json
+otel:
+  exporter: none
+  service_name: svc
+  sampling: 1.0
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0o600))
+	t.Setenv("CONFIG_FILE", cfgPath)
+
+	t.Setenv("APP_NAME", "env-app")
+	t.Setenv("HTTP_PORT", "2222")
+	t.Setenv("DB_NAME", "envdb")
+	t.Setenv("OTEL_SERVICE_NAME", "env-service")
+	t.Setenv("EXAMPLE_ENABLED", "false")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+
+	require.Equal(t, "env-app", cfg.App.Name)
+	require.Equal(t, 2222, cfg.HTTP.Port)
+	require.Equal(t, "envdb", cfg.DB.Name)
+	require.Equal(t, "env-service", cfg.OTel.ServiceName)
+	require.False(t, cfg.Example.Enabled)
+}
+
+func TestLoad_SliceEnvVariable(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	content := `
+app:
+  environment: test
+  port: 8080
+http:
+  port: 8080
+  read_timeout: 10s
+  write_timeout: 10s
+  idle_timeout: 30s
+  body_limit: 1M
+db:
+  host: 127.0.0.1
+  port: 5432
+  name: db
+  user: u
+  password: p
+valkey:
+  host: 127.0.0.1
+  port: 6379
+log:
+  level: info
+  format: json
+otel:
+  exporter: none
+  service_name: svc
+  sampling: 1.0
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0o600))
+	t.Setenv("CONFIG_FILE", cfgPath)
+
+	t.Setenv("HTTP_CORS_ALLOW_ORIGINS", "https://example.com,https://app.example.com")
+	t.Setenv("HTTP_CORS_ALLOW_METHODS", "GET,POST")
+	t.Setenv("HTTP_CORS_ALLOW_HEADERS", "X-Custom")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+
+	require.Equal(t, []string{"https://example.com", "https://app.example.com"}, cfg.HTTP.CORSAllowOrigins)
+	require.Equal(t, []string{"GET", "POST"}, cfg.HTTP.CORSAllowMethods)
+	require.Equal(t, []string{"X-Custom"}, cfg.HTTP.CORSAllowHeaders)
+}
+
+func TestValidate_InvalidEnvironment(t *testing.T) {
+	cfg := validConfig()
+	cfg.App.Environment = "invalid"
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "config validation failed")
+}
+
+func TestValidate_MaxConnsBelowMinConns(t *testing.T) {
+	cfg := validConfig()
+	cfg.DB.MaxConns = 1
+	cfg.DB.MinConns = 5
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "DB_MAX_CONNS must be >= DB_MIN_CONNS")
+}
+
+func TestValidate_OTLPWithoutEndpoint(t *testing.T) {
+	cfg := validConfig()
+	cfg.OTel.Exporter = "otlp"
+	cfg.OTel.Endpoint = ""
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "OTEL_EXPORTER_OTLP_ENDPOINT is required when OTEL_EXPORTER=otlp")
+}
+
+func TestValidate_InvalidOTLPURL(t *testing.T) {
+	cfg := validConfig()
+	cfg.OTel.Exporter = "otlp"
+	cfg.OTel.Endpoint = "://missing-scheme"
+
+	err := cfg.Validate()
+	require.Error(t, err)
+}
+
+func TestValidate_AcceptsValidConfig(t *testing.T) {
+	cfg := validConfig()
+	require.NoError(t, cfg.Validate())
+}
+
+func TestDBConnString(t *testing.T) {
+	cfg := validConfig()
+	cfg.DB.Password = "p@ss w#rd"
+
+	dsn := cfg.DBConnString()
+
+	parsed, err := url.Parse(dsn)
+	require.NoError(t, err)
+	require.Equal(t, "postgres", parsed.User.Username())
+	password, hasPassword := parsed.User.Password()
+	require.True(t, hasPassword)
+	require.Equal(t, "p@ss w#rd", password)
+	require.Equal(t, "disable", parsed.Query().Get("sslmode"))
+}
+
+func TestGRPCAddr(t *testing.T) {
+	cfg := validConfig()
+	cfg.GRPC.Host = "127.0.0.1"
+	cfg.GRPC.Port = 50051
+	require.Equal(t, "127.0.0.1:50051", cfg.GRPCAddr())
+}
+
+func validConfig() *config.Config {
+	return &config.Config{
+		App: config.AppConfig{
+			Name:            "test",
+			Environment:     "test",
+			Host:            "127.0.0.1",
+			Port:            8080,
+			ShutdownTimeout: 15 * time.Second,
+		},
+		HTTP: config.HTTPConfig{
+			Host:         "127.0.0.1",
+			Port:         8080,
+			ReadTimeout:  15 * time.Second,
+			WriteTimeout: 15 * time.Second,
+			IdleTimeout:  60 * time.Second,
+			BodyLimit:    "1M",
+		},
+		GRPC: config.GRPCConfig{
+			Host: "127.0.0.1",
+			Port: 50051,
+		},
+		DB: config.DBConfig{
+			Host:           "127.0.0.1",
+			Port:           5432,
+			Name:           "app",
+			User:           "postgres",
+			Password:       "postgres",
+			SSLMode:        "disable",
+			MaxConns:       10,
+			MinConns:       2,
+			MaxConnIdle:    30 * time.Minute,
+			MaxConnLife:    1 * time.Hour,
+			ConnectTimeout: 5 * time.Second,
+		},
+		Valkey: config.ValkeyConfig{
+			Host: "127.0.0.1",
+			Port: 6379,
+			DB:   0,
+		},
+		OTel: config.OTelConfig{
+			Exporter:    "none",
+			Endpoint:    "http://localhost:4318",
+			ServiceName: "test-service",
+			Sampling:    1.0,
+		},
+		Log: config.LogConfig{
+			Level:  "info",
+			Format: "json",
+		},
+		Example: config.ExampleConfig{
+			Enabled: true,
+		},
 	}
 }
