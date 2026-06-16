@@ -10,7 +10,7 @@ import (
 
 // Repository is the outbound port for Item persistence.
 //
-//go:generate go run go.uber.org/mock/mockgen -source=repository.go -destination=../repository/mock/repository_mock.go -package=mock
+//go:generate go tool mockgen -source=repository.go -destination=../repository/mock/repository_mock.go -package=mock
 type Repository interface {
 	Create(ctx context.Context, item *Item) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Item, error)

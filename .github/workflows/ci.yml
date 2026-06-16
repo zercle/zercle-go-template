@@ -51,7 +51,6 @@ jobs:
           go-version: '1.26.x'
           cache: true
       - run: go mod download
-      - run: go install go.uber.org/mock/mockgen@latest
       - run: go generate ./...
       - run: go test -race -tags=unit -coverprofile=coverage.out -coverpkg=./internal/...,./pkg/... -covermode=atomic ./internal/... ./pkg/...
       - name: Coverage gate
@@ -108,11 +107,8 @@ jobs:
           go-version: '1.26.x'
           cache: true
       - run: go mod download
-      - run: |
-          go install go.uber.org/mock/mockgen@latest
-          go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
       - run: go generate ./...
-      - run: sqlc generate
+      - run: go tool sqlc generate
       - name: Run migrations
         env:
           DB_HOST: localhost
