@@ -111,7 +111,6 @@ jobs:
           cache: true
       - run: go mod download
       - run: go generate ./...
-      - run: go tool sqlc generate
       - name: Run migrations
         env:
           DB_HOST: localhost

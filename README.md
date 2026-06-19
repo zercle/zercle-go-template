@@ -48,7 +48,7 @@ zercle-go-template/
 │   ├── features/
 │   │   └── example/            # STUB FEATURE — delete to start
 │   ├── infrastructure/
-│   │   ├── db/                 # pgx pool, sqlc, migrations
+│   │   ├── db/                 # gorm db, migrations
 │   │   └── messaging/          # valkey client
 │   ├── shared/
 │   │   ├── errors/             # typed errors + mappers
@@ -70,13 +70,12 @@ zercle-go-template/
 ├── Containerfile.migrate
 ├── LICENSE
 ├── README.md
-├── sqlc.yaml
 └── Taskfile.yml
 ```
 
 ## Architecture overview
 
-The template follows **clean architecture** inside each feature: `domain` defines entities and ports, `repository` implements the outbound port with pgx/sqlc, `service` implements the inbound use-case port, and `handler` exposes HTTP (echo) and gRPC endpoints.
+The template follows **clean architecture** inside each feature: `domain` defines entities and ports, `repository` implements the outbound port with GORM (over pgx), `service` implements the inbound use-case port, and `handler` exposes HTTP (echo) and gRPC endpoints.
 
 Composition uses **samber/do/v2**: every layer exposes `Register(c *do.Injector) error` and `cmd/server/main.go` bootstraps in dependency order:
 

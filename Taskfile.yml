@@ -62,10 +62,9 @@ tasks:
       - git diff --exit-code go.mod go.sum
 
   generate:
-    desc: Generate mocks, sqlc, and protobuf code
+    desc: Generate mocks and protobuf code
     cmds:
       - go generate ./...
-      - sqlc generate
       - task: proto
 
   proto:

@@ -14,11 +14,11 @@ import (
 	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"
 	"github.com/zercle/zercle-go-template/internal/features/example/repository"
 	"github.com/zercle/zercle-go-template/internal/features/example/service"
-	sqlcdb "github.com/zercle/zercle-go-template/internal/infrastructure/db/sqlc"
 	sharederrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 
 	"github.com/labstack/echo/v5"
 	"google.golang.org/grpc"
+	"gorm.io/gorm"
 )
 
 // Register wires the example feature into the composition root.
@@ -28,8 +28,8 @@ func Register(c do.Injector) error {
 	sharederrors.RegisterSentinel(domain.ErrInvalidID, sharederrors.ErrInvalidInput)
 
 	do.Provide(c, func(i do.Injector) (domain.Repository, error) {
-		queries := do.MustInvoke[*sqlcdb.Queries](i)
-		return repository.NewRepository(queries), nil
+		gormDB := do.MustInvoke[*gorm.DB](i)
+		return repository.NewRepository(gormDB), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (domain.Service, error) {

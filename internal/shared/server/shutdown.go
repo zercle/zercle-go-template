@@ -1,5 +1,5 @@
 // Application orchestrates starting and gracefully shutting down HTTP, gRPC,
-// database, Valkey, and telemetry providers.
+// database (gorm), Valkey, and telemetry providers.
 package server
 
 import (
@@ -12,7 +12,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v5"
 	"github.com/rs/zerolog"
 	"github.com/samber/do/v2"
@@ -20,6 +19,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
+	"gorm.io/gorm"
 
 	"github.com/zercle/zercle-go-template/internal/config"
 )
@@ -243,8 +243,8 @@ func (a *Application) shutdown(ctx context.Context) {
 		a.grpcServer.Stop()
 	}
 
-	if pool, ok := a.invokePool(); ok {
-		pool.Close()
+	if db, ok := a.invokeDB(); ok {
+		a.closeDB(db)
 	}
 
 	if client, ok := a.invokeValkey(); ok {
@@ -269,7 +269,7 @@ func (a *Application) shutdown(ctx context.Context) {
 // shutdownHTTP stops the echo HTTP server gracefully. It cancels the start
 // context, which signals echo to begin its internal graceful drain, and then
 // waits for the HTTP goroutine to actually finish (bounded by ctx) so that
-// the database pool and Valkey are not closed underneath in-flight requests.
+// the gorm db and Valkey are not closed underneath in-flight requests.
 func (a *Application) shutdownHTTP(ctx context.Context) error {
 	if a.httpStartCancel != nil {
 		a.httpStartCancel()
@@ -282,18 +282,31 @@ func (a *Application) shutdownHTTP(ctx context.Context) error {
 	return nil
 }
 
-// invokePool looks up the pgx pool from the DI container and reports whether
+// invokeDB looks up the *gorm.DB from the DI container and reports whether
 // it was found. A missing provider is treated as "not configured" and is
 // skipped silently.
-func (a *Application) invokePool() (*pgxpool.Pool, bool) {
-	pool, err := do.Invoke[*pgxpool.Pool](a.injector)
+func (a *Application) invokeDB() (*gorm.DB, bool) {
+	db, err := do.Invoke[*gorm.DB](a.injector)
 	if err == nil {
-		return pool, true
+		return db, true
 	}
 	if !errors.Is(err, do.ErrServiceNotFound) {
-		a.logger.Warn().Err(err).Msg("optional pgx pool not available")
+		a.logger.Warn().Err(err).Msg("optional gorm db not available")
 	}
 	return nil, false
+}
+
+// closeDB closes the underlying *sql.DB of a *gorm.DB and logs any error.
+// *gorm.DB itself does not expose Close; the database/sql handle does.
+func (a *Application) closeDB(db *gorm.DB) {
+	sqlDB, err := db.DB()
+	if err != nil {
+		a.logger.Warn().Err(err).Msg("gorm db sql handle unavailable")
+		return
+	}
+	if err := sqlDB.Close(); err != nil {
+		a.logger.Warn().Err(err).Msg("gorm db close error")
+	}
 }
 
 // invokeValkey looks up the valkey client from the DI container and reports

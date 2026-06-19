@@ -52,7 +52,7 @@ func NewService(repo domain.Repository, defaultPageSize, maxPageSize, maxNameLen
 // Create validates the name and persists a new item.
 func (s *Service) Create(ctx context.Context, name string) (*domain.Item, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || int32(len(name)) > s.maxNameLength {
+	if name == "" || len(name) > int(s.maxNameLength) {
 		return nil, domain.ErrInvalidName
 	}
 
