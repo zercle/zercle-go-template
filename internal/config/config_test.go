@@ -43,7 +43,7 @@ db:
   password: testpass
   ssl_mode: disable
   max_conns: 5
-  min_conns: 1
+  max_idle_conns: 1
   max_conn_idle: 10m
   max_conn_life: 20m
   connect_timeout: 3s
@@ -220,14 +220,14 @@ func TestValidate_InvalidEnvironment(t *testing.T) {
 	require.Contains(t, err.Error(), "config validation failed")
 }
 
-func TestValidate_MaxConnsBelowMinConns(t *testing.T) {
+func TestValidate_MaxConnsBelowMaxIdleConns(t *testing.T) {
 	cfg := validConfig()
 	cfg.DB.MaxConns = 1
-	cfg.DB.MinConns = 5
+	cfg.DB.MaxIdleConns = 5
 
 	err := cfg.Validate()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "DB_MAX_CONNS must be >= DB_MIN_CONNS")
+	require.Contains(t, err.Error(), "DB_MAX_CONNS must be >= DB_MAX_IDLE_CONNS")
 }
 
 func TestValidate_OTLPWithoutEndpoint(t *testing.T) {
@@ -247,6 +247,36 @@ func TestValidate_InvalidOTLPURL(t *testing.T) {
 
 	err := cfg.Validate()
 	require.Error(t, err)
+}
+
+func TestValidate_ExampleDefaultPageSizeExceedsMax(t *testing.T) {
+	cfg := validConfig()
+	cfg.Example.Enabled = true
+	cfg.Example.DefaultPageSize = 100
+	cfg.Example.MaxPageSize = 10
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "EXAMPLE_DEFAULT_PAGE_SIZE must be <= EXAMPLE_MAX_PAGE_SIZE")
+}
+
+func TestValidate_ExampleMaxPageSizeExceedsUpperBound(t *testing.T) {
+	cfg := validConfig()
+	cfg.Example.Enabled = true
+	cfg.Example.MaxPageSize = 100000
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "EXAMPLE_MAX_PAGE_SIZE exceeds")
+}
+
+func TestValidate_ExampleDisabledSkipsChecks(t *testing.T) {
+	cfg := validConfig()
+	cfg.Example.Enabled = false
+	cfg.Example.DefaultPageSize = 1000
+	cfg.Example.MaxPageSize = 10
+
+	require.NoError(t, cfg.Validate())
 }
 
 func TestValidate_AcceptsValidConfig(t *testing.T) {
@@ -306,7 +336,7 @@ func validConfig() *config.Config {
 			Password:       "postgres",
 			SSLMode:        "disable",
 			MaxConns:       10,
-			MinConns:       2,
+			MaxIdleConns:   2,
 			MaxConnIdle:    30 * time.Minute,
 			MaxConnLife:    1 * time.Hour,
 			ConnectTimeout: 5 * time.Second,

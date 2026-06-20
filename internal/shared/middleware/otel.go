@@ -20,19 +20,20 @@ func OTel() echo.MiddlewareFunc {
 			tracer := trace.SpanFromContext(echoCtx).TracerProvider().Tracer("github.com/zercle/zercle-go-template")
 
 			route := c.Path()
-			if route == "" {
-				route = c.Request().URL.Path
+			spanName := c.Request().Method
+			if route != "" {
+				spanName = c.Request().Method + " " + route
 			}
-			newCtx, span := tracer.Start(echoCtx, c.Request().Method+" "+route)
+			newCtx, span := tracer.Start(echoCtx, spanName)
 			defer span.End()
 
 			req := c.Request().WithContext(newCtx)
 			c.SetRequest(req)
 
-			span.SetAttributes(
-				attribute.String("http.method", c.Request().Method),
-				attribute.String("http.route", route),
-			)
+			span.SetAttributes(attribute.String("http.method", c.Request().Method))
+			if route != "" {
+				span.SetAttributes(attribute.String("http.route", route))
+			}
 
 			err := next(c)
 

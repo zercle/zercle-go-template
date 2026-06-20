@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -154,6 +155,12 @@ func (a *Application) StartHTTP(ctx context.Context) error {
 			HidePort:        true,
 			ListenerNetwork: "tcp",
 			GracefulTimeout: a.cfg.App.ShutdownTimeout,
+			BeforeServeFunc: func(s *http.Server) error {
+				s.ReadTimeout = a.cfg.HTTP.ReadTimeout
+				s.WriteTimeout = a.cfg.HTTP.WriteTimeout
+				s.IdleTimeout = a.cfg.HTTP.IdleTimeout
+				return nil
+			},
 			ListenerAddrFunc: func(addr net.Addr) {
 				a.startMu.Lock()
 				a.httpListener = addr

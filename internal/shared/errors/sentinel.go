@@ -28,10 +28,23 @@ var (
 // The sentinel must be comparable (typically a package-level var). The mapping
 // is checked with errors.Is. Registration order is preserved so the first
 // registered match wins.
+//
+// If the same sentinel is registered again, the existing entry's *AppError is
+// replaced in place (the entry keeps its original position so registration
+// order is preserved). The duplicate check uses errors.Is, which for plain
+// (non-wrapping) sentinel vars — the documented registration target, typically
+// a package-level var created via errors.New or fmt.Errorf without %w — is
+// equivalent to identity comparison while satisfying errorlint.
 func RegisterSentinel(sentinel error, app *AppError) {
 	registeredSentinelsMu.Lock()
 	defer registeredSentinelsMu.Unlock()
 
+	for i := range registeredSentinels {
+		if errors.Is(registeredSentinels[i].sentinel, sentinel) {
+			registeredSentinels[i].app = app
+			return
+		}
+	}
 	registeredSentinels = append(registeredSentinels, sentinelEntry{
 		sentinel: sentinel,
 		app:      app,

@@ -39,7 +39,7 @@ db:
   password: postgres
   ssl_mode: disable
   max_conns: 10
-  min_conns: 2
+  max_idle_conns: 2
   max_conn_idle: 30m
   max_conn_life: 1h
   connect_timeout: 5s

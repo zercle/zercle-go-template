@@ -16,20 +16,35 @@ var defaultCORSMethods = []string{"GET", "HEAD", "PUT", "PATCH", "POST", "DELETE
 // configured.
 var defaultCORSHeaders = []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization}
 
+// defaultCORSExposeHeaders is the default list of response headers exposed to
+// the browser when none are configured.
+var defaultCORSExposeHeaders = []string{"Content-Length"}
+
+// defaultCORSMaxAge is the default CORS preflight cache duration (seconds)
+// when not configured.
+const defaultCORSMaxAge = 86400
+
 // CORS returns echo's built-in CORS middleware configured from cfg.HTTP.CORS*.
 // When no origins are configured it defaults to allowing all origins. A nil
-// cfg yields the echo CORS defaults.
+// cfg yields the package CORS defaults (allow all origins, standard
+// methods/headers, Content-Length exposed, 24h preflight cache).
 func CORS(cfg *config.Config) echo.MiddlewareFunc {
 	if cfg == nil {
-		return middleware.CORSWithConfig(middleware.CORSConfig{})
+		return middleware.CORSWithConfig(middleware.CORSConfig{
+			AllowOrigins:  []string{"*"},
+			AllowMethods:  defaultCORSMethods,
+			AllowHeaders:  defaultCORSHeaders,
+			ExposeHeaders: defaultCORSExposeHeaders,
+			MaxAge:        defaultCORSMaxAge,
+		})
 	}
 
 	corsCfg := middleware.CORSConfig{
 		AllowOrigins:  cfg.HTTP.CORSAllowOrigins,
 		AllowMethods:  cfg.HTTP.CORSAllowMethods,
 		AllowHeaders:  cfg.HTTP.CORSAllowHeaders,
-		ExposeHeaders: []string{"Content-Length"},
-		MaxAge:        86400,
+		ExposeHeaders: defaultCORSExposeHeaders,
+		MaxAge:        defaultCORSMaxAge,
 	}
 
 	if len(corsCfg.AllowOrigins) == 0 {

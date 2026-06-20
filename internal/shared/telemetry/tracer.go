@@ -29,10 +29,7 @@ func NewTracerProvider(ctx context.Context, cfg *config.Config) (*trace.TracerPr
 		return nil, nil, fmt.Errorf("OTEL_EXPORTER_OTLP_ENDPOINT is required when OTEL_EXPORTER=%s", cfg.OTel.Exporter)
 	}
 
-	endpoint := cfg.OTel.Endpoint
-	if !strings.HasSuffix(endpoint, "/v1/traces") {
-		endpoint = strings.TrimSuffix(endpoint, "/") + "/v1/traces"
-	}
+	endpoint := otlpTracesEndpoint(cfg.OTel.Endpoint)
 
 	exporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint))
 	if err != nil {
@@ -53,4 +50,15 @@ func NewTracerProvider(ctx context.Context, cfg *config.Config) (*trace.TracerPr
 	)
 
 	return provider, provider.Shutdown, nil
+}
+
+// otlpTracesEndpoint normalizes a raw OTLP endpoint so it always points at the
+// OTLP HTTP traces path. If the endpoint already ends with "/v1/traces" it is
+// returned unchanged; otherwise any trailing slash is stripped and "/v1/traces"
+// is appended.
+func otlpTracesEndpoint(raw string) string {
+	if strings.HasSuffix(raw, "/v1/traces") {
+		return raw
+	}
+	return strings.TrimSuffix(raw, "/") + "/v1/traces"
 }

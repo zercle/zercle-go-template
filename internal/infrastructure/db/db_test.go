@@ -46,7 +46,7 @@ func TestNewDB_UnreachableHost(t *testing.T) {
 			Password:       "postgres",
 			SSLMode:        "disable",
 			MaxConns:       2,
-			MinConns:       1,
+			MaxIdleConns:   1,
 			MaxConnIdle:    5 * time.Second,
 			MaxConnLife:    10 * time.Second,
 			ConnectTimeout: 1 * time.Second,

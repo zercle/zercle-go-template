@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -17,7 +18,7 @@ import (
 const (
 	defaultPageSizeFallback int32 = 20
 	maxPageSizeFallback     int32 = 100
-	maxNameLengthFallback         = 255
+	maxNameLengthFallback   int32 = 255
 )
 
 // Service implements the domain.Service inbound use-case port.
@@ -52,7 +53,7 @@ func NewService(repo domain.Repository, defaultPageSize, maxPageSize, maxNameLen
 // Create validates the name and persists a new item.
 func (s *Service) Create(ctx context.Context, name string) (*domain.Item, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || len(name) > int(s.maxNameLength) {
+	if name == "" || utf8.RuneCountInString(name) > int(s.maxNameLength) {
 		return nil, domain.ErrInvalidName
 	}
 

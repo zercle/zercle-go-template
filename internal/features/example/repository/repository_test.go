@@ -33,12 +33,12 @@ import (
 //     positional args. The ORDER of args matches the column order in the
 //     GORM model (id, name, created_at, updated_at).
 //   - GetByID: GORM emits
-//       SELECT * FROM "items" WHERE id = $1 ORDER BY "items"."id" LIMIT $2
+//     SELECT * FROM "items" WHERE id = $1 ORDER BY "items"."id" LIMIT $2
 //     i.e. TWO bound args (the id and the literal 1 for LIMIT). The
 //     expectation passes AnyArg() twice.
 //   - List with offset=0 omits the OFFSET clause entirely, so the regex
 //     tolerates the OFFSET being absent:
-//       SELECT * FROM "items" ORDER BY created_at DESC, id DESC LIMIT $1
+//     SELECT * FROM "items" ORDER BY created_at DESC, id DESC LIMIT $1
 //   - For uuid args we still use AnyArg() to avoid driver-level type
 //     mismatch (uuid.UUID vs string vs [16]byte representations).
 //   - sqlmock.NewRows(...).AddRow(id.String(), ...) returns the uuid as a

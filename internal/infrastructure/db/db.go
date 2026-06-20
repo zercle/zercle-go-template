@@ -18,7 +18,8 @@ import (
 // NewDB builds a configured *gorm.DB from the application config. It derives
 // a DSN from cfg.DBConnString(), augments it with connect_timeout, opens the
 // GORM connection, applies pool tuning via the underlying *sql.DB, and pings
-// the database before returning. The caller is responsible for calling Close.
+// the database before returning. The caller is responsible for closing the
+// underlying *sql.DB obtained via (*gorm.DB).DB().
 //
 // Schema is owned by golang-migrate; AutoMigrate is never invoked here.
 func NewDB(ctx context.Context, cfg *config.Config) (*gorm.DB, error) {
@@ -41,11 +42,16 @@ func NewDB(ctx context.Context, cfg *config.Config) (*gorm.DB, error) {
 
 	sqlDB, err := gormDB.DB()
 	if err != nil {
+		// (*gorm.DB).DB() is the only accessor for the underlying *sql.DB; on
+		// failure there is no handle to close, so the partially-opened pool is
+		// abandoned. This path is unreachable in normal operation (it only
+		// fails if the Dialector cannot provide a *sql.DB, which postgres
+		// always can).
 		return nil, fmt.Errorf("get sql db: %w", err)
 	}
 
 	sqlDB.SetMaxOpenConns(int(cfg.DB.MaxConns))
-	sqlDB.SetMaxIdleConns(int(cfg.DB.MinConns))
+	sqlDB.SetMaxIdleConns(int(cfg.DB.MaxIdleConns))
 	sqlDB.SetConnMaxIdleTime(cfg.DB.MaxConnIdle)
 	sqlDB.SetConnMaxLifetime(cfg.DB.MaxConnLife)
 

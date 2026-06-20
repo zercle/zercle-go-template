@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -51,11 +52,6 @@ func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Reg
 	if limit := parseBodyLimitBytes(cfg.HTTP.BodyLimit); limit > 0 {
 		e.Use(echomw.BodyLimit(limit))
 	}
-
-	// TODO: apply HTTP read/write/idle timeouts once echo v5 exposes the
-	// underlying *http.Server (echo v5 StartConfig.BeforeServeFunc is the
-	// supported hook, but it is set where the server is started, not here).
-	_ = cfg
 
 	probeTimeout := cfg.HTTP.HealthProbeTimeout
 	if probeTimeout <= 0 {
@@ -111,6 +107,18 @@ func parseBodyLimitBytes(s string) int64 {
 	upper := strings.ToUpper(s)
 	multiplier := int64(1)
 	switch {
+	case strings.HasSuffix(upper, "KB"):
+		multiplier = 1024
+		upper = strings.TrimSuffix(upper, "KB")
+	case strings.HasSuffix(upper, "MB"):
+		multiplier = 1024 * 1024
+		upper = strings.TrimSuffix(upper, "MB")
+	case strings.HasSuffix(upper, "GB"):
+		multiplier = 1024 * 1024 * 1024
+		upper = strings.TrimSuffix(upper, "GB")
+	case strings.HasSuffix(upper, "B"):
+		multiplier = 1
+		upper = strings.TrimSuffix(upper, "B")
 	case strings.HasSuffix(upper, "K"):
 		multiplier = 1024
 		upper = strings.TrimSuffix(upper, "K")
@@ -124,6 +132,9 @@ func parseBodyLimitBytes(s string) int64 {
 	upper = strings.TrimSpace(upper)
 	n, err := strconv.ParseInt(upper, 10, 64)
 	if err != nil || n <= 0 {
+		return 0
+	}
+	if n > math.MaxInt64/multiplier {
 		return 0
 	}
 	return n * multiplier

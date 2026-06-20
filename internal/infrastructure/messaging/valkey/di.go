@@ -15,7 +15,15 @@ import (
 // checker. The ctx is used to drive the initial client construction so
 // startup cancellation/timeouts propagate.
 func Register(ctx context.Context, c do.Injector) error {
-	cfg := do.MustInvoke[*config.Config](c)
+	cfg, err := do.Invoke[*config.Config](c)
+	if err != nil {
+		return fmt.Errorf("resolve config: %w", err)
+	}
+
+	registry, err := do.Invoke[*telemetry.Registry](c)
+	if err != nil {
+		return fmt.Errorf("resolve health registry: %w", err)
+	}
 
 	client, err := NewClient(ctx, cfg)
 	if err != nil {
@@ -23,10 +31,6 @@ func Register(ctx context.Context, c do.Injector) error {
 	}
 	do.ProvideValue(c, client)
 
-	registry, err := do.Invoke[*telemetry.Registry](c)
-	if err != nil {
-		return fmt.Errorf("resolve health registry: %w", err)
-	}
 	registry.AddReadiness(valkeyChecker{client: client})
 
 	return nil

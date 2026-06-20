@@ -24,13 +24,6 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// WithTx returns a Repository that uses the provided transactional *gorm.DB.
-// It mirrors the prior sqlc Queries.WithTx API and is intended for callers
-// that need to compose multiple repository calls inside a single transaction.
-func (r *Repository) WithTx(tx *gorm.DB) *Repository {
-	return &Repository{db: tx}
-}
-
 // Create persists a new item.
 func (r *Repository) Create(ctx context.Context, item *domain.Item) error {
 	m := mapDomainToModel(item)
