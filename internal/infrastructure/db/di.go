@@ -22,6 +22,7 @@ func Register(ctx context.Context, c do.Injector) error {
 		return err
 	}
 	do.ProvideValue(c, db)
+	do.ProvideValue(c, NewShutdowner(db))
 
 	registry, err := do.Invoke[*telemetry.Registry](c)
 	if err != nil {

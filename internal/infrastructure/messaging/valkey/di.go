@@ -30,6 +30,7 @@ func Register(ctx context.Context, c do.Injector) error {
 		return err
 	}
 	do.ProvideValue(c, client)
+	do.ProvideValue(c, NewShutdowner(client))
 
 	registry.AddReadiness(valkeyChecker{client: client})
 
