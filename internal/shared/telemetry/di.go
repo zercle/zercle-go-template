@@ -13,8 +13,10 @@ import (
 )
 
 // Register wires logger, tracer provider, meter provider, and health registry
-// into the DI container.
-func Register(c do.Injector) error {
+// into the DI container. The per-provider shutdown callbacks are intentionally
+// discarded; the Application resolves the providers directly and calls
+// provider.Shutdown itself so lifecycle ordering is explicit.
+func Register(ctx context.Context, c do.Injector) error {
 	do.Provide(c, func(i do.Injector) (*zerolog.Logger, error) {
 		cfg := do.MustInvoke[*config.Config](i)
 		return NewLogger(cfg)
@@ -22,7 +24,7 @@ func Register(c do.Injector) error {
 
 	do.Provide(c, func(i do.Injector) (*trace.TracerProvider, error) {
 		cfg := do.MustInvoke[*config.Config](i)
-		provider, _, err := NewTracer(context.Background(), cfg)
+		provider, _, err := NewTracerProvider(ctx, cfg)
 		return provider, err
 	})
 

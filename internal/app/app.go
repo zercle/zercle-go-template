@@ -5,6 +5,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/rs/zerolog"
@@ -30,19 +31,26 @@ var (
 // orchestrated application along with the populated injector.
 //
 // The sequence is config → telemetry → database → valkey → shared servers →
-// example feature. If any registration fails the injector is shut down and
-// the error is returned with context.
+// example feature. On error the partially-wired injector is returned; the
+// caller is responsible for calling injector.Shutdown() to release any
+// providers that were successfully constructed.
 func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Injector, error) {
+	if cfg == nil {
+		return nil, nil, fmt.Errorf("config is nil")
+	}
+
 	injector := do.New()
 
 	do.ProvideValue(injector, cfg)
 
-	if err := telemetry.Register(injector); err != nil {
-		_ = injector.Shutdown()
+	if err := telemetry.Register(ctx, injector); err != nil {
 		return nil, injector, fmt.Errorf("register telemetry: %w", err)
 	}
 
-	logger := do.MustInvoke[*zerolog.Logger](injector)
+	logger, err := do.Invoke[*zerolog.Logger](injector)
+	if err != nil {
+		return nil, injector, fmt.Errorf("resolve logger: %w", err)
+	}
 	logger.Info().
 		Str("version", Version).
 		Str("commit", CommitSHA).
@@ -51,22 +59,18 @@ func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Inj
 		Msg("starting server")
 
 	if err := db.Register(ctx, injector); err != nil {
-		_ = injector.Shutdown()
 		return nil, injector, fmt.Errorf("register database: %w", err)
 	}
 
 	if err := valkey.Register(ctx, injector); err != nil {
-		_ = injector.Shutdown()
 		return nil, injector, fmt.Errorf("register valkey: %w", err)
 	}
 
 	if err := server.Register(injector); err != nil {
-		_ = injector.Shutdown()
 		return nil, injector, fmt.Errorf("register shared servers: %w", err)
 	}
 
 	if err := exampledi.Register(injector); err != nil {
-		_ = injector.Shutdown()
 		return nil, injector, fmt.Errorf("register example feature: %w", err)
 	}
 
@@ -80,6 +84,9 @@ func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Inj
 func Run(ctx context.Context, cfg *config.Config) error {
 	application, injector, err := Build(ctx, cfg)
 	if err != nil {
+		if injector != nil {
+			_ = injector.Shutdown()
+		}
 		return err
 	}
 
@@ -91,7 +98,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		}
 	}()
 
-	if err := application.Run(ctx); err != nil {
+	if err := application.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		return fmt.Errorf("run application: %w", err)
 	}
 	return nil

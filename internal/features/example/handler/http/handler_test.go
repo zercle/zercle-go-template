@@ -20,7 +20,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	"github.com/zercle/zercle-go-template/internal/features/example/handler/http"
+	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"
 	"github.com/zercle/zercle-go-template/internal/features/example/service/mock"
 	sharederrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
@@ -30,6 +30,7 @@ func setupTest(t *testing.T) (*echo.Echo, *mock.MockService) {
 
 	sharederrors.RegisterSentinel(domain.ErrItemNotFound, sharederrors.ErrNotFound)
 	sharederrors.RegisterSentinel(domain.ErrInvalidName, sharederrors.ErrInvalidInput)
+	sharederrors.RegisterSentinel(domain.ErrInvalidID, sharederrors.ErrInvalidInput)
 
 	e := echo.New()
 	e.Validator = newValidator(t)

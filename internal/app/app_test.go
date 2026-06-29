@@ -28,12 +28,13 @@ func TestBuild_DatabaseUnreachable(t *testing.T) {
 			ShutdownTimeout: 5 * time.Second,
 		},
 		HTTP: config.HTTPConfig{
-			Host:         "0.0.0.0",
-			Port:         8080,
-			ReadTimeout:  15 * time.Second,
-			WriteTimeout: 15 * time.Second,
-			IdleTimeout:  60 * time.Second,
-			BodyLimit:    "1M",
+			Host:               "0.0.0.0",
+			Port:               8080,
+			ReadTimeout:        15 * time.Second,
+			WriteTimeout:       15 * time.Second,
+			IdleTimeout:        60 * time.Second,
+			BodyLimit:          "1M",
+			HealthProbeTimeout: 5 * time.Second,
 		},
 		GRPC: config.GRPCConfig{Host: "0.0.0.0", Port: 50051},
 		DB: config.DBConfig{
@@ -44,7 +45,7 @@ func TestBuild_DatabaseUnreachable(t *testing.T) {
 			Password:       "postgres",
 			SSLMode:        "disable",
 			MaxConns:       2,
-			MinConns:       1,
+			MaxIdleConns:   1,
 			MaxConnIdle:    5 * time.Second,
 			MaxConnLife:    10 * time.Second,
 			ConnectTimeout: 1 * time.Second,
@@ -56,6 +57,11 @@ func TestBuild_DatabaseUnreachable(t *testing.T) {
 		},
 		OTel: config.OTelConfig{Exporter: "none", ServiceName: "test"},
 		Log:  config.LogConfig{Level: "info", Format: "json"},
+		Example: config.ExampleConfig{
+			DefaultPageSize: 20,
+			MaxPageSize:     100,
+			MaxNameLength:   255,
+		},
 	}
 
 	require.NoError(t, cfg.Validate())

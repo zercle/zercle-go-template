@@ -22,11 +22,15 @@ func Recover(logger *zerolog.Logger) echo.MiddlewareFunc {
 
 					if recErr, ok := r.(error); ok {
 						log = log.Err(recErr)
+					} else {
+						log = log.Interface("panic", r)
 					}
 					log.Msg("request panic recovered")
 
 					status, body := sharederrors.HTTPError(sharederrors.ErrInternal)
-					_ = c.JSON(status, body)
+					if jsonErr := c.JSON(status, body); jsonErr != nil {
+						logger.Error().Err(jsonErr).Msg("failed to write panic response")
+					}
 				}
 			}()
 

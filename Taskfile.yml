@@ -4,12 +4,11 @@ vars:
   BIN_DIR: bin
   COVERAGE_OUT: coverage.out
 
-env:
-  CGO_ENABLED: "0"
-
 tasks:
   build:
     desc: Build the server binary
+    env:
+      CGO_ENABLED: "0"
     cmds:
       - go build -ldflags="-s -w -X main.Version={{.GIT_VERSION | default "dev"}} -X main.CommitSHA={{.GIT_COMMIT | default "unknown"}} -X main.BuildTime={{.BUILD_TIME | default "unknown"}}" -o {{.BIN_DIR}}/server ./cmd/server
 
@@ -22,7 +21,7 @@ tasks:
   test:
     desc: Run all tests (default unit tag)
     cmds:
-      - go test -race -tags=unit -coverprofile={{.COVERAGE_OUT}} -coverpkg=./internal/...,./pkg/... ./internal/... ./pkg/...
+      - task: test-unit
 
   test-unit:
     desc: Run unit tests only
@@ -63,10 +62,9 @@ tasks:
       - git diff --exit-code go.mod go.sum
 
   generate:
-    desc: Generate mocks, sqlc, and protobuf code
+    desc: Generate mocks and protobuf code
     cmds:
       - go generate ./...
-      - sqlc generate
       - task: proto
 
   proto:

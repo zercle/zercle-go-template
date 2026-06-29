@@ -14,23 +14,21 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // postgres driver
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 
 	"github.com/zercle/zercle-go-template/internal/config"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	"github.com/zercle/zercle-go-template/internal/features/example/repository"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/db"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/db/migrations"
-	sqlcdb "github.com/zercle/zercle-go-template/internal/infrastructure/db/sqlc"
 )
 
 type RepositoryIntegrationSuite struct {
 	suite.Suite
-	pool   *pgxpool.Pool
-	repo   *repository.Repository
-	testDB string
+	db   *gorm.DB
+	repo *repository.Repository
 }
 
 func (s *RepositoryIntegrationSuite) SetupSuite() {
@@ -40,19 +38,20 @@ func (s *RepositoryIntegrationSuite) SetupSuite() {
 	cfg, err := config.Load()
 	require.NoError(t, err)
 
-	// Connect to the configured database for integration tests.
-	s.pool, err = db.NewPool(context.Background(), cfg)
+	s.db, err = db.NewDB(context.Background(), cfg)
 	require.NoError(t, err)
 
 	s.runMigrations(cfg)
 
-	queries := sqlcdb.New(s.pool)
-	s.repo = repository.NewRepository(s.pool, queries)
+	s.repo = repository.NewRepository(s.db)
 }
 
 func (s *RepositoryIntegrationSuite) TearDownSuite() {
-	if s.pool != nil {
-		s.pool.Close()
+	if s.db != nil {
+		sqlDB, err := s.db.DB()
+		if err == nil {
+			_ = sqlDB.Close()
+		}
 	}
 }
 
@@ -60,7 +59,9 @@ func (s *RepositoryIntegrationSuite) SetupTest() {
 	t := s.T()
 	t.Helper()
 
-	_, err := s.pool.Exec(context.Background(), "TRUNCATE TABLE items RESTART IDENTITY CASCADE")
+	err := s.db.WithContext(context.Background()).
+		Exec("TRUNCATE TABLE items RESTART IDENTITY CASCADE").
+		Error
 	require.NoError(t, err)
 }
 

@@ -43,7 +43,7 @@ db:
   password: testpass
   ssl_mode: disable
   max_conns: 5
-  min_conns: 1
+  max_idle_conns: 1
   max_conn_idle: 10m
   max_conn_life: 20m
   connect_timeout: 3s
@@ -76,7 +76,7 @@ otel:
 	require.Equal(t, "testdb", cfg.DB.Name)
 	require.Equal(t, int32(5), cfg.DB.MaxConns)
 	require.Equal(t, "127.0.0.1:6379", cfg.ValkeyAddr())
-	require.True(t, cfg.Example.Enabled)
+	require.False(t, cfg.Example.Enabled)
 }
 
 func TestLoad_OverridesFromEnv(t *testing.T) {
@@ -172,6 +172,45 @@ otel:
 	require.Equal(t, []string{"X-Custom"}, cfg.HTTP.CORSAllowHeaders)
 }
 
+func TestLoad_ExampleDefaults(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	content := `
+app:
+  environment: test
+http:
+  port: 8080
+db:
+  host: 127.0.0.1
+  port: 5432
+  name: db
+  user: u
+  password: p
+valkey:
+  host: 127.0.0.1
+  port: 6379
+log:
+  level: info
+  format: json
+otel:
+  exporter: none
+  service_name: svc
+  sampling: 1.0
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0o600))
+	t.Setenv("CONFIG_FILE", cfgPath)
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+
+	require.Equal(t, int32(20), cfg.Example.DefaultPageSize)
+	require.Equal(t, int32(100), cfg.Example.MaxPageSize)
+	require.Equal(t, int32(255), cfg.Example.MaxNameLength)
+	require.Equal(t, 5*time.Second, cfg.HTTP.HealthProbeTimeout)
+}
+
 func TestValidate_InvalidEnvironment(t *testing.T) {
 	cfg := validConfig()
 	cfg.App.Environment = "invalid"
@@ -181,14 +220,14 @@ func TestValidate_InvalidEnvironment(t *testing.T) {
 	require.Contains(t, err.Error(), "config validation failed")
 }
 
-func TestValidate_MaxConnsBelowMinConns(t *testing.T) {
+func TestValidate_MaxConnsBelowMaxIdleConns(t *testing.T) {
 	cfg := validConfig()
 	cfg.DB.MaxConns = 1
-	cfg.DB.MinConns = 5
+	cfg.DB.MaxIdleConns = 5
 
 	err := cfg.Validate()
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "DB_MAX_CONNS must be >= DB_MIN_CONNS")
+	require.Contains(t, err.Error(), "DB_MAX_CONNS must be >= DB_MAX_IDLE_CONNS")
 }
 
 func TestValidate_OTLPWithoutEndpoint(t *testing.T) {
@@ -208,6 +247,36 @@ func TestValidate_InvalidOTLPURL(t *testing.T) {
 
 	err := cfg.Validate()
 	require.Error(t, err)
+}
+
+func TestValidate_ExampleDefaultPageSizeExceedsMax(t *testing.T) {
+	cfg := validConfig()
+	cfg.Example.Enabled = true
+	cfg.Example.DefaultPageSize = 100
+	cfg.Example.MaxPageSize = 10
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "EXAMPLE_DEFAULT_PAGE_SIZE must be <= EXAMPLE_MAX_PAGE_SIZE")
+}
+
+func TestValidate_ExampleMaxPageSizeExceedsUpperBound(t *testing.T) {
+	cfg := validConfig()
+	cfg.Example.Enabled = true
+	cfg.Example.MaxPageSize = 100000
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "EXAMPLE_MAX_PAGE_SIZE exceeds")
+}
+
+func TestValidate_ExampleDisabledSkipsChecks(t *testing.T) {
+	cfg := validConfig()
+	cfg.Example.Enabled = false
+	cfg.Example.DefaultPageSize = 1000
+	cfg.Example.MaxPageSize = 10
+
+	require.NoError(t, cfg.Validate())
 }
 
 func TestValidate_AcceptsValidConfig(t *testing.T) {
@@ -247,12 +316,13 @@ func validConfig() *config.Config {
 			ShutdownTimeout: 15 * time.Second,
 		},
 		HTTP: config.HTTPConfig{
-			Host:         "127.0.0.1",
-			Port:         8080,
-			ReadTimeout:  15 * time.Second,
-			WriteTimeout: 15 * time.Second,
-			IdleTimeout:  60 * time.Second,
-			BodyLimit:    "1M",
+			Host:               "127.0.0.1",
+			Port:               8080,
+			ReadTimeout:        15 * time.Second,
+			WriteTimeout:       15 * time.Second,
+			IdleTimeout:        60 * time.Second,
+			BodyLimit:          "1M",
+			HealthProbeTimeout: 5 * time.Second,
 		},
 		GRPC: config.GRPCConfig{
 			Host: "127.0.0.1",
@@ -266,7 +336,7 @@ func validConfig() *config.Config {
 			Password:       "postgres",
 			SSLMode:        "disable",
 			MaxConns:       10,
-			MinConns:       2,
+			MaxIdleConns:   2,
 			MaxConnIdle:    30 * time.Minute,
 			MaxConnLife:    1 * time.Hour,
 			ConnectTimeout: 5 * time.Second,
@@ -287,7 +357,10 @@ func validConfig() *config.Config {
 			Format: "json",
 		},
 		Example: config.ExampleConfig{
-			Enabled: true,
+			Enabled:         true,
+			DefaultPageSize: 20,
+			MaxPageSize:     100,
+			MaxNameLength:   255,
 		},
 	}
 }

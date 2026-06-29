@@ -4,22 +4,30 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
-// pgxChecker reports PostgreSQL connectivity via pool.Ping.
-type pgxChecker struct {
-	pool *pgxpool.Pool
+// gormChecker reports PostgreSQL connectivity by pinging the underlying
+// *sql.DB exposed by *gorm.DB.
+type gormChecker struct {
+	db *gorm.DB
 }
 
 // Name returns the dependency name reported in health output.
-func (pgxChecker) Name() string {
+func (gormChecker) Name() string {
 	return "postgres"
 }
 
 // Check verifies PostgreSQL is reachable by pinging the connection pool.
-func (c pgxChecker) Check(ctx context.Context) error {
-	if err := c.pool.Ping(ctx); err != nil {
+func (c gormChecker) Check(ctx context.Context) error {
+	if c.db == nil {
+		return fmt.Errorf("gorm db is not initialized")
+	}
+	sqlDB, err := c.db.DB()
+	if err != nil {
+		return fmt.Errorf("get sql db: %w", err)
+	}
+	if err := sqlDB.PingContext(ctx); err != nil {
 		return fmt.Errorf("ping postgres: %w", err)
 	}
 	return nil

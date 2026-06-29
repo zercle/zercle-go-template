@@ -27,37 +27,42 @@ The server listens on `0.0.0.0:8080` for HTTP and `0.0.0.0:50051` for gRPC.
 zercle-go-template/
 ├── .agents/
 │   ├── AGENTS.md
-│   └── plans/reinit-template/
+│   └── plans/                  # spec/canvas/state per task
 ├── .github/
 │   ├── dependabot.yml
 │   └── workflows/
+│       └── ci.yml
 ├── api/
+│   ├── pb/example/v1/          # generated protobuf Go code (task proto)
 │   └── proto/example/v1/
 │       └── example.proto
-├── bin/
-│   └── server                  # build output (ignored)
+├── bin/                        # build output (ignored)
 ├── cmd/
 │   ├── migrate/main.go         # migration runner
-│   └── server/main.go          # composition root
+│   └── server/main.go          # entry point: loads config, delegates to internal/app
 ├── deployments/
-│   └── kustomize/
-│       ├── base/
-│       └── overlays/
+│   ├── kustomize/
+│   │   ├── base/
+│   │   └── overlays/
+│   └── observability/          # otel-collector + prometheus configs
 ├── internal/
+│   ├── app/                    # reusable composition root (DI wiring, app.Run)
 │   ├── config/                 # validated viper config
 │   ├── features/
 │   │   └── example/            # STUB FEATURE — delete to start
 │   ├── infrastructure/
-│   │   ├── db/                 # pgx pool, sqlc, migrations
+│   │   ├── db/                 # gorm db, migrations
 │   │   └── messaging/          # valkey client
 │   ├── shared/
 │   │   ├── errors/             # typed errors + mappers
 │   │   ├── middleware/         # recover, request-id, access-log, cors, otel
 │   │   ├── server/             # echo + grpc bootstrap, shutdown
 │   │   └── telemetry/          # zerolog, tracer, meter, health
-│   └── pkg/                    # importable helpers
+│   └── testutil/               # shared test helpers + fixtures
 ├── pkg/
 │   └── uuidgen/
+├── test/
+│   └── e2e/                    # end-to-end tests (task test-e2e)
 ├── .editorconfig
 ├── .env.example
 ├── .gitattributes
@@ -70,15 +75,14 @@ zercle-go-template/
 ├── Containerfile.migrate
 ├── LICENSE
 ├── README.md
-├── sqlc.yaml
 └── Taskfile.yml
 ```
 
 ## Architecture overview
 
-The template follows **clean architecture** inside each feature: `domain` defines entities and ports, `repository` implements the outbound port with pgx/sqlc, `service` implements the inbound use-case port, and `handler` exposes HTTP (echo) and gRPC endpoints.
+The template follows **clean architecture** inside each feature: `domain` defines entities and ports, `repository` implements the outbound port with GORM (over pgx), `service` implements the inbound use-case port, and `handler` exposes HTTP (echo) and gRPC endpoints.
 
-Composition uses **samber/do/v2**: every layer exposes `Register(c *do.Injector) error` and `cmd/server/main.go` bootstraps in dependency order:
+Composition uses **samber/do/v2**: every layer exposes `Register(c *do.Injector) error`. `internal/app` is the reusable composition root that wires the DI container; `cmd/server/main.go` is a thin entry point that loads config, sets build-time vars (Version/CommitSHA/BuildTime), and calls `app.Run`, which bootstraps the container in dependency order:
 
 ```
 config → telemetry → infrastructure (db, valkey) → shared servers → features
@@ -90,10 +94,10 @@ Configuration is loaded from `config.yaml` and the environment (no prefix) into 
 
 1. Remove `internal/features/example/`.
 2. Remove `api/proto/example/`.
-3. Remove the `example.Register(injector)` call from `cmd/server/main.go`.
+3. Remove the `exampledi.Register(injector)` call from `internal/app/app.go` (and its import of `internal/features/example/di`).
 4. Delete the `example:` block from `config.yaml` and `.env.example`.
 
-Then add your own feature packages under `internal/features/` and wire them in `cmd/server/main.go`.
+Then add your own feature packages under `internal/features/` and wire them in `internal/app/app.go`.
 
 ## Testing
 

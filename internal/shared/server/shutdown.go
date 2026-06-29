@@ -1,5 +1,5 @@
 // Application orchestrates starting and gracefully shutting down HTTP, gRPC,
-// database, Valkey, and telemetry providers.
+// database (gorm), Valkey, and telemetry providers.
 package server
 
 import (
@@ -7,17 +7,20 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v5"
 	"github.com/rs/zerolog"
 	"github.com/samber/do/v2"
 	"github.com/valkey-io/valkey-go"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
+	"gorm.io/gorm"
 
 	"github.com/zercle/zercle-go-template/internal/config"
 )
@@ -32,12 +35,11 @@ type Application struct {
 	httpListener    net.Addr
 	httpStartCtx    context.Context
 	httpStartCancel context.CancelFunc
+	httpStopped     chan struct{}
+	httpStartErr    error
 	grpcServer      *grpc.Server
 	grpcListener    net.Listener
 	injector        do.Injector
-	traceShutdown   func(context.Context) error
-	meterShutdown   func(context.Context) error
-	shutdownTimeout int64
 	startMu         sync.Mutex
 	httpStarted     chan struct{}
 }
@@ -47,11 +49,11 @@ type Application struct {
 // look up infrastructure dependencies at runtime inside Run.
 func NewApplication(injector do.Injector, cfg *config.Config, logger *zerolog.Logger) *Application {
 	return &Application{
-		cfg:             cfg,
-		logger:          logger,
-		injector:        injector,
-		shutdownTimeout: int64(cfg.App.ShutdownTimeout.Seconds()),
-		httpStarted:     make(chan struct{}),
+		cfg:         cfg,
+		logger:      logger,
+		injector:    injector,
+		httpStarted: make(chan struct{}),
+		httpStopped: make(chan struct{}),
 	}
 }
 
@@ -146,12 +148,19 @@ func (a *Application) StartHTTP(ctx context.Context) error {
 	a.startMu.Unlock()
 
 	go func() {
+		defer close(a.httpStopped)
 		sc := echo.StartConfig{
 			Address:         a.cfg.HTTPAddr(),
 			HideBanner:      true,
 			HidePort:        true,
 			ListenerNetwork: "tcp",
 			GracefulTimeout: a.cfg.App.ShutdownTimeout,
+			BeforeServeFunc: func(s *http.Server) error {
+				s.ReadTimeout = a.cfg.HTTP.ReadTimeout
+				s.WriteTimeout = a.cfg.HTTP.WriteTimeout
+				s.IdleTimeout = a.cfg.HTTP.IdleTimeout
+				return nil
+			},
 			ListenerAddrFunc: func(addr net.Addr) {
 				a.startMu.Lock()
 				a.httpListener = addr
@@ -161,6 +170,12 @@ func (a *Application) StartHTTP(ctx context.Context) error {
 		}
 		if err := sc.Start(a.httpStartCtx, a.httpServer); err != nil {
 			a.logger.Error().Err(err).Msg("http server stopped")
+			a.startMu.Lock()
+			if a.httpListener == nil {
+				a.httpStartErr = err
+				close(a.httpStarted)
+			}
+			a.startMu.Unlock()
 		}
 	}()
 
@@ -174,13 +189,14 @@ func (a *Application) startGRPC() error {
 	if err != nil {
 		return fmt.Errorf("listen grpc %s: %w", a.cfg.GRPCAddr(), err)
 	}
-	a.grpcListener = listener
 
 	var grpcErr error
 	a.grpcServer, grpcErr = do.Invoke[*grpc.Server](a.injector)
 	if grpcErr != nil {
+		_ = listener.Close()
 		return fmt.Errorf("resolve grpc server: %w", grpcErr)
 	}
+	a.grpcListener = listener
 
 	return nil
 }
@@ -200,16 +216,26 @@ func (a *Application) serverErrorChannel() <-chan error {
 	return errCh
 }
 
-// runHTTPServer blocks until the HTTP server stops.
+// runHTTPServer blocks until the HTTP server stops. If the server failed to
+// bind (so the listener address was never produced), the start error is
+// returned so Run can surface it instead of blocking forever.
 func (a *Application) runHTTPServer() error {
 	<-a.httpStarted
+	if a.httpStartErr != nil {
+		return a.httpStartErr
+	}
 	<-a.httpStartCtx.Done()
 	return nil
 }
 
-// shutdown performs the ordered graceful shutdown sequence.
+// shutdown performs the ordered graceful shutdown sequence using a fresh,
+// timeout-bounded context derived from ctx so an already-cancelled signal
+// context does not starve the per-component shutdown calls.
 func (a *Application) shutdown(ctx context.Context) {
-	if err := a.shutdownHTTP(ctx); err != nil {
+	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), a.cfg.App.ShutdownTimeout)
+	defer cancel()
+
+	if err := a.shutdownHTTP(shutdownCtx); err != nil {
 		a.logger.Error().Err(err).Msg("http shutdown error")
 	}
 
@@ -220,26 +246,26 @@ func (a *Application) shutdown(ctx context.Context) {
 	}()
 	select {
 	case <-done:
-	case <-ctx.Done():
+	case <-shutdownCtx.Done():
 		a.grpcServer.Stop()
 	}
 
-	if pool, ok := a.invokePool(); ok {
-		pool.Close()
+	if db, ok := a.invokeDB(); ok {
+		a.closeDB(db)
 	}
 
 	if client, ok := a.invokeValkey(); ok {
 		client.Close()
 	}
 
-	if a.traceShutdown != nil {
-		if err := a.traceShutdown(ctx); err != nil {
+	if tp, ok := a.invokeTracerProvider(); ok {
+		if err := tp.Shutdown(shutdownCtx); err != nil {
 			a.logger.Error().Err(err).Msg("trace shutdown error")
 		}
 	}
 
-	if a.meterShutdown != nil {
-		if err := a.meterShutdown(ctx); err != nil {
+	if mp, ok := a.invokeMeterProvider(); ok {
+		if err := mp.Shutdown(shutdownCtx); err != nil {
 			a.logger.Error().Err(err).Msg("meter shutdown error")
 		}
 	}
@@ -247,31 +273,48 @@ func (a *Application) shutdown(ctx context.Context) {
 	a.logger.Info().Msg("shutdown complete")
 }
 
-// shutdownHTTP stops the echo HTTP server gracefully. Echo v5's StartConfig
-// handles graceful shutdown internally when the context passed to Start is
-// cancelled, because the listener created inside Start belongs to that
-// goroutine. We cancel the context here; the listener rebind fallback is only
-// used when the listener address was supplied externally.
+// shutdownHTTP stops the echo HTTP server gracefully. It cancels the start
+// context, which signals echo to begin its internal graceful drain, and then
+// waits for the HTTP goroutine to actually finish (bounded by ctx) so that
+// the gorm db and Valkey are not closed underneath in-flight requests.
 func (a *Application) shutdownHTTP(ctx context.Context) error {
-	if a.httpStartCancel != nil {
-		a.httpStartCancel()
+	if a.httpStartCancel == nil {
+		return nil
 	}
-	_ = ctx
+	a.httpStartCancel()
+	select {
+	case <-a.httpStopped:
+	case <-ctx.Done():
+		return fmt.Errorf("http shutdown timed out: %w", ctx.Err())
+	}
 	return nil
 }
 
-// invokePool looks up the pgx pool from the DI container and reports whether
+// invokeDB looks up the *gorm.DB from the DI container and reports whether
 // it was found. A missing provider is treated as "not configured" and is
 // skipped silently.
-func (a *Application) invokePool() (*pgxpool.Pool, bool) {
-	pool, err := do.Invoke[*pgxpool.Pool](a.injector)
+func (a *Application) invokeDB() (*gorm.DB, bool) {
+	db, err := do.Invoke[*gorm.DB](a.injector)
 	if err == nil {
-		return pool, true
+		return db, true
 	}
 	if !errors.Is(err, do.ErrServiceNotFound) {
-		a.logger.Warn().Err(err).Msg("optional pgx pool not available")
+		a.logger.Warn().Err(err).Msg("optional gorm db not available")
 	}
 	return nil, false
+}
+
+// closeDB closes the underlying *sql.DB of a *gorm.DB and logs any error.
+// *gorm.DB itself does not expose Close; the database/sql handle does.
+func (a *Application) closeDB(db *gorm.DB) {
+	sqlDB, err := db.DB()
+	if err != nil {
+		a.logger.Warn().Err(err).Msg("gorm db sql handle unavailable")
+		return
+	}
+	if err := sqlDB.Close(); err != nil {
+		a.logger.Warn().Err(err).Msg("gorm db close error")
+	}
 }
 
 // invokeValkey looks up the valkey client from the DI container and reports
@@ -284,6 +327,34 @@ func (a *Application) invokeValkey() (valkey.Client, bool) {
 	}
 	if !errors.Is(err, do.ErrServiceNotFound) {
 		a.logger.Warn().Err(err).Msg("optional valkey client not available")
+	}
+	return nil, false
+}
+
+// invokeTracerProvider looks up the OTel tracer provider from the DI container
+// and reports whether it was found. A missing provider is treated as "not
+// configured" and is skipped silently.
+func (a *Application) invokeTracerProvider() (*trace.TracerProvider, bool) {
+	tp, err := do.Invoke[*trace.TracerProvider](a.injector)
+	if err == nil {
+		return tp, true
+	}
+	if !errors.Is(err, do.ErrServiceNotFound) {
+		a.logger.Warn().Err(err).Msg("optional tracer provider not available")
+	}
+	return nil, false
+}
+
+// invokeMeterProvider looks up the OTel meter provider from the DI container
+// and reports whether it was found. A missing provider is treated as "not
+// configured" and is skipped silently.
+func (a *Application) invokeMeterProvider() (*metric.MeterProvider, bool) {
+	mp, err := do.Invoke[*metric.MeterProvider](a.injector)
+	if err == nil {
+		return mp, true
+	}
+	if !errors.Is(err, do.ErrServiceNotFound) {
+		a.logger.Warn().Err(err).Msg("optional meter provider not available")
 	}
 	return nil, false
 }

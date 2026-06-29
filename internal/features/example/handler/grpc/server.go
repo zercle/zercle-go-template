@@ -40,7 +40,7 @@ func (s *Server) CreateItem(ctx context.Context, req *pb.CreateItemRequest) (*pb
 func (s *Server) GetItem(ctx context.Context, req *pb.GetItemRequest) (*pb.Item, error) {
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
-		return nil, sharederrors.GRPCErr(domain.ErrInvalidName)
+		return nil, sharederrors.GRPCErr(domain.ErrInvalidID)
 	}
 
 	item, err := s.service.Get(ctx, id)
@@ -67,6 +67,9 @@ func (s *Server) ListItems(ctx context.Context, req *pb.ListItemsRequest) (*pb.L
 }
 
 func mapDomainToPB(item *domain.Item) *pb.Item {
+	if item == nil {
+		return nil
+	}
 	return &pb.Item{
 		Id:        item.ID.String(),
 		Name:      item.Name,

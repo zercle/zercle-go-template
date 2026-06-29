@@ -10,105 +10,59 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	"github.com/zercle/zercle-go-template/internal/features/example/repository"
-	sqlcdb "github.com/zercle/zercle-go-template/internal/infrastructure/db/sqlc"
 )
 
-// mockDBTX implements sqlc.DBTX for in-memory repository tests.
-type mockDBTX struct {
-	items     []sqlcdb.Item
-	listItems []sqlcdb.Item
-	listErr   error
-	err       error
-}
+// newTestDB builds a *gorm.DB backed by go-sqlmock so each test can assert
+// exact SQL emitted by GORM without touching a real database.
+//
+// Notes on matching (observed empirically with gorm.io/driver/postgres +
+// SkipDefaultTransaction=true):
+//   - QueryMatcherRegexp is the default; the regex patterns below mirror the
+//     SQL GORM actually emits.
+//   - Create: ExpectExec `INSERT INTO "items" ... VALUES (...)` with four
+//     positional args. The ORDER of args matches the column order in the
+//     GORM model (id, name, created_at, updated_at).
+//   - GetByID: GORM emits
+//     SELECT * FROM "items" WHERE id = $1 ORDER BY "items"."id" LIMIT $2
+//     i.e. TWO bound args (the id and the literal 1 for LIMIT). The
+//     expectation passes AnyArg() twice.
+//   - List with offset=0 omits the OFFSET clause entirely, so the regex
+//     tolerates the OFFSET being absent:
+//     SELECT * FROM "items" ORDER BY created_at DESC, id DESC LIMIT $1
+//   - For uuid args we still use AnyArg() to avoid driver-level type
+//     mismatch (uuid.UUID vs string vs [16]byte representations).
+//   - sqlmock.NewRows(...).AddRow(id.String(), ...) returns the uuid as a
+//     string; GORM's postgres driver scans the column back into uuid.UUID
+//     without complaint.
+func newTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
+	t.Helper()
 
-func (m *mockDBTX) Exec(_ context.Context, _ string, args ...interface{}) (pgconn.CommandTag, error) {
-	if m.err != nil {
-		return pgconn.CommandTag{}, m.err
-	}
-	id := args[0].(uuid.UUID)
-	m.items = append(m.items, sqlcdb.Item{
-		ID:        id,
-		Name:      args[1].(string),
-		CreatedAt: args[2].(time.Time),
-		UpdatedAt: args[3].(time.Time),
+	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	gormDB, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{
+		Logger:                 logger.Default.LogMode(logger.Silent),
+		SkipDefaultTransaction: true,
 	})
-	return pgconn.CommandTag{}, nil
-}
+	require.NoError(t, err)
 
-func (m *mockDBTX) Query(_ context.Context, _ string, _ ...interface{}) (pgx.Rows, error) {
-	if m.listErr != nil {
-		return nil, m.listErr
-	}
-	return &mockRows{items: m.listItems}, nil
+	return gormDB, mock
 }
-
-func (m *mockDBTX) QueryRow(_ context.Context, _ string, _ ...interface{}) pgx.Row {
-	return &mockRow{item: m.items, err: m.err}
-}
-
-// mockRow implements pgx.Row for the fake DBTX.
-type mockRow struct {
-	item []sqlcdb.Item
-	err  error
-}
-
-func (r *mockRow) Scan(dest ...interface{}) error {
-	if r.err != nil {
-		return r.err
-	}
-	if len(r.item) == 0 {
-		return pgx.ErrNoRows
-	}
-	i := r.item[0]
-	*dest[0].(*uuid.UUID) = i.ID
-	*dest[1].(*string) = i.Name
-	*dest[2].(*time.Time) = i.CreatedAt
-	*dest[3].(*time.Time) = i.UpdatedAt
-	return nil
-}
-
-// mockRows implements pgx.Rows for the fake DBTX.
-type mockRows struct {
-	items []sqlcdb.Item
-	idx   int
-}
-
-func (r *mockRows) Next() bool {
-	if r.idx >= len(r.items) {
-		return false
-	}
-	r.idx++
-	return true
-}
-
-func (r *mockRows) Scan(dest ...interface{}) error {
-	i := r.items[r.idx-1]
-	*dest[0].(*uuid.UUID) = i.ID
-	*dest[1].(*string) = i.Name
-	*dest[2].(*time.Time) = i.CreatedAt
-	*dest[3].(*time.Time) = i.UpdatedAt
-	return nil
-}
-
-func (r *mockRows) Close()                                       {}
-func (r *mockRows) Err() error                                   { return nil }
-func (r *mockRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
-func (r *mockRows) FieldDescriptions() []pgconn.FieldDescription { return nil }
-func (r *mockRows) Values() ([]any, error)                       { return nil, nil }
-func (r *mockRows) RawValues() [][]byte                          { return nil }
-func (r *mockRows) Conn() *pgx.Conn                              { return nil }
 
 func TestRepository_Create(t *testing.T) {
-	dbtx := &mockDBTX{}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	gormDB, mock := newTestDB(t)
+	repo := repository.NewRepository(gormDB)
 
 	item := &domain.Item{
 		ID:        uuid.New(),
@@ -117,56 +71,128 @@ func TestRepository_Create(t *testing.T) {
 		UpdatedAt: time.Now().UTC(),
 	}
 
+	mock.ExpectExec(`INSERT INTO "items"`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
 	err := repo.Create(context.Background(), item)
 	require.NoError(t, err)
-	assert.Len(t, dbtx.items, 1)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestRepository_Create_Error(t *testing.T) {
-	dbtx := &mockDBTX{err: errors.New("exec failed")}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	gormDB, mock := newTestDB(t)
+	repo := repository.NewRepository(gormDB)
 
-	item := &domain.Item{ID: uuid.New(), Name: "x", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	item := &domain.Item{
+		ID:        uuid.New(),
+		Name:      "x",
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+	}
+
+	mock.ExpectExec(`INSERT INTO "items"`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnError(errors.New("exec failed"))
+
 	err := repo.Create(context.Background(), item)
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "create item")
 	assert.Contains(t, err.Error(), "exec failed")
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestRepository_GetByID(t *testing.T) {
+	gormDB, mock := newTestDB(t)
+	repo := repository.NewRepository(gormDB)
+
 	id := uuid.New()
-	dbtx := &mockDBTX{items: []sqlcdb.Item{{ID: id, Name: "found", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}}}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	now := time.Now().UTC()
+	name := "found"
+
+	mock.ExpectQuery(`SELECT \* FROM "items" WHERE id = \$1 ORDER BY "items"\."id" LIMIT \$2`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id", "name", "created_at", "updated_at"}).
+				AddRow(id.String(), name, now, now),
+		)
 
 	got, err := repo.GetByID(context.Background(), id)
 	require.NoError(t, err)
+	require.NotNil(t, got)
 	assert.Equal(t, id, got.ID)
+	assert.Equal(t, name, got.Name)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestRepository_GetByID_NotFound(t *testing.T) {
-	dbtx := &mockDBTX{}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	gormDB, mock := newTestDB(t)
+	repo := repository.NewRepository(gormDB)
+
+	mock.ExpectQuery(`SELECT \* FROM "items" WHERE id = \$1 ORDER BY "items"\."id" LIMIT \$2`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id", "name", "created_at", "updated_at"}),
+		)
 
 	got, err := repo.GetByID(context.Background(), uuid.New())
 	assert.Nil(t, got)
 	assert.True(t, errors.Is(err, domain.ErrItemNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestRepository_List(t *testing.T) {
-	id := uuid.New()
-	dbtx := &mockDBTX{listItems: []sqlcdb.Item{{ID: id, Name: "listed", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}}}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	gormDB, mock := newTestDB(t)
+	repo := repository.NewRepository(gormDB)
 
-	items, err := repo.List(context.Background(), 10, 0)
+	id := uuid.New()
+	now := time.Now().UTC()
+	limit, offset := int32(10), int32(0)
+
+	mock.ExpectQuery(`SELECT \* FROM "items" ORDER BY created_at DESC, id DESC LIMIT \$1`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id", "name", "created_at", "updated_at"}).
+				AddRow(id.String(), "listed", now, now),
+		)
+
+	items, err := repo.List(context.Background(), limit, offset)
 	require.NoError(t, err)
-	assert.Len(t, items, 1)
+	require.Len(t, items, 1)
 	assert.Equal(t, id, items[0].ID)
+	assert.Equal(t, "listed", items[0].Name)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestRepository_List_WithOffset(t *testing.T) {
+	gormDB, mock := newTestDB(t)
+	repo := repository.NewRepository(gormDB)
+
+	limit, offset := int32(10), int32(5)
+
+	mock.ExpectQuery(`SELECT \* FROM "items" ORDER BY created_at DESC, id DESC LIMIT \$1 OFFSET \$2`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id", "name", "created_at", "updated_at"}),
+		)
+
+	items, err := repo.List(context.Background(), limit, offset)
+	require.NoError(t, err)
+	assert.Empty(t, items)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestRepository_List_Error(t *testing.T) {
-	dbtx := &mockDBTX{listErr: errors.New("query failed")}
-	repo := repository.NewRepository(nil, sqlcdb.New(dbtx))
+	gormDB, mock := newTestDB(t)
+	repo := repository.NewRepository(gormDB)
+
+	mock.ExpectQuery(`SELECT \* FROM "items" ORDER BY created_at DESC, id DESC LIMIT \$1`).
+		WithArgs(sqlmock.AnyArg()).
+		WillReturnError(errors.New("query failed"))
 
 	items, err := repo.List(context.Background(), 10, 0)
 	assert.Error(t, err)
 	assert.Nil(t, items)
+	assert.Contains(t, err.Error(), "list items")
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

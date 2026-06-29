@@ -3,39 +3,32 @@ package db
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/samber/do/v2"
 
 	"github.com/zercle/zercle-go-template/internal/config"
-	sqlcdb "github.com/zercle/zercle-go-template/internal/infrastructure/db/sqlc"
 	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
 )
 
-// Register provides *pgxpool.Pool and *sqlcdb.Queries and registers the
-// PostgreSQL readiness checker. The ctx is used to drive the initial pool
-// construction so startup cancellation/timeouts propagate.
+// Register provides *gorm.DB and registers the PostgreSQL readiness checker.
+// The ctx drives the initial DB construction so startup cancellation and
+// connect timeouts propagate.
 func Register(ctx context.Context, c do.Injector) error {
-	do.Provide(c, func(i do.Injector) (*pgxpool.Pool, error) {
-		cfg := do.MustInvoke[*config.Config](i)
-		return NewPool(ctx, cfg)
-	})
+	cfg := do.MustInvoke[*config.Config](c)
 
-	do.Provide(c, func(i do.Injector) (*sqlcdb.Queries, error) {
-		pool, err := do.Invoke[*pgxpool.Pool](i)
-		if err != nil {
-			return nil, err
-		}
-		return sqlcdb.New(pool), nil
-	})
-
-	pool, err := do.Invoke[*pgxpool.Pool](c)
+	db, err := NewDB(ctx, cfg)
 	if err != nil {
 		return err
 	}
+	do.ProvideValue(c, db)
+	do.ProvideValue(c, NewShutdowner(db))
 
-	registry := do.MustInvoke[*telemetry.Registry](c)
-	registry.AddReadiness(pgxChecker{pool: pool})
+	registry, err := do.Invoke[*telemetry.Registry](c)
+	if err != nil {
+		return fmt.Errorf("resolve health registry: %w", err)
+	}
+	registry.AddReadiness(gormChecker{db: db})
 
 	return nil
 }
