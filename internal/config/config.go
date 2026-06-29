@@ -220,7 +220,7 @@ func (c *Config) DBConnString() string {
 		Scheme: "postgres",
 		User:   url.UserPassword(c.DB.User, c.DB.Password),
 		Host:   net.JoinHostPort(c.DB.Host, strconv.Itoa(c.DB.Port)),
-		Path:   c.DB.Name,
+		Path:   "/" + c.DB.Name,
 	}
 	q := u.Query()
 	q.Set("sslmode", c.DB.SSLMode)
