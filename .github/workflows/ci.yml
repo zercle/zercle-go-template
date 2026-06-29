@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.x'
+          go-version: "stable"
           cache: true
       - name: Verify modules
         run: |
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.x'
+          go-version: "stable"
           cache: true
       - run: go mod download
       - run: go generate ./...
@@ -107,7 +107,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.x'
+          go-version: "stable"
           cache: true
       - run: go mod download
       - run: go generate ./...
@@ -144,7 +144,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.26.x'
+          go-version: "stable"
           cache: true
       - run: go build -ldflags="-s -w" -o bin/server ./cmd/server
       - run: go build -ldflags="-s -w" -o bin/migrate ./cmd/migrate
