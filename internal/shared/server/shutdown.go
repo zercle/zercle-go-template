@@ -278,9 +278,10 @@ func (a *Application) shutdown(ctx context.Context) {
 // waits for the HTTP goroutine to actually finish (bounded by ctx) so that
 // the gorm db and Valkey are not closed underneath in-flight requests.
 func (a *Application) shutdownHTTP(ctx context.Context) error {
-	if a.httpStartCancel != nil {
-		a.httpStartCancel()
+	if a.httpStartCancel == nil {
+		return nil
 	}
+	a.httpStartCancel()
 	select {
 	case <-a.httpStopped:
 	case <-ctx.Done():

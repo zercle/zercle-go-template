@@ -7,6 +7,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
@@ -49,7 +51,13 @@ func unaryInterceptor(logger *zerolog.Logger) grpc.UnaryServerInterceptor {
 		resp, err = handler(ctx, req)
 		latency := time.Since(start)
 		if err != nil {
-			logger.Error().
+			ev := logger.Error()
+			if st, ok := status.FromError(err); ok {
+				if isClientSideCode(st.Code()) {
+					ev = logger.Warn()
+				}
+			}
+			ev.
 				Str("method", info.FullMethod).
 				Dur("latency", latency).
 				Err(err).
@@ -81,4 +89,20 @@ func streamInterceptor(logger *zerolog.Logger) grpc.StreamServerInterceptor {
 		}()
 		return handler(srv, ss)
 	}
+}
+
+// isClientSideCode reports whether a gRPC status code represents an
+// expected client-side error that should not trigger server-side alerting.
+// Server-side failures (Internal, Unknown, Unimplemented, DataLoss,
+// Unavailable) return false so they remain at Error level.
+func isClientSideCode(c codes.Code) bool {
+	//nolint:exhaustive // Server-side codes (Internal, Unknown, Unimplemented, DataLoss, Unavailable) intentionally fall through to false.
+	switch c {
+	case codes.InvalidArgument, codes.NotFound, codes.AlreadyExists,
+		codes.PermissionDenied, codes.Unauthenticated, codes.Canceled,
+		codes.DeadlineExceeded, codes.ResourceExhausted,
+		codes.FailedPrecondition, codes.Aborted, codes.OutOfRange:
+		return true
+	}
+	return false
 }

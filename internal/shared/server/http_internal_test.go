@@ -30,6 +30,12 @@ func TestParseBodyLimitBytes(t *testing.T) {
 		{"overflow guard", "9999999999999G", 0},
 		{"max int64 bare", "9223372036854775807", 9223372036854775807},
 		{"surrounding whitespace", " 1MB ", 1048576},
+		{"1KiB", "1KiB", 1024},
+		{"1MiB", "1MiB", 1048576},
+		{"1GiB", "1GiB", 1073741824},
+		{"1kib lowercase", "1kib", 1024},
+		{"512KiB", "512KiB", 524288},
+		{"2MiB", "2MiB", 2097152},
 	}
 
 	for _, tc := range tests {

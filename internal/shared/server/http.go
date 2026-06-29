@@ -105,20 +105,10 @@ func parseBodyLimitBytes(s string) int64 {
 		return 0
 	}
 	upper := strings.ToUpper(s)
+	upper = strings.TrimSuffix(upper, "B")
+	upper = strings.TrimSuffix(upper, "I")
 	multiplier := int64(1)
 	switch {
-	case strings.HasSuffix(upper, "KB"):
-		multiplier = 1024
-		upper = strings.TrimSuffix(upper, "KB")
-	case strings.HasSuffix(upper, "MB"):
-		multiplier = 1024 * 1024
-		upper = strings.TrimSuffix(upper, "MB")
-	case strings.HasSuffix(upper, "GB"):
-		multiplier = 1024 * 1024 * 1024
-		upper = strings.TrimSuffix(upper, "GB")
-	case strings.HasSuffix(upper, "B"):
-		multiplier = 1
-		upper = strings.TrimSuffix(upper, "B")
 	case strings.HasSuffix(upper, "K"):
 		multiplier = 1024
 		upper = strings.TrimSuffix(upper, "K")
