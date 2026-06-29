@@ -34,12 +34,7 @@ func unaryInterceptor(logger *zerolog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error().
-					Str("method", info.FullMethod).
-					Interface("panic", r).
-					Msg("grpc panic recovered")
-
-				err = sharederrors.GRPCErr(sharederrors.ErrInternal)
+				err = recoverGRPCPanic(logger, r, info.FullMethod, "unary")
 			}
 		}()
 
@@ -72,23 +67,39 @@ func unaryInterceptor(logger *zerolog.Logger) grpc.UnaryServerInterceptor {
 	}
 }
 
-// streamInterceptor mirrors unaryInterceptor's recovery logic for streaming
-// RPCs so a panic in a stream handler is logged and converted to a gRPC
+// streamInterceptor recovers from panics in streaming RPC handlers via the
+// shared recoverGRPCPanic helper so a panic is logged and converted to a gRPC
 // internal error rather than crashing the server.
 func streamInterceptor(logger *zerolog.Logger) grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				if recErr, ok := r.(error); ok {
-					logger.Error().Err(recErr).Str("method", info.FullMethod).Msg("grpc stream panic recovered")
-				} else {
-					logger.Error().Interface("panic", r).Str("method", info.FullMethod).Msg("grpc stream panic recovered")
-				}
-				err = sharederrors.GRPCErr(sharederrors.ErrInternal)
+				err = recoverGRPCPanic(logger, r, info.FullMethod, "stream")
 			}
 		}()
 		return handler(srv, ss)
 	}
+}
+
+// recoverGRPCPanic logs a recovered panic at Error level and returns a gRPC
+// internal error. When the recovered value satisfies the error interface the
+// underlying error is attached via zerolog's .Err() so the error chain is
+// preserved; otherwise the raw value is logged under the "panic" field.
+// `kind` labels the interceptor source ("unary" or "stream") in the log
+// message. Returns nil when r is nil so callers can guard with a single
+// `if r := recover(); r != nil { ... }`.
+func recoverGRPCPanic(logger *zerolog.Logger, r any, method, kind string) error {
+	if r == nil {
+		return nil
+	}
+	ev := logger.Error().Str("method", method)
+	if recErr, ok := r.(error); ok {
+		ev = ev.Err(recErr)
+	} else {
+		ev = ev.Interface("panic", r)
+	}
+	ev.Msgf("grpc %s panic recovered", kind)
+	return sharederrors.GRPCErr(sharederrors.ErrInternal)
 }
 
 // isClientSideCode reports whether a gRPC status code represents an

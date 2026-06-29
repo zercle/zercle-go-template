@@ -136,3 +136,91 @@ func TestUnaryInterceptorLogLevel(t *testing.T) {
 		assert.Equal(t, "error", findCompletionLevel(t, buf))
 	})
 }
+
+// findPanicLine scans the buffer for the first log line whose message contains
+// `msgSubstr`, returning the parsed JSON entry along with the level field.
+func findPanicLine(t *testing.T, buf *bytes.Buffer, msgSubstr string) (entry map[string]any, level string) {
+	t.Helper()
+	a := assert.New(t)
+	for _, line := range bytes.Split(bytes.TrimRight(buf.Bytes(), "\n"), []byte("\n")) {
+		if !bytes.Contains(line, []byte(msgSubstr)) {
+			continue
+		}
+		var e map[string]any
+		a.NoError(json.Unmarshal(line, &e), "invalid json line: %s", string(line))
+		lvl, ok := e["level"].(string)
+		a.True(ok, "level field missing or not a string in line: %s", string(line))
+		return e, lvl
+	}
+	t.Fatalf("no panic log line containing %q found in buffer:\n%s", msgSubstr, buf.String())
+	return nil, ""
+}
+
+func TestUnaryInterceptorPanicRecovery(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		panic   any
+		message string
+	}{
+		{"error value", errors.New("kaboom"), "grpc unary panic recovered"},
+		{"non-error value", "boom", "grpc unary panic recovered"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var buf bytes.Buffer
+			logger := zerolog.New(&buf)
+			interceptor := unaryInterceptor(&logger)
+			info := &grpc.UnaryServerInfo{FullMethod: "/test/Method"}
+			handler := func(ctx context.Context, req any) (any, error) {
+				panic(tc.panic)
+			}
+
+			resp, err := interceptor(context.Background(), nil, info, handler)
+			assert.Nil(t, resp)
+			assert.Error(t, err)
+			assert.Equal(t, codes.Internal, status.Code(err))
+
+			entry, level := findPanicLine(t, &buf, tc.message)
+			assert.Equal(t, "error", level)
+			assert.Equal(t, "/test/Method", entry["method"])
+		})
+	}
+}
+
+func TestStreamInterceptorPanicRecovery(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		panic   any
+		message string
+	}{
+		{"error value", errors.New("kaboom"), "grpc stream panic recovered"},
+		{"non-error value", "boom", "grpc stream panic recovered"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var buf bytes.Buffer
+			logger := zerolog.New(&buf)
+			interceptor := streamInterceptor(&logger)
+			info := &grpc.StreamServerInfo{FullMethod: "/test/Stream"}
+			handler := func(srv any, ss grpc.ServerStream) error {
+				panic(tc.panic)
+			}
+
+			err := interceptor(nil, nil, info, handler)
+			assert.Error(t, err)
+			assert.Equal(t, codes.Internal, status.Code(err))
+
+			entry, level := findPanicLine(t, &buf, tc.message)
+			assert.Equal(t, "error", level)
+			assert.Equal(t, "/test/Stream", entry["method"])
+		})
+	}
+}
