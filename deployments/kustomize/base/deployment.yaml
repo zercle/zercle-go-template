@@ -3,60 +3,54 @@ kind: Deployment
 metadata:
   name: zercle-go-template
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: zercle-go-template
+      app.kubernetes.io/name: zercle-go-template
   template:
     metadata:
       labels:
-        app: zercle-go-template
+        app.kubernetes.io/name: zercle-go-template
     spec:
-      serviceAccountName: zercle-go-template
       securityContext:
         runAsNonRoot: true
-        runAsUser: 65534
-        runAsGroup: 65534
-        fsGroup: 65534
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: api
+        - name: server
           image: zercle-go-template:latest
           ports:
             - containerPort: 8080
-            - containerPort: 9090
+              name: http
+            - containerPort: 50051
+              name: grpc
           envFrom:
             - configMapRef:
                 name: zercle-go-template-config
             - secretRef:
-                name: zercle-go-template-secrets
+                name: zercle-go-template-secret
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
           resources:
             requests:
               cpu: 100m
               memory: 128Mi
             limits:
               cpu: 500m
-              memory: 512Mi
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /readyz
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 3
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 65532
+            capabilities:
+              drop: ["ALL"]

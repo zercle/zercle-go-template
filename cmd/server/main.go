@@ -1,134 +1,57 @@
+// Command server is the composition root and runtime entry point. It loads
+// config and delegates to package app for DI wiring, then starts and gracefully
+// shuts down the HTTP and gRPC servers.
 package main
 
 import (
+	"context"
 	"fmt"
-	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+	"github.com/zercle/zercle-go-template/internal/app"
+	"github.com/zercle/zercle-go-template/internal/config"
+)
 
-	pb "github.com/zercle/zercle-go-template/api/pb"
-	authgrpc "github.com/zercle/zercle-go-template/internal/features/auth/handler/grpc"
-	authhttp "github.com/zercle/zercle-go-template/internal/features/auth/handler/http"
-	authservice "github.com/zercle/zercle-go-template/internal/features/auth/service"
-	chatgrpc "github.com/zercle/zercle-go-template/internal/features/chat/handler/grpc"
-	chathttp "github.com/zercle/zercle-go-template/internal/features/chat/handler/http"
-	chatservice "github.com/zercle/zercle-go-template/internal/features/chat/service"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/db/postgres"
-	"github.com/zercle/zercle-go-template/internal/shared/logger"
-	"github.com/zercle/zercle-go-template/internal/shared/middleware"
-
-	"github.com/labstack/echo/v5"
-	httpSwagger "github.com/swaggo/echo-swagger/v2"
-
-	_ "github.com/zercle/zercle-go-template/docs" // swagger docs
+var (
+	// Version is set at build time via -ldflags "-X main.Version=...".
+	Version = "dev"
+	// CommitSHA is set at build time via -ldflags "-X main.CommitSHA=...".
+	CommitSHA = "unknown"
+	// BuildTime is set at build time via -ldflags "-X main.BuildTime=...".
+	BuildTime = "unknown"
 )
 
 func main() {
-	cfg, err := config.Load("./configs")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
-		os.Exit(1)
-	}
-
-	if err := logger.Init(cfg.Logging.Level, cfg.Logging.Format); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
-		os.Exit(1)
-	}
-
-	db, err := postgres.NewConnection(cfg.Database)
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to connect to database")
-		os.Exit(1)
-	}
-
-	userRepo := postgres.NewUserRepository(db)
-	sessionRepo := postgres.NewSessionRepository(db)
-	roomRepo := postgres.NewRoomRepository(db)
-	messageRepo := postgres.NewMessageRepository(db)
-
-	authSvc := authservice.NewAuthService(
-		userRepo,
-		sessionRepo,
-		cfg.Auth.JWTSecret,
-		cfg.Auth.JWTExpiry,
-		cfg.Auth.RefreshExpiry,
-	)
-
-	chatSvc := chatservice.NewChatService(roomRepo, messageRepo)
-
-	authServer := authgrpc.NewAuthServer(authSvc)
-	chatServer := chatgrpc.NewChatServer(chatSvc)
-
-	authHTTPHandler := authhttp.NewAuthHandler(authSvc)
-	chatHTTPHandler := chathttp.NewChatHandler(chatSvc)
-
-	// Start HTTP server with Swagger
-	e := echo.New()
-
-	// Swagger endpoint - available at /swagger/index.html
-	e.GET("/swagger/*", httpSwagger.WrapHandler)
-
-	// Setup API routes
-	v1 := e.Group("/api/v1")
-
-	// Auth routes
-	auth := v1.Group("/auth")
-	auth.POST("/register", authHTTPHandler.Register)
-	auth.POST("/login", authHTTPHandler.Login)
-	auth.POST("/refresh", authHTTPHandler.RefreshToken)
-
-	// Protected auth routes
-	authProtected := auth.Group("", middleware.AuthMiddleware([]byte(cfg.Auth.JWTSecret)))
-	authProtected.GET("/me", authHTTPHandler.GetCurrentUser)
-	authProtected.POST("/logout", authHTTPHandler.Logout)
-
-	// Chat routes (all protected)
-	chat := v1.Group("/chat", middleware.AuthMiddleware([]byte(cfg.Auth.JWTSecret)))
-	chat.POST("/rooms", chatHTTPHandler.CreateRoom)
-	chat.GET("/rooms", chatHTTPHandler.ListRooms)
-	chat.GET("/rooms/:id", chatHTTPHandler.GetRoom)
-	chat.PUT("/rooms/:id", chatHTTPHandler.UpdateRoom)
-	chat.DELETE("/rooms/:id", chatHTTPHandler.DeleteRoom)
-	chat.POST("/rooms/:id/join", chatHTTPHandler.JoinRoom)
-	chat.POST("/rooms/:id/leave", chatHTTPHandler.LeaveRoom)
-	chat.GET("/rooms/:id/members", chatHTTPHandler.GetRoomMembers)
-	chat.POST("/rooms/:id/messages", chatHTTPHandler.SendMessage)
-	chat.GET("/rooms/:id/messages", chatHTTPHandler.GetMessageHistory)
-
-	// Start HTTP server
-	go func() {
-		logger.Info().Str("addr", cfg.Server.HTTP.Addr()).Msg("HTTP server listening")
-		if err := e.Start(cfg.Server.HTTP.Addr()); err != nil {
-			logger.Error().Err(err).Msg("HTTP server error")
-		}
-	}()
-
-	logger.Info().Msg("Starting gRPC server")
-
-	lis, err := net.Listen("tcp", cfg.Server.GRPC.Addr())
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to listen")
-		db.Close()
-		os.Exit(1)
-	}
-
-	grpcServer := grpc.NewServer()
-	reflection.Register(grpcServer)
-
-	RegisterServers(grpcServer, authServer, chatServer)
-
-	logger.Info().Str("addr", lis.Addr().String()).Msg("gRPC server listening")
-
-	if err := grpcServer.Serve(lis); err != nil {
-		logger.Error().Err(err).Msg("gRPC server error")
-		os.Exit(1)
-	}
+	os.Exit(run())
 }
 
-func RegisterServers(grpcServer *grpc.Server, authServer *authgrpc.AuthServer, chatServer *chatgrpc.ChatServer) {
-	pb.RegisterAuthServiceServer(grpcServer, authServer)
-	pb.RegisterChatServiceServer(grpcServer, chatServer)
+// run loads configuration and starts the application. It returns the process
+// exit code so main can exit in one place, allowing defers in app.Run to run.
+func run() (exitCode int) {
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load config: %v\n", err)
+		return 1
+	}
+
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "invalid config: %v\n", err)
+		return 1
+	}
+
+	app.Version = Version
+	app.CommitSHA = CommitSHA
+	app.BuildTime = BuildTime
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := app.Run(ctx, cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "server stopped with error: %v\n", err)
+		return 1
+	}
+
+	return 0
 }

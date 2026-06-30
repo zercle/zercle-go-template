@@ -1,0 +1,67 @@
+app:
+  name: zercle-go-template
+  environment: development
+  host: 0.0.0.0
+  port: 8080
+  shutdown_timeout: 15s
+
+http:
+  host: 0.0.0.0
+  port: 8080
+  read_timeout: 15s
+  write_timeout: 15s
+  idle_timeout: 60s
+  body_limit: 1M
+  health_probe_timeout: 5s
+  cors_allow_origins:
+    - "*"
+  cors_allow_methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  cors_allow_headers:
+    - Authorization
+    - Content-Type
+    - X-Request-ID
+
+grpc:
+  host: 0.0.0.0
+  port: 50051
+
+db:
+  host: localhost
+  port: 5432
+  name: app
+  user: postgres
+  password: postgres
+  ssl_mode: disable
+  max_conns: 10
+  max_idle_conns: 2
+  max_conn_idle: 30m
+  max_conn_life: 1h
+  connect_timeout: 5s
+
+valkey:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+
+log:
+  level: info
+  format: json
+
+otel:
+  exporter: none
+  endpoint: http://localhost:4318
+  service_name: zercle-go-template
+  sampling: 1.0
+
+example:
+  enabled: true
+  default_page_size: 20
+  max_page_size: 100
+  max_name_length: 255

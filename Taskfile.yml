@@ -1,0 +1,110 @@
+version: '3'
+
+dotenv:
+  - .env
+
+vars:
+  BIN_DIR: bin
+  COVERAGE_OUT: coverage.out
+  GIT_VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  BUILD_TIME:
+    sh: date -u +%Y-%m-%dT%H:%M:%SZ
+
+tasks:
+  build:
+    desc: Build the server binary
+    env:
+      CGO_ENABLED: "0"
+    cmds:
+      - go build -ldflags="-s -w -X main.Version={{.GIT_VERSION | default "dev"}} -X main.CommitSHA={{.GIT_COMMIT | default "unknown"}} -X main.BuildTime={{.BUILD_TIME | default "unknown"}}" -o {{.BIN_DIR}}/server ./cmd/server
+
+  run:
+    desc: Run the server locally
+    deps: [build]
+    cmds:
+      - ./{{.BIN_DIR}}/server
+
+  test:
+    desc: Run all tests (default unit tag)
+    cmds:
+      - task: test-unit
+
+  test-unit:
+    desc: Run unit tests only
+    cmds:
+      - go test -race -tags=unit -coverprofile={{.COVERAGE_OUT}} -coverpkg=./internal/...,./pkg/... ./internal/... ./pkg/...
+
+  test-integration:
+    desc: Run integration tests (requires postgres + valkey)
+    cmds:
+      - go test -v -race -tags=integration ./...
+
+  test-e2e:
+    desc: Run end-to-end tests (boots full server)
+    cmds:
+      - go test -v -race -tags=e2e ./...
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run --timeout=5m ./...
+
+  fmt:
+    desc: Format Go source
+    cmds:
+      - gofumpt -w .
+      - goimports -w .
+
+  tidy:
+    desc: Tidy go.mod and verify
+    cmds:
+      - go mod tidy
+      - go mod verify
+
+  verify:
+    desc: Verify module state and no diff
+    cmds:
+      - task: tidy
+      - git diff --exit-code go.mod go.sum
+
+  generate:
+    desc: Generate mocks and protobuf code
+    cmds:
+      - go generate ./...
+      - task: proto
+
+  proto:
+    desc: Generate protobuf code
+    cmds:
+      - |
+        protoc -I api/proto --go_out=api/pb --go_opt=paths=source_relative \
+               --go-grpc_out=api/pb --go-grpc_opt=paths=source_relative \
+               example/v1/example.proto
+
+  migrate-up:
+    desc: Run database migrations
+    cmds:
+      - migrate -path internal/infrastructure/db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
+
+  migrate-down:
+    desc: Rollback one database migration
+    cmds:
+      - migrate -path internal/infrastructure/db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" down 1
+
+  migrate-create:
+    desc: "Create a new migration: task migrate-create NAME=add_users"
+    cmds:
+      - migrate create -ext sql -dir internal/infrastructure/db/migrations {{.NAME}}
+
+  docker-build:
+    desc: Build server container image
+    cmds:
+      - docker build -f Containerfile -t zercle-go-template:latest .
+
+  cover-html:
+    desc: Render coverage report to HTML
+    cmds:
+      - go tool cover -html={{.COVERAGE_OUT}} -o coverage.html

@@ -4,11 +4,12 @@ metadata:
   name: zercle-go-template
 spec:
   selector:
-    app: zercle-go-template
+    app.kubernetes.io/name: zercle-go-template
   ports:
     - name: http
       port: 8080
       targetPort: 8080
-    - name: metrics
-      port: 9090
-      targetPort: 9090
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+  type: ClusterIP

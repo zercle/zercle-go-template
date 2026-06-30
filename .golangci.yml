@@ -4,38 +4,36 @@ run:
   timeout: 5m
 linters:
   enable:
-    - govet
-    - staticcheck
-    - unused
+    - bodyclose
     - errcheck
+    - errorlint
+    - exhaustive
+    - forcetypeassert
+    - goconst
     - gocritic
     - gocyclo
-    - revive
+    - gosec
+    - govet
     - ineffassign
-    - unconvert
-    - goconst
-    # - depguard
-    - prealloc
-    # - dupl
     - misspell
-    - bodyclose
-    - sqlclosecheck
-    - nilerr
-    - nestif
-    - forcetypeassert
-    - exhaustive
-    - funlen
-    # - wsl_v5
-    - testifylint
     - modernize
-
-  # disable noisy/controversial ones which you might enable later
+    - nestif
+    - nilerr
+    - prealloc
+    - revive
+    - sqlclosecheck
+    - staticcheck
+    - testifylint
+    - thelper
+    - tparallel
+    - unconvert
+    - unused
+    - wrapcheck
   disable:
-    - lll # line length — handled by gfmt/gofumpt
-
+    - lll
   settings:
     dupl:
-      threshold: 20 # lower => stricter (tokens)
+      threshold: 20
     errcheck:
       check-type-assertions: true
     funlen:
@@ -45,20 +43,23 @@ linters:
       min-len: 2
       min-occurrences: 3
     gocyclo:
-      min-complexity: 15 # strict; lower => stricter
-    wsl_v5:
-      allow-first-in-block: true
-      allow-whole-block: false
-      branch-max-lines: 2
+      min-complexity: 15
     testifylint:
       disable:
-        - require-error
         - float-compare
-
+    wrapcheck:
+      ignore-sig-regexps:
+        - "github.com/labstack/echo/v5.HTTPError"
+        - 'github.com/labstack/echo/v5\.Context\.JSON'
+        - 'github.com/zercle/zercle-go-template/internal/shared/errors\.GRPCErr'
+        - 'google.golang.org/grpc/status\.Error'
   exclusions:
     generated: lax
     paths:
       - examples$
+      - api/pb$
+      - internal/features/example/repository/mock$
+      - internal/features/example/service/mock$
     rules:
       - linters:
           - revive
@@ -68,8 +69,7 @@ linters:
         text: "^package-comments:"
       - linters:
           - errcheck
-        text: "Error return value of `.*\\.Body\\.Close` is not checked"
-      # linters disabled in tests
+        text: 'Error return value of `.*\.Body\.Close` is not checked'
       - linters:
           - dupl
           - goconst
@@ -77,15 +77,11 @@ linters:
           - errcheck
           - forcetypeassert
           - revive
-        path: "_test\\.go$"
+          - wrapcheck
+        path: '_test\.go$'
       - linters:
           - revive
         path: "tests/"
-
-issues:
-  max-issues-per-linter: 0 # 0 = unlimited (we want ALL issues)
-  max-same-issues: 100
-
 formatters:
   enable:
     - gofmt
@@ -96,3 +92,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - api/pb$
