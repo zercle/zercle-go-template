@@ -3,6 +3,12 @@ version: '3'
 vars:
   BIN_DIR: bin
   COVERAGE_OUT: coverage.out
+  GIT_VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  BUILD_TIME:
+    sh: date -u +%Y-%m-%dT%H:%M:%SZ
 
 tasks:
   build:

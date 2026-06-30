@@ -18,6 +18,9 @@ const defaultValkeyConnectTimeout = 5 * time.Second
 // config. It pings the server before returning and closes the client on ping
 // failure. The caller is responsible for calling Close on the returned client.
 func NewClient(ctx context.Context, cfg *config.Config) (valkeygo.Client, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("config is nil")
+	}
 	connectTimeout := cfg.Valkey.ConnectTimeout
 	if connectTimeout <= 0 {
 		connectTimeout = defaultValkeyConnectTimeout

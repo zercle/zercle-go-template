@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/zercle/zercle-go-template/internal/app"
 	"github.com/zercle/zercle-go-template/internal/config"
@@ -43,7 +45,10 @@ func run() (exitCode int) {
 	app.CommitSHA = CommitSHA
 	app.BuildTime = BuildTime
 
-	if err := app.Run(context.Background(), cfg); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := app.Run(ctx, cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "server stopped with error: %v\n", err)
 		return 1
 	}

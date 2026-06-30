@@ -35,7 +35,12 @@ func run(args []string) (exitCode int) {
 		return 1
 	}
 
-	cmd, count, forceVersion := parseArgs(args)
+	cmd, count, forceVersion, err := parseArgs(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		printUsage()
+		return 1
+	}
 
 	m, err := newMigrator(cfg.DBConnString())
 	if err != nil {
@@ -136,12 +141,12 @@ func printVersion(m *migrate.Migrate) int {
 
 // parseArgs extracts the command and optional numeric arguments from os.Args.
 // Defaults are: command "up", down count 1. Force expects a version integer.
-func parseArgs(args []string) (cmd string, count int, forceVersion int) {
+func parseArgs(args []string) (cmd string, count int, forceVersion int, err error) {
 	cmd = "up"
 	count = 1
 
 	if len(args) == 0 {
-		return cmd, count, forceVersion
+		return cmd, count, forceVersion, nil
 	}
 
 	cmd = args[0]
@@ -149,30 +154,24 @@ func parseArgs(args []string) (cmd string, count int, forceVersion int) {
 	switch cmd {
 	case "down":
 		if len(args) >= 2 {
-			parsed, err := strconv.Atoi(args[1])
-			if err != nil || parsed <= 0 {
-				fmt.Fprintf(os.Stderr, "invalid down count %q: must be a positive integer\n", args[1])
-				printUsage()
-				os.Exit(1)
+			parsed, parseErr := strconv.Atoi(args[1])
+			if parseErr != nil || parsed <= 0 {
+				return cmd, count, forceVersion, fmt.Errorf("invalid down count %q: must be a positive integer", args[1])
 			}
 			count = parsed
 		}
 	case "force":
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "force requires a version argument")
-			printUsage()
-			os.Exit(1)
+			return cmd, count, forceVersion, errors.New("force requires a version argument")
 		}
-		parsed, err := strconv.Atoi(args[1])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "invalid force version %q: must be an integer\n", args[1])
-			printUsage()
-			os.Exit(1)
+		parsed, parseErr := strconv.Atoi(args[1])
+		if parseErr != nil {
+			return cmd, count, forceVersion, fmt.Errorf("invalid force version %q: must be an integer", args[1])
 		}
 		forceVersion = parsed
 	}
 
-	return cmd, count, forceVersion
+	return cmd, count, forceVersion, nil
 }
 
 func printUsage() {
