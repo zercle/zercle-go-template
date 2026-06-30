@@ -71,8 +71,6 @@ func TestBuild_DatabaseUnreachable(t *testing.T) {
 	assert.Nil(t, application, "application must be nil when Build fails")
 	assert.NotNil(t, injector, "injector must be returned for shutdown")
 
-	assert.NotNil(t, injector, "injector must be returned for shutdown")
-
 	report := injector.Shutdown()
 	assert.True(t, report == nil || report.Succeed, "expected clean injector shutdown")
 }

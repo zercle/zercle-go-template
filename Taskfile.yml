@@ -1,5 +1,8 @@
 version: '3'
 
+dotenv:
+  - .env
+
 vars:
   BIN_DIR: bin
   COVERAGE_OUT: coverage.out
