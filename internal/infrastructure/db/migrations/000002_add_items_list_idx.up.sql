@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_items_created_at_id_desc ON items (created_at DESC, id DESC);

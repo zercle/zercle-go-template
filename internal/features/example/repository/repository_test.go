@@ -80,6 +80,18 @@ func TestRepository_Create(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestRepository_Create_NilItem(t *testing.T) {
+	gormDB, mock := newTestDB(t)
+	repo := repository.NewRepository(gormDB)
+
+	err := repo.Create(context.Background(), nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "create item")
+	assert.Contains(t, err.Error(), "nil")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestRepository_Create_Error(t *testing.T) {
 	gormDB, mock := newTestDB(t)
 	repo := repository.NewRepository(gormDB)

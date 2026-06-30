@@ -74,6 +74,9 @@ func (s *Service) Create(ctx context.Context, name string) (*domain.Item, error)
 
 // Get retrieves an item by ID, passing through domain.ErrItemNotFound.
 func (s *Service) Get(ctx context.Context, id uuid.UUID) (*domain.Item, error) {
+	if id == uuid.Nil {
+		return nil, domain.ErrInvalidID
+	}
 	item, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrItemNotFound) {

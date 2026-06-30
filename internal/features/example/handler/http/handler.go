@@ -30,6 +30,10 @@ func (h *Handler) Register(g *echo.Group) {
 	g.GET("/items/:id", h.Get)
 }
 
+// NOTE: Echo v5 changed echo.Context from an interface (v4) to a struct, and
+// echo.HandlerFunc is now `func(c *Context) error`. Handlers therefore take
+// *echo.Context — this is correct for v5, not a mistake.
+
 // Create handles POST /items.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Create(c *echo.Context) error {

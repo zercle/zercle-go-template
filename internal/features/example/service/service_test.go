@@ -93,6 +93,19 @@ func TestService_Get_MapsNotFound(t *testing.T) {
 	require.Nil(t, item)
 }
 
+func TestService_Get_NilIDRejected(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	repo := mock.NewMockRepository(gomock.NewController(t))
+	svc := service.NewService(repo, 0, 0, 0)
+
+	item, err := svc.Get(ctx, uuid.Nil)
+
+	require.ErrorIs(t, err, domain.ErrInvalidID)
+	require.Nil(t, item)
+}
+
 func TestService_List(t *testing.T) {
 	t.Parallel()
 
