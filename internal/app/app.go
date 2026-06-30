@@ -92,6 +92,11 @@ func Run(ctx context.Context, cfg *config.Config) error {
 
 	logger := application.Logger()
 	defer func() {
+		// samber/do v2's Injector.Shutdown returns *do.ShutdownReport (which
+		// implements error), not a bare error. A non-nil report is returned
+		// even on success, so we gate on report.Succeed rather than nilness;
+		// treating the report as an error directly would log a spurious
+		// failure on every clean shutdown.
 		report := injector.Shutdown()
 		if report != nil && !report.Succeed {
 			logger.Error().Err(report).Msg("injector shutdown error")
