@@ -28,6 +28,10 @@ func NewServer(service domain.Service) *Server {
 
 // CreateItem creates a new item.
 func (s *Server) CreateItem(ctx context.Context, req *pb.CreateItemRequest) (*pb.Item, error) {
+	if req == nil {
+		return nil, sharederrors.GRPCErr(sharederrors.ErrInvalidInput)
+	}
+
 	item, err := s.service.Create(ctx, req.Name)
 	if err != nil {
 		return nil, sharederrors.GRPCErr(err)
@@ -38,6 +42,10 @@ func (s *Server) CreateItem(ctx context.Context, req *pb.CreateItemRequest) (*pb
 
 // GetItem retrieves an item by ID.
 func (s *Server) GetItem(ctx context.Context, req *pb.GetItemRequest) (*pb.Item, error) {
+	if req == nil {
+		return nil, sharederrors.GRPCErr(sharederrors.ErrInvalidInput)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, sharederrors.GRPCErr(domain.ErrInvalidID)
@@ -53,6 +61,10 @@ func (s *Server) GetItem(ctx context.Context, req *pb.GetItemRequest) (*pb.Item,
 
 // ListItems returns a paginated list of items.
 func (s *Server) ListItems(ctx context.Context, req *pb.ListItemsRequest) (*pb.ListItemsResponse, error) {
+	if req == nil {
+		return nil, sharederrors.GRPCErr(sharederrors.ErrInvalidInput)
+	}
+
 	items, err := s.service.List(ctx, req.Limit, req.Offset)
 	if err != nil {
 		return nil, sharederrors.GRPCErr(err)
