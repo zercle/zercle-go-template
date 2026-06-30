@@ -98,11 +98,7 @@ func (g *gormLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql 
 
 	switch {
 	case err != nil && !errors.Is(err, gorm.ErrRecordNotFound):
-		if elapsed > g.slowThreshold && g.slowThreshold > 0 {
-			g.log.Warn().Str("module", "gorm").Dur("elapsed", elapsed).Int64("rows", rows).Msgf("slow query: %s (threshold: %v)", sql, g.slowThreshold)
-		} else {
-			g.log.Error().Str("module", "gorm").Err(err).Dur("elapsed", elapsed).Int64("rows", rows).Msg(sql)
-		}
+		g.log.Error().Str("module", "gorm").Err(err).Dur("elapsed", elapsed).Int64("rows", rows).Msg(sql)
 
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		if !g.ignoreRecordNotFoundError {

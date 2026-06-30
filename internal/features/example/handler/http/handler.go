@@ -25,9 +25,9 @@ func New(service domain.Service) *Handler {
 
 // Register mounts the example routes on the provided echo group.
 func (h *Handler) Register(g *echo.Group) {
-	g.POST("/items", func(c *echo.Context) error { return h.Create(c) })
-	g.GET("/items", func(c *echo.Context) error { return h.List(c) })
-	g.GET("/items/:id", func(c *echo.Context) error { return h.Get(c) })
+	g.POST("/items", h.Create)
+	g.GET("/items", h.List)
+	g.GET("/items/:id", h.Get)
 }
 
 // Create handles POST /items.

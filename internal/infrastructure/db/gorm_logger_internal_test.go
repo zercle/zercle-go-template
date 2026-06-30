@@ -102,6 +102,40 @@ func TestGORMLogger_TraceWithError(t *testing.T) {
 	}
 }
 
+func TestGORMLogger_TraceSlowQueryWithError(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	log := zerolog.New(&buf).Level(zerolog.ErrorLevel)
+
+	cfg := &config.Config{Log: config.LogConfig{Level: "error"}}
+	gl := newGORMLogger(&log, cfg)
+	gl.slowThreshold = 1 * time.Millisecond // force slow path
+
+	queryErr := errors.New("connection refused")
+	fc := func() (string, int64) { return "SELECT 1", 0 }
+	begin := time.Now().Add(-5 * time.Millisecond) // elapsed > slowThreshold
+
+	gl.Trace(context.Background(), begin, fc, queryErr)
+
+	out := buf.String()
+	if len(out) == 0 {
+		t.Fatal("expected error log output")
+	}
+
+	if !bytes.Contains(buf.Bytes(), []byte(`"level":"error"`)) {
+		t.Errorf("expected error level (not warn) for failed slow query, got: %s", out)
+	}
+
+	if !bytes.Contains(buf.Bytes(), []byte("connection refused")) {
+		t.Errorf("expected the database error to be logged, got: %s", out)
+	}
+
+	if bytes.Contains(buf.Bytes(), []byte(`"level":"warn"`)) {
+		t.Errorf("failed queries must not be logged at warn level, got: %s", out)
+	}
+}
+
 func TestGORMLogger_TraceSlowQuery(t *testing.T) {
 	t.Parallel()
 
