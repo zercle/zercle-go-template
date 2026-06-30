@@ -39,6 +39,10 @@ func (s *RepositoryIntegrationSuite) SetupSuite() {
 	cfg, err := config.Load()
 	require.NoError(t, err)
 
+	if cfg.App.Environment == "production" {
+		t.Fatalf("integration tests must not run against production environment (APP_ENVIRONMENT=production)")
+	}
+
 	nop := zerolog.Nop()
 	s.db, err = db.NewDB(context.Background(), cfg, &nop)
 	require.NoError(t, err)

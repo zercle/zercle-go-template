@@ -28,23 +28,38 @@ func Register(c do.Injector) error {
 	sharederrors.RegisterSentinel(domain.ErrInvalidID, sharederrors.ErrInvalidInput)
 
 	do.Provide(c, func(i do.Injector) (domain.Repository, error) {
-		gormDB := do.MustInvoke[*gorm.DB](i)
+		gormDB, err := do.Invoke[*gorm.DB](i)
+		if err != nil {
+			return nil, fmt.Errorf("resolve gorm db: %w", err)
+		}
 		return repository.NewRepository(gormDB), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (domain.Service, error) {
-		repo := do.MustInvoke[domain.Repository](i)
-		cfg := do.MustInvoke[*config.Config](i)
+		repo, err := do.Invoke[domain.Repository](i)
+		if err != nil {
+			return nil, fmt.Errorf("resolve example repository: %w", err)
+		}
+		cfg, err := do.Invoke[*config.Config](i)
+		if err != nil {
+			return nil, fmt.Errorf("resolve config: %w", err)
+		}
 		return service.NewService(repo, cfg.Example.DefaultPageSize, cfg.Example.MaxPageSize, cfg.Example.MaxNameLength), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (*httphandler.Handler, error) {
-		svc := do.MustInvoke[domain.Service](i)
+		svc, err := do.Invoke[domain.Service](i)
+		if err != nil {
+			return nil, fmt.Errorf("resolve example service: %w", err)
+		}
 		return httphandler.New(svc), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (*grpchandler.Server, error) {
-		svc := do.MustInvoke[domain.Service](i)
+		svc, err := do.Invoke[domain.Service](i)
+		if err != nil {
+			return nil, fmt.Errorf("resolve example service: %w", err)
+		}
 		return grpchandler.NewServer(svc), nil
 	})
 

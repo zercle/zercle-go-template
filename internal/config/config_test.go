@@ -14,6 +14,18 @@ import (
 	"github.com/zercle/zercle-go-template/internal/config"
 )
 
+func TestLoad_ExplicitConfigFileMissingFails(t *testing.T) {
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "does-not-exist.yaml")
+
+	t.Setenv("CONFIG_FILE", missing)
+
+	cfg, err := config.Load()
+	require.Error(t, err)
+	require.Nil(t, cfg)
+	require.Contains(t, err.Error(), "read config")
+}
+
 func TestLoad_ReadsConfigFile(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "config.yaml")

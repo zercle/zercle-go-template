@@ -26,6 +26,9 @@ func NewRepository(db *gorm.DB) *Repository {
 
 // Create persists a new item.
 func (r *Repository) Create(ctx context.Context, item *domain.Item) error {
+	if item == nil {
+		return fmt.Errorf("create item: nil item")
+	}
 	m := mapDomainToModel(item)
 	if err := r.db.WithContext(ctx).Create(&m).Error; err != nil {
 		return fmt.Errorf("create item: %w", err)

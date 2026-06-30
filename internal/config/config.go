@@ -151,7 +151,9 @@ func Load() (*Config, error) {
 	v.SetConfigType("yaml")
 	v.AddConfigPath(".")
 
+	configFileExplicit := false
 	if configFile, ok := os.LookupEnv("CONFIG_FILE"); ok && configFile != "" {
+		configFileExplicit = true
 		absPath, err := filepath.Abs(configFile)
 		if err != nil {
 			return nil, fmt.Errorf("resolve CONFIG_FILE path %q: %w", configFile, err)
@@ -171,7 +173,7 @@ func Load() (*Config, error) {
 	}
 
 	if err := v.ReadInConfig(); err != nil {
-		if !errorsIsConfigNotFound(err) {
+		if configFileExplicit || !errorsIsConfigNotFound(err) {
 			return nil, fmt.Errorf("read config: %w", err)
 		}
 	}
