@@ -11,6 +11,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/go-playground/validator/v10"
@@ -25,12 +26,19 @@ import (
 	sharederrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
+// registerSentinelsOnce registers the example feature's domain sentinels exactly
+// once per package. setupTest runs for every parallel test; the registry itself
+// is mutex-protected, but the repeated calls were redundant, so guard them.
+var registerSentinelsOnce sync.Once
+
 func setupTest(t *testing.T) (*echo.Echo, *mock.MockService) {
 	t.Helper()
 
-	sharederrors.RegisterSentinel(domain.ErrItemNotFound, sharederrors.ErrNotFound)
-	sharederrors.RegisterSentinel(domain.ErrInvalidName, sharederrors.ErrInvalidInput)
-	sharederrors.RegisterSentinel(domain.ErrInvalidID, sharederrors.ErrInvalidInput)
+	registerSentinelsOnce.Do(func() {
+		sharederrors.RegisterSentinel(domain.ErrItemNotFound, sharederrors.ErrNotFound)
+		sharederrors.RegisterSentinel(domain.ErrInvalidName, sharederrors.ErrInvalidInput)
+		sharederrors.RegisterSentinel(domain.ErrInvalidID, sharederrors.ErrInvalidInput)
+	})
 
 	e := echo.New()
 	e.Validator = newValidator(t)
