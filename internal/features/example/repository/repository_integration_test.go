@@ -14,6 +14,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // postgres driver
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
@@ -38,7 +39,8 @@ func (s *RepositoryIntegrationSuite) SetupSuite() {
 	cfg, err := config.Load()
 	require.NoError(t, err)
 
-	s.db, err = db.NewDB(context.Background(), cfg)
+	nop := zerolog.Nop()
+	s.db, err = db.NewDB(context.Background(), cfg, &nop)
 	require.NoError(t, err)
 
 	s.runMigrations(cfg)

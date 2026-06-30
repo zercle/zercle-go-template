@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/rs/zerolog"
 	"github.com/samber/do/v2"
 
 	"github.com/zercle/zercle-go-template/internal/config"
@@ -17,7 +18,12 @@ import (
 func Register(ctx context.Context, c do.Injector) error {
 	cfg := do.MustInvoke[*config.Config](c)
 
-	db, err := NewDB(ctx, cfg)
+	log, err := do.Invoke[*zerolog.Logger](c)
+	if err != nil {
+		return fmt.Errorf("resolve logger: %w", err)
+	}
+
+	db, err := NewDB(ctx, cfg, log)
 	if err != nil {
 		return err
 	}

@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rs/zerolog"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 
 	"github.com/zercle/zercle-go-template/internal/config"
 )
@@ -22,9 +22,13 @@ import (
 // underlying *sql.DB obtained via (*gorm.DB).DB().
 //
 // Schema is owned by golang-migrate; AutoMigrate is never invoked here.
-func NewDB(ctx context.Context, cfg *config.Config) (*gorm.DB, error) {
+func NewDB(ctx context.Context, cfg *config.Config, log *zerolog.Logger) (*gorm.DB, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is nil")
+	}
+
+	if log == nil {
+		return nil, fmt.Errorf("logger is nil")
 	}
 
 	dsn, err := buildDSN(cfg)
@@ -33,7 +37,7 @@ func NewDB(ctx context.Context, cfg *config.Config) (*gorm.DB, error) {
 	}
 
 	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger:                 logger.Discard,
+		Logger:                 newGORMLogger(log, cfg),
 		SkipDefaultTransaction: true,
 	})
 	if err != nil {
