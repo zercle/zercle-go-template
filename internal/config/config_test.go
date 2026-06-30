@@ -279,6 +279,51 @@ func TestValidate_ExampleDisabledSkipsChecks(t *testing.T) {
 	require.NoError(t, cfg.Validate())
 }
 
+// TestValidate_ExampleDisabledAllowsZeroValues verifies that when the example
+// feature is disabled, zero-valued ExampleConfig fields do not fail validation.
+// This lets users delete the example: block from config.yaml without startup
+// failing on required,min=1 tags.
+func TestValidate_ExampleDisabledAllowsZeroValues(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Example.Enabled = false
+	cfg.Example.DefaultPageSize = 0
+	cfg.Example.MaxPageSize = 0
+	cfg.Example.MaxNameLength = 0
+
+	require.NoError(t, cfg.Validate())
+}
+
+// TestValidate_ExampleEnabledRejectsZeroValues verifies that explicit validation
+// rejects zero-valued ExampleConfig fields when the feature is enabled.
+func TestValidate_ExampleEnabledRejectsZeroValues(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Example.Enabled = true
+	cfg.Example.DefaultPageSize = 0
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "EXAMPLE_DEFAULT_PAGE_SIZE must be >= 1")
+}
+
+// TestValidate_ExampleEnabledRejectsNegativeValues verifies that explicit validation
+// rejects negative-valued ExampleConfig fields when the feature is enabled,
+// confirming the min=1 positivity guarantee.
+func TestValidate_ExampleEnabledRejectsNegativeValues(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Example.Enabled = true
+	cfg.Example.DefaultPageSize = -1
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "EXAMPLE_DEFAULT_PAGE_SIZE must be >= 1")
+}
+
 func TestValidate_AcceptsValidConfig(t *testing.T) {
 	cfg := validConfig()
 	require.NoError(t, cfg.Validate())

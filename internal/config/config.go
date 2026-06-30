@@ -109,9 +109,9 @@ type LogConfig struct {
 // ExampleConfig is a feature toggle and settings for the stub feature.
 type ExampleConfig struct {
 	Enabled         bool  `mapstructure:"enabled" yaml:"enabled" env:"EXAMPLE_ENABLED"`
-	DefaultPageSize int32 `mapstructure:"default_page_size" yaml:"default_page_size" env:"EXAMPLE_DEFAULT_PAGE_SIZE" validate:"required,min=1"`
-	MaxPageSize     int32 `mapstructure:"max_page_size" yaml:"max_page_size" env:"EXAMPLE_MAX_PAGE_SIZE" validate:"required,min=1"`
-	MaxNameLength   int32 `mapstructure:"max_name_length" yaml:"max_name_length" env:"EXAMPLE_MAX_NAME_LENGTH" validate:"required,min=1"`
+	DefaultPageSize int32 `mapstructure:"default_page_size" yaml:"default_page_size" env:"EXAMPLE_DEFAULT_PAGE_SIZE"`
+	MaxPageSize     int32 `mapstructure:"max_page_size" yaml:"max_page_size" env:"EXAMPLE_MAX_PAGE_SIZE"`
+	MaxNameLength   int32 `mapstructure:"max_name_length" yaml:"max_name_length" env:"EXAMPLE_MAX_NAME_LENGTH"`
 }
 
 // exampleMaxPageSizeUpperBound caps EXAMPLE_MAX_PAGE_SIZE to a sane ceiling so
@@ -121,6 +121,21 @@ const exampleMaxPageSizeUpperBound int32 = 1000
 // exampleMaxNameLengthUpperBound caps EXAMPLE_MAX_NAME_LENGTH to prevent
 // unreasonable storage/validation costs per name.
 const exampleMaxNameLengthUpperBound int32 = 4096
+
+// validateExamplePositivity returns an error if any of the example config
+// fields are less than 1, enforcing a minimum value when the feature is enabled.
+func validateExamplePositivity(cfg ExampleConfig) error {
+	if cfg.DefaultPageSize < 1 {
+		return fmt.Errorf("EXAMPLE_DEFAULT_PAGE_SIZE must be >= 1")
+	}
+	if cfg.MaxPageSize < 1 {
+		return fmt.Errorf("EXAMPLE_MAX_PAGE_SIZE must be >= 1")
+	}
+	if cfg.MaxNameLength < 1 {
+		return fmt.Errorf("EXAMPLE_MAX_NAME_LENGTH must be >= 1")
+	}
+	return nil
+}
 
 // validate is the package-level validator instance.
 var validate = validator.New()
@@ -190,6 +205,9 @@ func (c *Config) Validate() error {
 	}
 
 	if c.Example.Enabled {
+		if err := validateExamplePositivity(c.Example); err != nil {
+			return err
+		}
 		if c.Example.DefaultPageSize > c.Example.MaxPageSize {
 			return fmt.Errorf("EXAMPLE_DEFAULT_PAGE_SIZE must be <= EXAMPLE_MAX_PAGE_SIZE")
 		}
