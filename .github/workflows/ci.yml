@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "stable"
           cache: true
@@ -48,7 +48,7 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "stable"
           cache: true
@@ -105,7 +105,7 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "stable"
           cache: true
@@ -142,7 +142,7 @@ jobs:
     needs: [lint, unit]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "stable"
           cache: true
