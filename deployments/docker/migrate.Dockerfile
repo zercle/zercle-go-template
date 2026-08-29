@@ -19,7 +19,7 @@ RUN addgroup -g 65534 -S appgroup && \
     adduser -u 65534 -S appuser -G appgroup
 
 COPY --from=builder /migrate /usr/local/bin/migrate
-COPY --from=builder /build/internal/platform/db/migrations /migrations
+COPY --from=builder /build/internal/features/example/adapter/out/postgres/migrations /migrations
 COPY --from=builder /build/config.yaml /etc/zercle/config.yaml
 
 RUN chown -R appuser:appgroup /usr/local/bin/migrate /migrations /etc/zercle

@@ -8,12 +8,12 @@ import (
 	"github.com/samber/do/v2"
 
 	pb "github.com/zercle/zercle-go-template/api/pb/example/v1"
+	grpchandler "github.com/zercle/zercle-go-template/internal/features/example/adapter/in/grpc"
+	httphandler "github.com/zercle/zercle-go-template/internal/features/example/adapter/in/http"
+	"github.com/zercle/zercle-go-template/internal/features/example/adapter/out/postgres"
 	"github.com/zercle/zercle-go-template/internal/features/example/application"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	grpchandler "github.com/zercle/zercle-go-template/internal/features/example/handler/grpc"
-	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"
 	"github.com/zercle/zercle-go-template/internal/features/example/port"
-	"github.com/zercle/zercle-go-template/internal/features/example/repository"
 	"github.com/zercle/zercle-go-template/internal/platform/config"
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 
@@ -33,7 +33,7 @@ func Register(c do.Injector) error {
 		if err != nil {
 			return nil, fmt.Errorf("resolve gorm db: %w", err)
 		}
-		return repository.NewRepository(gormDB), nil
+		return postgres.NewRepository(gormDB), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (application.Service, error) {

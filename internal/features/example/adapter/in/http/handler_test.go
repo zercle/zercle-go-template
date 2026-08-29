@@ -23,7 +23,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/example/application/mock"
 	"github.com/zercle/zercle-go-template/internal/features/example/contract"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"
+	httphandler "github.com/zercle/zercle-go-template/internal/features/example/adapter/in/http"
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 

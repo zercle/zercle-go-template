@@ -2,7 +2,7 @@
 
 // STUB FEATURE — delete internal/features/example to start your project.
 
-package repository_test
+package postgres_test
 
 import (
 	"context"
@@ -18,8 +18,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	pgrepo "github.com/zercle/zercle-go-template/internal/features/example/adapter/out/postgres"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	"github.com/zercle/zercle-go-template/internal/features/example/repository"
 )
 
 // newTestDB builds a *gorm.DB backed by go-sqlmock so each test can assert
@@ -62,7 +62,7 @@ func newTestDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 
 func TestRepository_Create(t *testing.T) {
 	gormDB, mock := newTestDB(t)
-	repo := repository.NewRepository(gormDB)
+	repo := pgrepo.NewRepository(gormDB)
 
 	item := &domain.Item{
 		ID:        uuid.New(),
@@ -82,7 +82,7 @@ func TestRepository_Create(t *testing.T) {
 
 func TestRepository_Create_NilItem(t *testing.T) {
 	gormDB, mock := newTestDB(t)
-	repo := repository.NewRepository(gormDB)
+	repo := pgrepo.NewRepository(gormDB)
 
 	err := repo.Create(context.Background(), nil)
 
@@ -94,7 +94,7 @@ func TestRepository_Create_NilItem(t *testing.T) {
 
 func TestRepository_Create_Error(t *testing.T) {
 	gormDB, mock := newTestDB(t)
-	repo := repository.NewRepository(gormDB)
+	repo := pgrepo.NewRepository(gormDB)
 
 	item := &domain.Item{
 		ID:        uuid.New(),
@@ -116,7 +116,7 @@ func TestRepository_Create_Error(t *testing.T) {
 
 func TestRepository_GetByID(t *testing.T) {
 	gormDB, mock := newTestDB(t)
-	repo := repository.NewRepository(gormDB)
+	repo := pgrepo.NewRepository(gormDB)
 
 	id := uuid.New()
 	now := time.Now().UTC()
@@ -139,7 +139,7 @@ func TestRepository_GetByID(t *testing.T) {
 
 func TestRepository_GetByID_NotFound(t *testing.T) {
 	gormDB, mock := newTestDB(t)
-	repo := repository.NewRepository(gormDB)
+	repo := pgrepo.NewRepository(gormDB)
 
 	mock.ExpectQuery(`SELECT \* FROM "items" WHERE id = \$1 ORDER BY "items"\."id" LIMIT \$2`).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg()).
@@ -155,7 +155,7 @@ func TestRepository_GetByID_NotFound(t *testing.T) {
 
 func TestRepository_List(t *testing.T) {
 	gormDB, mock := newTestDB(t)
-	repo := repository.NewRepository(gormDB)
+	repo := pgrepo.NewRepository(gormDB)
 
 	id := uuid.New()
 	now := time.Now().UTC()
@@ -178,7 +178,7 @@ func TestRepository_List(t *testing.T) {
 
 func TestRepository_List_WithOffset(t *testing.T) {
 	gormDB, mock := newTestDB(t)
-	repo := repository.NewRepository(gormDB)
+	repo := pgrepo.NewRepository(gormDB)
 
 	limit, offset := int32(10), int32(5)
 
@@ -196,7 +196,7 @@ func TestRepository_List_WithOffset(t *testing.T) {
 
 func TestRepository_List_Error(t *testing.T) {
 	gormDB, mock := newTestDB(t)
-	repo := repository.NewRepository(gormDB)
+	repo := pgrepo.NewRepository(gormDB)
 
 	mock.ExpectQuery(`SELECT \* FROM "items" ORDER BY created_at DESC, id DESC LIMIT \$1`).
 		WithArgs(sqlmock.AnyArg()).

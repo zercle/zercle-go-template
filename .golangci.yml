@@ -58,8 +58,8 @@ linters:
     paths:
       - examples$
       - api/pb$
-      - internal/features/example/repository/mock$
-      - internal/features/example/service/mock$
+      - internal/features/example/port/mock$
+      - internal/features/example/application/mock$
     rules:
       - linters:
           - revive

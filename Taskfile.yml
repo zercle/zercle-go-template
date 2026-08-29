@@ -87,17 +87,17 @@ tasks:
   migrate-up:
     desc: Run database migrations
     cmds:
-      - migrate -path internal/platform/db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
+      - migrate -path internal/features/example/adapter/out/postgres/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
 
   migrate-down:
     desc: Rollback one database migration
     cmds:
-      - migrate -path internal/platform/db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" down 1
+      - migrate -path internal/features/example/adapter/out/postgres/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" down 1
 
   migrate-create:
     desc: "Create a new migration: task migrate-create NAME=add_users"
     cmds:
-      - migrate create -ext sql -dir internal/platform/db/migrations {{.NAME}}
+      - migrate create -ext sql -dir internal/features/example/adapter/out/postgres/migrations {{.NAME}}
 
   docker-build:
     desc: Build server container image

@@ -1,6 +1,6 @@
 // STUB FEATURE — delete internal/features/example to start your project.
 
-package repository
+package postgres
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	"github.com/zercle/zercle-go-template/internal/platform/db/models"
+	"github.com/zercle/zercle-go-template/internal/features/example/adapter/out/postgres/models"
 )
 
 // Repository is a GORM implementation of the domain.Repository port.

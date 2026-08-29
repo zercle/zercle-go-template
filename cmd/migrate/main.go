@@ -14,7 +14,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 
 	"github.com/zercle/zercle-go-template/internal/platform/config"
-	"github.com/zercle/zercle-go-template/internal/platform/db/migrations"
+	"github.com/zercle/zercle-go-template/internal/features/example/adapter/out/postgres/migrations"
 )
 
 func main() {

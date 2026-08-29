@@ -2,7 +2,7 @@
 
 // STUB FEATURE — delete internal/features/example to start your project.
 
-package repository_test
+package postgres_test
 
 import (
 	"context"
@@ -19,17 +19,17 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 
-	"github.com/zercle/zercle-go-template/internal/platform/config"
+	"github.com/zercle/zercle-go-template/internal/features/example/adapter/out/postgres"
+	"github.com/zercle/zercle-go-template/internal/features/example/adapter/out/postgres/migrations"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	"github.com/zercle/zercle-go-template/internal/features/example/repository"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/platform/db"
-	"github.com/zercle/zercle-go-template/internal/platform/db/migrations"
 )
 
 type RepositoryIntegrationSuite struct {
 	suite.Suite
 	db   *gorm.DB
-	repo *repository.Repository
+	repo *postgres.Repository
 }
 
 func (s *RepositoryIntegrationSuite) SetupSuite() {
@@ -49,7 +49,7 @@ func (s *RepositoryIntegrationSuite) SetupSuite() {
 
 	s.runMigrations(cfg)
 
-	s.repo = repository.NewRepository(s.db)
+	s.repo = postgres.NewRepository(s.db)
 }
 
 func (s *RepositoryIntegrationSuite) TearDownSuite() {
