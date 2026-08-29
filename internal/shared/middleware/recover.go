@@ -5,7 +5,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/rs/zerolog"
 
-	sharederrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
 // Recover returns echo middleware that recovers from panics, logs the failure
@@ -27,7 +27,7 @@ func Recover(logger *zerolog.Logger) echo.MiddlewareFunc {
 					}
 					log.Msg("request panic recovered")
 
-					status, body := sharederrors.HTTPError(sharederrors.ErrInternal)
+					status, body := apperrors.HTTPError(apperrors.ErrInternal)
 					if jsonErr := c.JSON(status, body); jsonErr != nil {
 						logger.Error().Err(jsonErr).Msg("failed to write panic response")
 					}

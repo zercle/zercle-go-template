@@ -10,7 +10,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	"github.com/zercle/zercle-go-template/internal/features/example/dto"
-	sharederrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
 // Handler exposes the example domain service over HTTP.
@@ -39,17 +39,17 @@ func (h *Handler) Register(g *echo.Group) {
 func (h *Handler) Create(c *echo.Context) error {
 	var req dto.CreateItemRequest
 	if err := c.Bind(&req); err != nil {
-		status, body := sharederrors.HTTPError(sharederrors.ErrInvalidInput)
+		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
 	if err := c.Validate(req); err != nil {
-		status, body := sharederrors.HTTPError(sharederrors.ErrInvalidInput)
+		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
 
 	item, err := h.service.Create(c.Request().Context(), req.Name)
 	if err != nil {
-		status, body := sharederrors.HTTPError(err)
+		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
@@ -61,13 +61,13 @@ func (h *Handler) Create(c *echo.Context) error {
 func (h *Handler) Get(c *echo.Context) error {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		status, body := sharederrors.HTTPError(domain.ErrInvalidID)
+		status, body := apperrors.HTTPError(domain.ErrInvalidID)
 		return c.JSON(status, body)
 	}
 
 	item, err := h.service.Get(c.Request().Context(), id)
 	if err != nil {
-		status, body := sharederrors.HTTPError(err)
+		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
@@ -79,17 +79,17 @@ func (h *Handler) Get(c *echo.Context) error {
 func (h *Handler) List(c *echo.Context) error {
 	var req dto.ListItemsRequest
 	if err := c.Bind(&req); err != nil {
-		status, body := sharederrors.HTTPError(sharederrors.ErrInvalidInput)
+		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
 	if err := c.Validate(req); err != nil {
-		status, body := sharederrors.HTTPError(sharederrors.ErrInvalidInput)
+		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
 
 	items, err := h.service.List(c.Request().Context(), req.Limit, req.Offset)
 	if err != nil {
-		status, body := sharederrors.HTTPError(err)
+		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 

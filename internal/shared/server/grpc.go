@@ -12,7 +12,7 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 
-	sharederrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
 // NewGRPC builds and returns a *grpc.Server with OTel StatsHandler, panic
@@ -99,7 +99,7 @@ func recoverGRPCPanic(logger *zerolog.Logger, r any, method, kind string) error 
 		ev = ev.Interface("panic", r)
 	}
 	ev.Msgf("grpc %s panic recovered", kind)
-	return sharederrors.GRPCErr(sharederrors.ErrInternal)
+	return apperrors.GRPCErr(apperrors.ErrInternal)
 }
 
 // isClientSideCode reports whether a gRPC status code represents an

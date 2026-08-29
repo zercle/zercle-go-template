@@ -23,7 +23,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"
 	"github.com/zercle/zercle-go-template/internal/features/example/service/mock"
-	sharederrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
 // registerSentinelsOnce registers the example feature's domain sentinels exactly
@@ -35,9 +35,9 @@ func setupTest(t *testing.T) (*echo.Echo, *mock.MockService) {
 	t.Helper()
 
 	registerSentinelsOnce.Do(func() {
-		sharederrors.RegisterSentinel(domain.ErrItemNotFound, sharederrors.ErrNotFound)
-		sharederrors.RegisterSentinel(domain.ErrInvalidName, sharederrors.ErrInvalidInput)
-		sharederrors.RegisterSentinel(domain.ErrInvalidID, sharederrors.ErrInvalidInput)
+		apperrors.RegisterSentinel(domain.ErrItemNotFound, apperrors.ErrNotFound)
+		apperrors.RegisterSentinel(domain.ErrInvalidName, apperrors.ErrInvalidInput)
+		apperrors.RegisterSentinel(domain.ErrInvalidID, apperrors.ErrInvalidInput)
 	})
 
 	e := echo.New()

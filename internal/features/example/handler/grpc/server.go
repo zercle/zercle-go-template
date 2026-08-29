@@ -10,7 +10,7 @@ import (
 
 	pb "github.com/zercle/zercle-go-template/api/pb/example/v1"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	sharederrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
 // nolint:wrapcheck // gRPC handlers return the shared mapper error directly.
@@ -29,12 +29,12 @@ func NewServer(service domain.Service) *Server {
 // CreateItem creates a new item.
 func (s *Server) CreateItem(ctx context.Context, req *pb.CreateItemRequest) (*pb.Item, error) {
 	if req == nil {
-		return nil, sharederrors.GRPCErr(sharederrors.ErrInvalidInput)
+		return nil, apperrors.GRPCErr(apperrors.ErrInvalidInput)
 	}
 
 	item, err := s.service.Create(ctx, req.Name)
 	if err != nil {
-		return nil, sharederrors.GRPCErr(err)
+		return nil, apperrors.GRPCErr(err)
 	}
 
 	return mapDomainToPB(item), nil
@@ -43,17 +43,17 @@ func (s *Server) CreateItem(ctx context.Context, req *pb.CreateItemRequest) (*pb
 // GetItem retrieves an item by ID.
 func (s *Server) GetItem(ctx context.Context, req *pb.GetItemRequest) (*pb.Item, error) {
 	if req == nil {
-		return nil, sharederrors.GRPCErr(sharederrors.ErrInvalidInput)
+		return nil, apperrors.GRPCErr(apperrors.ErrInvalidInput)
 	}
 
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
-		return nil, sharederrors.GRPCErr(domain.ErrInvalidID)
+		return nil, apperrors.GRPCErr(domain.ErrInvalidID)
 	}
 
 	item, err := s.service.Get(ctx, id)
 	if err != nil {
-		return nil, sharederrors.GRPCErr(err)
+		return nil, apperrors.GRPCErr(err)
 	}
 
 	return mapDomainToPB(item), nil
@@ -62,12 +62,12 @@ func (s *Server) GetItem(ctx context.Context, req *pb.GetItemRequest) (*pb.Item,
 // ListItems returns a paginated list of items.
 func (s *Server) ListItems(ctx context.Context, req *pb.ListItemsRequest) (*pb.ListItemsResponse, error) {
 	if req == nil {
-		return nil, sharederrors.GRPCErr(sharederrors.ErrInvalidInput)
+		return nil, apperrors.GRPCErr(apperrors.ErrInvalidInput)
 	}
 
 	items, err := s.service.List(ctx, req.Limit, req.Offset)
 	if err != nil {
-		return nil, sharederrors.GRPCErr(err)
+		return nil, apperrors.GRPCErr(err)
 	}
 
 	resp := &pb.ListItemsResponse{Items: make([]*pb.Item, len(items))}
