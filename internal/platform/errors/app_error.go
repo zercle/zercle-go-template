@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	"google.golang.org/grpc/codes"
+
+	"github.com/zercle/zercle-go-template/pkg/api/errcodes"
 )
 
 // AppError is the shared boundary error type. It carries enough metadata for
@@ -42,12 +44,12 @@ func (e *AppError) Unwrap() error {
 // a domain or infrastructure error cannot be mapped to a feature-specific
 // sentinel.
 var (
-	ErrNotFound         = &AppError{Code: "NOT_FOUND", Message: "resource not found", HTTPStatus: http.StatusNotFound, GRPCCode: codes.NotFound}
-	ErrInvalidInput     = &AppError{Code: "INVALID_INPUT", Message: "invalid input", HTTPStatus: http.StatusBadRequest, GRPCCode: codes.InvalidArgument}
-	ErrUnauthorized     = &AppError{Code: "UNAUTHORIZED", Message: "unauthorized", HTTPStatus: http.StatusUnauthorized, GRPCCode: codes.Unauthenticated}
-	ErrForbidden        = &AppError{Code: "FORBIDDEN", Message: "forbidden", HTTPStatus: http.StatusForbidden, GRPCCode: codes.PermissionDenied}
-	ErrConflict         = &AppError{Code: "CONFLICT", Message: "conflict", HTTPStatus: http.StatusConflict, GRPCCode: codes.AlreadyExists}
-	ErrCanceled         = &AppError{Code: "CANCELED", Message: "request canceled", HTTPStatus: 499, GRPCCode: codes.Canceled}
-	ErrDeadlineExceeded = &AppError{Code: "DEADLINE_EXCEEDED", Message: "deadline exceeded", HTTPStatus: http.StatusGatewayTimeout, GRPCCode: codes.DeadlineExceeded}
-	ErrInternal         = &AppError{Code: "INTERNAL", Message: "internal error", HTTPStatus: http.StatusInternalServerError, GRPCCode: codes.Internal}
+	ErrNotFound         = &AppError{Code: errcodes.NotFound, Message: "resource not found", HTTPStatus: http.StatusNotFound, GRPCCode: codes.NotFound}
+	ErrInvalidInput     = &AppError{Code: errcodes.InvalidInput, Message: "invalid input", HTTPStatus: http.StatusBadRequest, GRPCCode: codes.InvalidArgument}
+	ErrUnauthorized     = &AppError{Code: errcodes.Unauthorized, Message: "unauthorized", HTTPStatus: http.StatusUnauthorized, GRPCCode: codes.Unauthenticated}
+	ErrForbidden        = &AppError{Code: errcodes.Forbidden, Message: "forbidden", HTTPStatus: http.StatusForbidden, GRPCCode: codes.PermissionDenied}
+	ErrConflict         = &AppError{Code: errcodes.Conflict, Message: "conflict", HTTPStatus: http.StatusConflict, GRPCCode: codes.AlreadyExists}
+	ErrCanceled         = &AppError{Code: errcodes.Canceled, Message: "request canceled", HTTPStatus: 499, GRPCCode: codes.Canceled}
+	ErrDeadlineExceeded = &AppError{Code: errcodes.DeadlineExceeded, Message: "deadline exceeded", HTTPStatus: http.StatusGatewayTimeout, GRPCCode: codes.DeadlineExceeded}
+	ErrInternal         = &AppError{Code: errcodes.Internal, Message: "internal error", HTTPStatus: http.StatusInternalServerError, GRPCCode: codes.Internal}
 )
