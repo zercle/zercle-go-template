@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/zercle/zercle-go-template/internal/platform/config"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/db"
+	"github.com/zercle/zercle-go-template/internal/platform/db"
 )
 
 // TestNewDB_NilConfig verifies that NewDB rejects a nil config without

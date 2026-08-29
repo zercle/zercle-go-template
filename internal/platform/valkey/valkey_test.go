@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/zercle/zercle-go-template/internal/platform/config"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
+	"github.com/zercle/zercle-go-template/internal/platform/valkey"
 )
 
 func TestConfig_ValkeyAddr(t *testing.T) {

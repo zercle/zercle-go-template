@@ -12,7 +12,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"github.com/zercle/zercle-go-template/internal/infrastructure/db"
+	"github.com/zercle/zercle-go-template/internal/platform/db"
 )
 
 // newMockGormDB builds a *gorm.DB backed by sqlmock so we can exercise the

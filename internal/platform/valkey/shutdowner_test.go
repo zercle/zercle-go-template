@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
+	"github.com/zercle/zercle-go-template/internal/platform/valkey"
 )
 
 // TestShutdowner_NilClientIsSafe verifies that constructing a shutdowner

@@ -22,8 +22,8 @@ import (
 	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	"github.com/zercle/zercle-go-template/internal/features/example/repository"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/db"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/db/migrations"
+	"github.com/zercle/zercle-go-template/internal/platform/db"
+	"github.com/zercle/zercle-go-template/internal/platform/db/migrations"
 )
 
 type RepositoryIntegrationSuite struct {

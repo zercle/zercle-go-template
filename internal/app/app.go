@@ -13,8 +13,8 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/platform/config"
 	exampledi "github.com/zercle/zercle-go-template/internal/features/example/di"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/db"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
+	"github.com/zercle/zercle-go-template/internal/platform/db"
+	"github.com/zercle/zercle-go-template/internal/platform/valkey"
 	"github.com/zercle/zercle-go-template/internal/platform/server"
 	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
