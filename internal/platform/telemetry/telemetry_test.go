@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/zercle/zercle-go-template/internal/config"
-	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
+	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
 func TestNewLogger_JSON(t *testing.T) {

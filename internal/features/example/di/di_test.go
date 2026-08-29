@@ -14,7 +14,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/config"
 	"github.com/zercle/zercle-go-template/internal/features/example/di"
-	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
+	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
 // TestRegister_DepsMissing returns an error when required DI dependencies are

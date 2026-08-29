@@ -9,7 +9,7 @@ import (
 	"github.com/samber/do/v2"
 
 	"github.com/zercle/zercle-go-template/internal/config"
-	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
+	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
 // Register provides *gorm.DB and registers the PostgreSQL readiness checker.

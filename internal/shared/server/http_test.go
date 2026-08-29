@@ -15,7 +15,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/config"
 	"github.com/zercle/zercle-go-template/internal/shared/server"
-	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
+	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
 func newTestConfig(t *testing.T) *config.Config {

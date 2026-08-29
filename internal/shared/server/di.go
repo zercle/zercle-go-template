@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/zercle/zercle-go-template/internal/config"
-	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
+	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
 // Register wires *echo.Echo, *grpc.Server, and the Application orchestrator

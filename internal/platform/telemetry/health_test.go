@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
+	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
 type staticChecker struct {

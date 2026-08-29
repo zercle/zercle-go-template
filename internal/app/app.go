@@ -16,7 +16,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/infrastructure/db"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"
 	"github.com/zercle/zercle-go-template/internal/shared/server"
-	"github.com/zercle/zercle-go-template/internal/shared/telemetry"
+	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
 // Version metadata is populated by cmd/server/main.go via these package-level
