@@ -5,6 +5,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"path"
@@ -42,12 +43,12 @@ func (m mergedFS) Open(name string) (fs.File, error) {
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
-			return nil, err
+			return nil, fmt.Errorf("open %q in migration source: %w", name, err)
 		}
 		st, statErr := f.Stat()
 		if statErr != nil {
 			_ = f.Close()
-			return nil, statErr
+			return nil, fmt.Errorf("stat %q in migration source: %w", name, statErr)
 		}
 		if !st.IsDir() {
 			return f, nil
@@ -79,7 +80,7 @@ func (m mergedFS) ReadDir(name string) ([]fs.DirEntry, error) {
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
 			}
-			return nil, err
+			return nil, fmt.Errorf("readdir %q in migration source: %w", name, err)
 		}
 		found = true
 		for _, e := range dirEntries {

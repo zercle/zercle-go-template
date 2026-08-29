@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	"github.com/zercle/zercle-go-template/internal/features/example/adapter/out/postgres/models"
+	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 )
 
 // Repository is a GORM implementation of the domain.Repository port.

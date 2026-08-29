@@ -11,12 +11,12 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/samber/do/v2"
 
-	"github.com/zercle/zercle-go-template/internal/platform/config"
 	exampledi "github.com/zercle/zercle-go-template/internal/features/example/di"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/platform/db"
-	"github.com/zercle/zercle-go-template/internal/platform/valkey"
 	"github.com/zercle/zercle-go-template/internal/platform/server"
 	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
+	"github.com/zercle/zercle-go-template/internal/platform/valkey"
 )
 
 // Version metadata is populated by cmd/server/main.go via these package-level

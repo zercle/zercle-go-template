@@ -46,8 +46,7 @@ func GRPCErr(err error) error {
 // Every successful path returns a clone of the matched AppError so callers can
 // never mutate shared sentinels or the AppError they passed in.
 func resolveAppError(err error) *AppError {
-	var app *AppError
-	if errors.As(err, &app) {
+	if app, ok := errors.AsType[*AppError](err); ok {
 		clone := *app
 		clone.Cause = err
 		return &clone

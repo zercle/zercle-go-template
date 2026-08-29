@@ -14,13 +14,17 @@ import (
 	"github.com/zercle/zercle-go-template/pkg/api/errcodes"
 )
 
-// Request and response types of the example feature's /api/v1 endpoints.
-type (
-	CreateItemRequest = contract.CreateItemRequest
-	ItemResponse      = contract.ItemResponse
-	ListItemsRequest  = contract.ListItemsRequest
-	ListItemsResponse = contract.ListItemsResponse
-)
+// CreateItemRequest is the payload for POST /api/v1/items.
+type CreateItemRequest = contract.CreateItemRequest
+
+// ItemResponse is the wire representation of an item.
+type ItemResponse = contract.ItemResponse
+
+// ListItemsRequest carries the pagination query parameters for GET /api/v1/items.
+type ListItemsRequest = contract.ListItemsRequest
+
+// ListItemsResponse wraps a page of items.
+type ListItemsResponse = contract.ListItemsResponse
 
 // Error codes carried in the {"error": code, "message": msg} response
 // envelope, re-exported from the version-independent errcodes package.

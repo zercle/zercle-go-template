@@ -12,8 +12,8 @@ import (
 	"github.com/samber/do/v2"
 	"github.com/stretchr/testify/require"
 
-	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/features/example/di"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 

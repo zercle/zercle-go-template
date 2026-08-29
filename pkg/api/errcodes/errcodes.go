@@ -9,6 +9,8 @@
 // depending on server internals.
 package errcodes
 
+// Stable machine-readable error codes, in the "error" field of the response
+// envelope.
 const (
 	NotFound         = "NOT_FOUND"
 	InvalidInput     = "INVALID_INPUT"
