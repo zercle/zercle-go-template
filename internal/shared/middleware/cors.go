@@ -5,7 +5,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 
-	"github.com/zercle/zercle-go-template/internal/config"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 )
 
 // defaultCORSMethods mirrors the echo CORS middleware default when none are

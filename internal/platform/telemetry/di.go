@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 
-	"github.com/zercle/zercle-go-template/internal/config"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 )
 
 // Register wires logger, tracer provider, meter provider, and health registry

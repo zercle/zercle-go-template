@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 
-	"github.com/zercle/zercle-go-template/internal/config"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	"github.com/zercle/zercle-go-template/internal/features/example/repository"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/db"

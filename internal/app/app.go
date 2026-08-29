@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/samber/do/v2"
 
-	"github.com/zercle/zercle-go-template/internal/config"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 	exampledi "github.com/zercle/zercle-go-template/internal/features/example/di"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/db"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/messaging/valkey"

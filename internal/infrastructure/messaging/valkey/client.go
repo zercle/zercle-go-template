@@ -9,7 +9,7 @@ import (
 
 	valkeygo "github.com/valkey-io/valkey-go"
 
-	"github.com/zercle/zercle-go-template/internal/config"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 )
 
 const defaultValkeyConnectTimeout = 5 * time.Second

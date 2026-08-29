@@ -8,7 +8,7 @@ import (
 	"github.com/samber/do/v2"
 
 	pb "github.com/zercle/zercle-go-template/api/pb/example/v1"
-	"github.com/zercle/zercle-go-template/internal/config"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	grpchandler "github.com/zercle/zercle-go-template/internal/features/example/handler/grpc"
 	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"

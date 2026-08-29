@@ -13,7 +13,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // postgres driver registers "postgres://" DSNs
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 
-	"github.com/zercle/zercle-go-template/internal/config"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/db/migrations"
 )
 
