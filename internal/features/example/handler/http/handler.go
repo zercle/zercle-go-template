@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo/v5"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	"github.com/zercle/zercle-go-template/internal/features/example/dto"
+	"github.com/zercle/zercle-go-template/internal/features/example/contract"
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
@@ -37,7 +37,7 @@ func (h *Handler) Register(g *echo.Group) {
 // Create handles POST /items.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Create(c *echo.Context) error {
-	var req dto.CreateItemRequest
+	var req contract.CreateItemRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
@@ -77,7 +77,7 @@ func (h *Handler) Get(c *echo.Context) error {
 // List handles GET /items.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) List(c *echo.Context) error {
-	var req dto.ListItemsRequest
+	var req contract.ListItemsRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
@@ -96,11 +96,11 @@ func (h *Handler) List(c *echo.Context) error {
 	return c.JSON(http.StatusOK, mapItemsToResponse(items))
 }
 
-func mapItemToResponse(item *domain.Item) dto.ItemResponse {
+func mapItemToResponse(item *domain.Item) contract.ItemResponse {
 	if item == nil {
-		return dto.ItemResponse{}
+		return contract.ItemResponse{}
 	}
-	return dto.ItemResponse{
+	return contract.ItemResponse{
 		ID:        item.ID.String(),
 		Name:      item.Name,
 		CreatedAt: item.CreatedAt.Format(timeFormat),
@@ -108,8 +108,8 @@ func mapItemToResponse(item *domain.Item) dto.ItemResponse {
 	}
 }
 
-func mapItemsToResponse(items []domain.Item) dto.ListItemsResponse {
-	resp := dto.ListItemsResponse{Items: make([]dto.ItemResponse, len(items))}
+func mapItemsToResponse(items []domain.Item) contract.ListItemsResponse {
+	resp := contract.ListItemsResponse{Items: make([]contract.ItemResponse, len(items))}
 	for i, item := range items {
 		resp.Items[i] = mapItemToResponse(&item)
 	}

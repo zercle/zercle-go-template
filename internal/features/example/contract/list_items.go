@@ -1,6 +1,6 @@
 // STUB FEATURE — delete internal/features/example to start your project.
 
-package dto
+package contract
 
 // ListItemsRequest carries pagination parameters for listing items.
 type ListItemsRequest struct {

@@ -1,6 +1,10 @@
 // STUB FEATURE — delete internal/features/example to start your project.
 
-package dto
+// Canonical inbound wire types for the example feature's /api/v1 endpoints.
+// This package is the single source of the HTTP JSON shapes; the published
+// contract facade pkg/api/v1 re-exports these types as aliases so other
+// services can construct payloads without importing server internals.
+package contract
 
 // CreateItemRequest is the payload for creating a new item.
 type CreateItemRequest struct {
