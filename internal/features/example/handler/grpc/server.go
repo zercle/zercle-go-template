@@ -4,13 +4,10 @@ package grpchandler
 
 import (
 	"context"
-	"time"
-
-	"github.com/google/uuid"
 
 	pb "github.com/zercle/zercle-go-template/api/pb/example/v1"
 	"github.com/zercle/zercle-go-template/internal/features/example/application"
-	"github.com/zercle/zercle-go-template/internal/features/example/domain"
+	"github.com/zercle/zercle-go-template/internal/features/example/contract"
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
@@ -33,12 +30,12 @@ func (s *Server) CreateItem(ctx context.Context, req *pb.CreateItemRequest) (*pb
 		return nil, apperrors.GRPCErr(apperrors.ErrInvalidInput)
 	}
 
-	item, err := s.service.Create(ctx, req.Name)
+	resp, err := s.service.Create(ctx, &contract.CreateItemRequest{Name: req.Name})
 	if err != nil {
 		return nil, apperrors.GRPCErr(err)
 	}
 
-	return mapDomainToPB(item), nil
+	return mapContractToPB(resp), nil
 }
 
 // GetItem retrieves an item by ID.
@@ -47,17 +44,12 @@ func (s *Server) GetItem(ctx context.Context, req *pb.GetItemRequest) (*pb.Item,
 		return nil, apperrors.GRPCErr(apperrors.ErrInvalidInput)
 	}
 
-	id, err := uuid.Parse(req.Id)
-	if err != nil {
-		return nil, apperrors.GRPCErr(domain.ErrInvalidID)
-	}
-
-	item, err := s.service.Get(ctx, id)
+	resp, err := s.service.Get(ctx, req.Id)
 	if err != nil {
 		return nil, apperrors.GRPCErr(err)
 	}
 
-	return mapDomainToPB(item), nil
+	return mapContractToPB(resp), nil
 }
 
 // ListItems returns a paginated list of items.
@@ -66,27 +58,27 @@ func (s *Server) ListItems(ctx context.Context, req *pb.ListItemsRequest) (*pb.L
 		return nil, apperrors.GRPCErr(apperrors.ErrInvalidInput)
 	}
 
-	items, err := s.service.List(ctx, req.Limit, req.Offset)
+	resp, err := s.service.List(ctx, &contract.ListItemsRequest{Limit: req.Limit, Offset: req.Offset})
 	if err != nil {
 		return nil, apperrors.GRPCErr(err)
 	}
 
-	resp := &pb.ListItemsResponse{Items: make([]*pb.Item, len(items))}
-	for i, item := range items {
-		resp.Items[i] = mapDomainToPB(&item)
+	out := &pb.ListItemsResponse{Items: make([]*pb.Item, len(resp.Items))}
+	for i := range resp.Items {
+		out.Items[i] = mapContractToPB(&resp.Items[i])
 	}
 
-	return resp, nil
+	return out, nil
 }
 
-func mapDomainToPB(item *domain.Item) *pb.Item {
-	if item == nil {
+func mapContractToPB(resp *contract.ItemResponse) *pb.Item {
+	if resp == nil {
 		return nil
 	}
 	return &pb.Item{
-		Id:        item.ID.String(),
-		Name:      item.Name,
-		CreatedAt: item.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: item.UpdatedAt.Format(time.RFC3339),
+		Id:        resp.ID,
+		Name:      resp.Name,
+		CreatedAt: resp.CreatedAt,
+		UpdatedAt: resp.UpdatedAt,
 	}
 }

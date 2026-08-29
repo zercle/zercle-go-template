@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/zercle/zercle-go-template/internal/features/example/contract"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	"github.com/zercle/zercle-go-template/internal/features/example/port"
 )
@@ -20,6 +21,8 @@ const (
 	defaultPageSizeFallback int32 = 20
 	maxPageSizeFallback     int32 = 100
 	maxNameLengthFallback   int32 = 255
+
+	timeFormat = time.RFC3339
 )
 
 // Usecase implements the Service inbound use-case port.
@@ -51,9 +54,12 @@ func NewUsecase(repo port.Repository, defaultPageSize, maxPageSize, maxNameLengt
 	}
 }
 
-// Create validates the name and persists a new item.
-func (u *Usecase) Create(ctx context.Context, name string) (*domain.Item, error) {
-	name = strings.TrimSpace(name)
+// Create validates the name, persists a new item, and returns its wire form.
+func (u *Usecase) Create(ctx context.Context, req *contract.CreateItemRequest) (*contract.ItemResponse, error) {
+	var name string
+	if req != nil {
+		name = strings.TrimSpace(req.Name)
+	}
 	if name == "" || utf8.RuneCountInString(name) > int(u.maxNameLength) {
 		return nil, domain.ErrInvalidName
 	}
@@ -70,15 +76,19 @@ func (u *Usecase) Create(ctx context.Context, name string) (*domain.Item, error)
 		return nil, fmt.Errorf("create item: %w", err)
 	}
 
-	return item, nil
+	resp := newItemResponse(item)
+	return &resp, nil
 }
 
-// Get retrieves an item by ID, passing through domain.ErrItemNotFound.
-func (u *Usecase) Get(ctx context.Context, id uuid.UUID) (*domain.Item, error) {
-	if id == uuid.Nil {
+// Get retrieves an item by ID, passing through domain.ErrItemNotFound. The
+// wire id string is parsed here so both driving adapters share one validation
+// path.
+func (u *Usecase) Get(ctx context.Context, id string) (*contract.ItemResponse, error) {
+	parsed, err := uuid.Parse(id)
+	if err != nil || parsed == uuid.Nil {
 		return nil, domain.ErrInvalidID
 	}
-	item, err := u.repo.GetByID(ctx, id)
+	item, err := u.repo.GetByID(ctx, parsed)
 	if err != nil {
 		if errors.Is(err, domain.ErrItemNotFound) {
 			return nil, domain.ErrItemNotFound
@@ -86,12 +96,17 @@ func (u *Usecase) Get(ctx context.Context, id uuid.UUID) (*domain.Item, error) {
 		return nil, fmt.Errorf("get item: %w", err)
 	}
 
-	return item, nil
+	resp := newItemResponse(item)
+	return &resp, nil
 }
 
 // List returns a paginated list of items. It enforces safe defaults so a
 // zero-value limit (e.g. no query parameter) never produces LIMIT 0.
-func (u *Usecase) List(ctx context.Context, limit, offset int32) ([]domain.Item, error) {
+func (u *Usecase) List(ctx context.Context, req *contract.ListItemsRequest) (*contract.ListItemsResponse, error) {
+	var limit, offset int32
+	if req != nil {
+		limit, offset = req.Limit, req.Offset
+	}
 	if limit <= 0 {
 		limit = u.defaultPageSize
 	}
@@ -107,5 +122,21 @@ func (u *Usecase) List(ctx context.Context, limit, offset int32) ([]domain.Item,
 		return nil, fmt.Errorf("list items: %w", err)
 	}
 
-	return items, nil
+	resp := &contract.ListItemsResponse{Items: make([]contract.ItemResponse, len(items))}
+	for i := range items {
+		resp.Items[i] = newItemResponse(&items[i])
+	}
+	return resp, nil
+}
+
+func newItemResponse(item *domain.Item) contract.ItemResponse {
+	if item == nil {
+		return contract.ItemResponse{}
+	}
+	return contract.ItemResponse{
+		ID:        item.ID.String(),
+		Name:      item.Name,
+		CreatedAt: item.CreatedAt.Format(timeFormat),
+		UpdatedAt: item.UpdatedAt.Format(timeFormat),
+	}
 }

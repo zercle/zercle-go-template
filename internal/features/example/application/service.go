@@ -9,16 +9,16 @@ package application
 import (
 	"context"
 
-	"github.com/google/uuid"
-
-	"github.com/zercle/zercle-go-template/internal/features/example/domain"
+	"github.com/zercle/zercle-go-template/internal/features/example/contract"
 )
 
-// Service is the inbound use-case port for Items.
+// Service is the inbound use-case port for Items. It speaks the feature's
+// contract types at the boundary so driving adapters bind responses directly
+// and never map to or from domain entities.
 //
 //go:generate go tool mockgen -source=service.go -destination=mock/service_mock.go -package=mock
 type Service interface {
-	Create(ctx context.Context, name string) (*domain.Item, error)
-	Get(ctx context.Context, id uuid.UUID) (*domain.Item, error)
-	List(ctx context.Context, limit, offset int32) ([]domain.Item, error)
+	Create(ctx context.Context, req *contract.CreateItemRequest) (*contract.ItemResponse, error)
+	Get(ctx context.Context, id string) (*contract.ItemResponse, error)
+	List(ctx context.Context, req *contract.ListItemsRequest) (*contract.ListItemsResponse, error)
 }

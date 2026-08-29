@@ -20,9 +20,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/zercle/zercle-go-template/internal/features/example/application/mock"
+	"github.com/zercle/zercle-go-template/internal/features/example/contract"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"
-	"github.com/zercle/zercle-go-template/internal/features/example/application/mock"
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
@@ -70,7 +71,8 @@ func TestHandler_Create(t *testing.T) {
 	e, svc := setupTest(t)
 	id := uuid.New()
 
-	svc.EXPECT().Create(ctx, "stub").Return(&domain.Item{ID: id, Name: "stub"}, nil)
+	svc.EXPECT().Create(ctx, &contract.CreateItemRequest{Name: "stub"}).
+		Return(&contract.ItemResponse{ID: id.String(), Name: "stub"}, nil)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/items", bytes.NewReader([]byte(`{"name":"stub"}`)))
@@ -89,7 +91,7 @@ func TestHandler_Get(t *testing.T) {
 	e, svc := setupTest(t)
 	id := uuid.New()
 
-	svc.EXPECT().Get(ctx, id).Return(&domain.Item{ID: id, Name: "found"}, nil)
+	svc.EXPECT().Get(ctx, id.String()).Return(&contract.ItemResponse{ID: id.String(), Name: "found"}, nil)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/items/"+id.String(), nil)
@@ -106,7 +108,7 @@ func TestHandler_Get_NotFound(t *testing.T) {
 	e, svc := setupTest(t)
 	id := uuid.New()
 
-	svc.EXPECT().Get(ctx, id).Return(nil, domain.ErrItemNotFound)
+	svc.EXPECT().Get(ctx, id.String()).Return(nil, domain.ErrItemNotFound)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/items/"+id.String(), nil)
@@ -118,6 +120,26 @@ func TestHandler_Get_NotFound(t *testing.T) {
 	var body map[string]any
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	require.Equal(t, "NOT_FOUND", body["error"])
+}
+
+func TestHandler_Get_InvalidID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	e, svc := setupTest(t)
+
+	svc.EXPECT().Get(ctx, "not-a-uuid").Return(nil, domain.ErrInvalidID)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/items/not-a-uuid", nil)
+
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.Equal(t, "INVALID_INPUT", body["error"])
 }
 
 func TestHandler_Create_EmptyName(t *testing.T) {
@@ -145,7 +167,7 @@ func TestHandler_Create_ServiceError(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().Create(ctx, "stub").Return(nil, errors.New("boom"))
+	svc.EXPECT().Create(ctx, &contract.CreateItemRequest{Name: "stub"}).Return(nil, errors.New("boom"))
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/items", bytes.NewReader([]byte(`{"name":"stub"}`)))
@@ -162,7 +184,8 @@ func TestHandler_List_NoQueryParams(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().List(ctx, int32(0), int32(0)).Return([]domain.Item{{ID: uuid.New(), Name: "default"}}, nil)
+	svc.EXPECT().List(ctx, &contract.ListItemsRequest{}).
+		Return(&contract.ListItemsResponse{Items: []contract.ItemResponse{{ID: uuid.New().String(), Name: "default"}}}, nil)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/items", nil)

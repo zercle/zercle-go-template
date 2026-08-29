@@ -5,16 +5,14 @@ package httphandler
 import (
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/application"
 	"github.com/zercle/zercle-go-template/internal/features/example/contract"
-	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
-// Handler exposes the example domain service over HTTP.
+// Handler exposes the example application service over HTTP.
 type Handler struct {
 	service application.Service
 }
@@ -48,31 +46,25 @@ func (h *Handler) Create(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	item, err := h.service.Create(c.Request().Context(), req.Name)
+	resp, err := h.service.Create(c.Request().Context(), &req)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusCreated, mapItemToResponse(item))
+	return c.JSON(http.StatusCreated, resp)
 }
 
 // Get handles GET /items/:id.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Get(c *echo.Context) error {
-	id, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		status, body := apperrors.HTTPError(domain.ErrInvalidID)
-		return c.JSON(status, body)
-	}
-
-	item, err := h.service.Get(c.Request().Context(), id)
+	resp, err := h.service.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusOK, mapItemToResponse(item))
+	return c.JSON(http.StatusOK, resp)
 }
 
 // List handles GET /items.
@@ -88,31 +80,11 @@ func (h *Handler) List(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	items, err := h.service.List(c.Request().Context(), req.Limit, req.Offset)
+	resp, err := h.service.List(c.Request().Context(), &req)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusOK, mapItemsToResponse(items))
-}
-
-func mapItemToResponse(item *domain.Item) contract.ItemResponse {
-	if item == nil {
-		return contract.ItemResponse{}
-	}
-	return contract.ItemResponse{
-		ID:        item.ID.String(),
-		Name:      item.Name,
-		CreatedAt: item.CreatedAt.Format(timeFormat),
-		UpdatedAt: item.UpdatedAt.Format(timeFormat),
-	}
-}
-
-func mapItemsToResponse(items []domain.Item) contract.ListItemsResponse {
-	resp := contract.ListItemsResponse{Items: make([]contract.ItemResponse, len(items))}
-	for i, item := range items {
-		resp.Items[i] = mapItemToResponse(&item)
-	}
-	return resp
+	return c.JSON(http.StatusOK, resp)
 }
