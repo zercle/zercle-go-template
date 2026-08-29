@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/zercle/zercle-go-template/internal/platform/config"
-	"github.com/zercle/zercle-go-template/internal/shared/server"
+	"github.com/zercle/zercle-go-template/internal/platform/server"
 	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
