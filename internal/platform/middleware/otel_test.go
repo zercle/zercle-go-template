@@ -16,7 +16,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 
-	"github.com/zercle/zercle-go-template/internal/shared/middleware"
+	"github.com/zercle/zercle-go-template/internal/platform/middleware"
 )
 
 // tpSpan is a no-op span whose TracerProvider returns the supplied provider.

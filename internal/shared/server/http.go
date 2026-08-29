@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/zercle/zercle-go-template/internal/platform/config"
-	"github.com/zercle/zercle-go-template/internal/shared/middleware"
+	"github.com/zercle/zercle-go-template/internal/platform/middleware"
 	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
