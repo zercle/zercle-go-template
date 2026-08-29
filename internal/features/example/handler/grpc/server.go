@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	pb "github.com/zercle/zercle-go-template/api/pb/example/v1"
+	"github.com/zercle/zercle-go-template/internal/features/example/application"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
@@ -18,11 +19,11 @@ import (
 // Server implements the example.v1.ExampleService gRPC contract.
 type Server struct {
 	pb.UnimplementedExampleServiceServer
-	service domain.Service
+	service application.Service
 }
 
 // NewServer returns a gRPC handler for the example feature.
-func NewServer(service domain.Service) *Server {
+func NewServer(service application.Service) *Server {
 	return &Server{service: service}
 }
 

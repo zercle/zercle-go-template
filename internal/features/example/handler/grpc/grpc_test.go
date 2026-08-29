@@ -17,7 +17,7 @@ import (
 	pb "github.com/zercle/zercle-go-template/api/pb/example/v1"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	grpchandler "github.com/zercle/zercle-go-template/internal/features/example/handler/grpc"
-	"github.com/zercle/zercle-go-template/internal/features/example/service/mock"
+	"github.com/zercle/zercle-go-template/internal/features/example/application/mock"
 )
 
 func TestServer_CreateItem(t *testing.T) {

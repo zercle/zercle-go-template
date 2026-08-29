@@ -22,7 +22,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"
-	"github.com/zercle/zercle-go-template/internal/features/example/service/mock"
+	"github.com/zercle/zercle-go-template/internal/features/example/application/mock"
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 

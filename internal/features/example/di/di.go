@@ -8,13 +8,13 @@ import (
 	"github.com/samber/do/v2"
 
 	pb "github.com/zercle/zercle-go-template/api/pb/example/v1"
-	"github.com/zercle/zercle-go-template/internal/platform/config"
+	"github.com/zercle/zercle-go-template/internal/features/example/application"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	"github.com/zercle/zercle-go-template/internal/features/example/port"
 	grpchandler "github.com/zercle/zercle-go-template/internal/features/example/handler/grpc"
 	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"
+	"github.com/zercle/zercle-go-template/internal/features/example/port"
 	"github.com/zercle/zercle-go-template/internal/features/example/repository"
-	"github.com/zercle/zercle-go-template/internal/features/example/service"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 
 	"github.com/labstack/echo/v5"
@@ -36,7 +36,7 @@ func Register(c do.Injector) error {
 		return repository.NewRepository(gormDB), nil
 	})
 
-	do.Provide(c, func(i do.Injector) (domain.Service, error) {
+	do.Provide(c, func(i do.Injector) (application.Service, error) {
 		repo, err := do.Invoke[port.Repository](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve example repository: %w", err)
@@ -45,11 +45,11 @@ func Register(c do.Injector) error {
 		if err != nil {
 			return nil, fmt.Errorf("resolve config: %w", err)
 		}
-		return service.NewService(repo, cfg.Example.DefaultPageSize, cfg.Example.MaxPageSize, cfg.Example.MaxNameLength), nil
+		return application.NewUsecase(repo, cfg.Example.DefaultPageSize, cfg.Example.MaxPageSize, cfg.Example.MaxNameLength), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (*httphandler.Handler, error) {
-		svc, err := do.Invoke[domain.Service](i)
+		svc, err := do.Invoke[application.Service](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve example service: %w", err)
 		}
@@ -57,7 +57,7 @@ func Register(c do.Injector) error {
 	})
 
 	do.Provide(c, func(i do.Injector) (*grpchandler.Server, error) {
-		svc, err := do.Invoke[domain.Service](i)
+		svc, err := do.Invoke[application.Service](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve example service: %w", err)
 		}

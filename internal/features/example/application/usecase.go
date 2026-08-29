@@ -1,6 +1,6 @@
 // STUB FEATURE — delete internal/features/example to start your project.
 
-package service
+package application
 
 import (
 	"context"
@@ -22,18 +22,18 @@ const (
 	maxNameLengthFallback   int32 = 255
 )
 
-// Service implements the domain.Service inbound use-case port.
-type Service struct {
+// Usecase implements the Service inbound use-case port.
+type Usecase struct {
 	repo            port.Repository
 	defaultPageSize int32
 	maxPageSize     int32
 	maxNameLength   int32
 }
 
-// NewService returns a Service backed by the provided repository. The limit
+// NewUsecase returns a Usecase backed by the provided repository. The limit
 // arguments override the package fallback defaults; pass <= 0 to use the
 // built-in defaults (20/100/255).
-func NewService(repo port.Repository, defaultPageSize, maxPageSize, maxNameLength int32) *Service {
+func NewUsecase(repo port.Repository, defaultPageSize, maxPageSize, maxNameLength int32) *Usecase {
 	if defaultPageSize <= 0 {
 		defaultPageSize = defaultPageSizeFallback
 	}
@@ -43,7 +43,7 @@ func NewService(repo port.Repository, defaultPageSize, maxPageSize, maxNameLengt
 	if maxNameLength <= 0 {
 		maxNameLength = maxNameLengthFallback
 	}
-	return &Service{
+	return &Usecase{
 		repo:            repo,
 		defaultPageSize: defaultPageSize,
 		maxPageSize:     maxPageSize,
@@ -52,9 +52,9 @@ func NewService(repo port.Repository, defaultPageSize, maxPageSize, maxNameLengt
 }
 
 // Create validates the name and persists a new item.
-func (s *Service) Create(ctx context.Context, name string) (*domain.Item, error) {
+func (u *Usecase) Create(ctx context.Context, name string) (*domain.Item, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || utf8.RuneCountInString(name) > int(s.maxNameLength) {
+	if name == "" || utf8.RuneCountInString(name) > int(u.maxNameLength) {
 		return nil, domain.ErrInvalidName
 	}
 
@@ -66,7 +66,7 @@ func (s *Service) Create(ctx context.Context, name string) (*domain.Item, error)
 		UpdatedAt: now,
 	}
 
-	if err := s.repo.Create(ctx, item); err != nil {
+	if err := u.repo.Create(ctx, item); err != nil {
 		return nil, fmt.Errorf("create item: %w", err)
 	}
 
@@ -74,11 +74,11 @@ func (s *Service) Create(ctx context.Context, name string) (*domain.Item, error)
 }
 
 // Get retrieves an item by ID, passing through domain.ErrItemNotFound.
-func (s *Service) Get(ctx context.Context, id uuid.UUID) (*domain.Item, error) {
+func (u *Usecase) Get(ctx context.Context, id uuid.UUID) (*domain.Item, error) {
 	if id == uuid.Nil {
 		return nil, domain.ErrInvalidID
 	}
-	item, err := s.repo.GetByID(ctx, id)
+	item, err := u.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, domain.ErrItemNotFound) {
 			return nil, domain.ErrItemNotFound
@@ -91,18 +91,18 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (*domain.Item, error) {
 
 // List returns a paginated list of items. It enforces safe defaults so a
 // zero-value limit (e.g. no query parameter) never produces LIMIT 0.
-func (s *Service) List(ctx context.Context, limit, offset int32) ([]domain.Item, error) {
+func (u *Usecase) List(ctx context.Context, limit, offset int32) ([]domain.Item, error) {
 	if limit <= 0 {
-		limit = s.defaultPageSize
+		limit = u.defaultPageSize
 	}
-	if limit > s.maxPageSize {
-		limit = s.maxPageSize
+	if limit > u.maxPageSize {
+		limit = u.maxPageSize
 	}
 	if offset < 0 {
 		offset = 0
 	}
 
-	items, err := s.repo.List(ctx, limit, offset)
+	items, err := u.repo.List(ctx, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
 	}

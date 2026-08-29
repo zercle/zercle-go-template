@@ -8,18 +8,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 
-	"github.com/zercle/zercle-go-template/internal/features/example/domain"
+	"github.com/zercle/zercle-go-template/internal/features/example/application"
 	"github.com/zercle/zercle-go-template/internal/features/example/contract"
+	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
 // Handler exposes the example domain service over HTTP.
 type Handler struct {
-	service domain.Service
+	service application.Service
 }
 
 // New returns an HTTP handler for the example feature.
-func New(service domain.Service) *Handler {
+func New(service application.Service) *Handler {
 	return &Handler{service: service}
 }
 
