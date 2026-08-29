@@ -10,6 +10,7 @@ import (
 	pb "github.com/zercle/zercle-go-template/api/pb/example/v1"
 	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
+	"github.com/zercle/zercle-go-template/internal/features/example/port"
 	grpchandler "github.com/zercle/zercle-go-template/internal/features/example/handler/grpc"
 	httphandler "github.com/zercle/zercle-go-template/internal/features/example/handler/http"
 	"github.com/zercle/zercle-go-template/internal/features/example/repository"
@@ -27,7 +28,7 @@ func Register(c do.Injector) error {
 	apperrors.RegisterSentinel(domain.ErrInvalidName, apperrors.ErrInvalidInput)
 	apperrors.RegisterSentinel(domain.ErrInvalidID, apperrors.ErrInvalidInput)
 
-	do.Provide(c, func(i do.Injector) (domain.Repository, error) {
+	do.Provide(c, func(i do.Injector) (port.Repository, error) {
 		gormDB, err := do.Invoke[*gorm.DB](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve gorm db: %w", err)
@@ -36,7 +37,7 @@ func Register(c do.Injector) error {
 	})
 
 	do.Provide(c, func(i do.Injector) (domain.Service, error) {
-		repo, err := do.Invoke[domain.Repository](i)
+		repo, err := do.Invoke[port.Repository](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve example repository: %w", err)
 		}

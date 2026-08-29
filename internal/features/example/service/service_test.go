@@ -14,7 +14,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	"github.com/zercle/zercle-go-template/internal/features/example/repository/mock"
+	"github.com/zercle/zercle-go-template/internal/features/example/port/mock"
 	"github.com/zercle/zercle-go-template/internal/features/example/service"
 )
 

@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
+	"github.com/zercle/zercle-go-template/internal/features/example/port"
 )
 
 const (
@@ -23,7 +24,7 @@ const (
 
 // Service implements the domain.Service inbound use-case port.
 type Service struct {
-	repo            domain.Repository
+	repo            port.Repository
 	defaultPageSize int32
 	maxPageSize     int32
 	maxNameLength   int32
@@ -32,7 +33,7 @@ type Service struct {
 // NewService returns a Service backed by the provided repository. The limit
 // arguments override the package fallback defaults; pass <= 0 to use the
 // built-in defaults (20/100/255).
-func NewService(repo domain.Repository, defaultPageSize, maxPageSize, maxNameLength int32) *Service {
+func NewService(repo port.Repository, defaultPageSize, maxPageSize, maxNameLength int32) *Service {
 	if defaultPageSize <= 0 {
 		defaultPageSize = defaultPageSizeFallback
 	}
