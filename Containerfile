@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # Builder
 # -----------------------------------------------------------------------------
-FROM golang:1.26 AS builder
+FROM golang:1.27 AS builder
 
 WORKDIR /build
 
@@ -26,7 +26,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # -----------------------------------------------------------------------------
 # Final
 # -----------------------------------------------------------------------------
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 
 COPY --from=builder --chown=nonroot:nonroot /server /server
 COPY --from=builder --chown=nonroot:nonroot /build/config.yaml /config.yaml
