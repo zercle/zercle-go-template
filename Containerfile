@@ -15,8 +15,12 @@ COPY . .
 ARG VERSION=dev
 ARG COMMIT_SHA=unknown
 ARG BUILD_TIME=unknown
+# Populated per target platform by docker buildx; empty under a plain
+# docker build, where the Go toolchain falls back to host defaults.
+ARG TARGETOS
+ARG TARGETARCH
 
-RUN CGO_ENABLED=0 GOOS=linux go build \
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
     -ldflags="-s -w \
       -X main.Version=${VERSION} \
       -X main.CommitSHA=${COMMIT_SHA} \
