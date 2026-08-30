@@ -4,7 +4,7 @@
 # This workflow handles continuous deployment of container images.
 #
 # Triggers:
-#   - Push to main/develop branches
+#   - Push of a version tag (v*)
 #
 # Jobs:
 #   - build-and-push: Build and push container image to ghcr.io
@@ -14,7 +14,7 @@ name: CD
 
 on:
   push:
-    branches: [main, develop]
+    tags: ["v*"]
 
 env:
   GO_VERSION: "stable"
