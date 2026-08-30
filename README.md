@@ -4,7 +4,7 @@ Opinionated Go microservice template with clean architecture, samber/do DI, Open
 
 ## Prerequisites
 
-- Go 1.26+
+- Go 1.27+
 - Docker/Podman
 - [Task](https://taskfile.dev/installation/)
 - PostgreSQL 18+ (via container)
