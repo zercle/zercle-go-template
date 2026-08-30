@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/zercle/zercle-go-template/internal/app"
-	"github.com/zercle/zercle-go-template/internal/config"
+	"github.com/zercle/zercle-go-template/internal/platform/config"
 )
 
 // TestBuild_DatabaseUnreachable verifies that Build returns an error and shuts

@@ -51,15 +51,15 @@ linters:
       ignore-sig-regexps:
         - "github.com/labstack/echo/v5.HTTPError"
         - 'github.com/labstack/echo/v5\.Context\.JSON'
-        - 'github.com/zercle/zercle-go-template/internal/shared/errors\.GRPCErr'
+        - 'github.com/zercle/zercle-go-template/internal/platform/errors\.GRPCErr'
         - 'google.golang.org/grpc/status\.Error'
   exclusions:
     generated: lax
     paths:
       - examples$
       - api/pb$
-      - internal/features/example/repository/mock$
-      - internal/features/example/service/mock$
+      - internal/features/example/port/mock$
+      - internal/features/example/application/mock$
     rules:
       - linters:
           - revive
