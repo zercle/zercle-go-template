@@ -44,6 +44,27 @@ func TestNewGORMLogger_LevelMapping(t *testing.T) {
 	}
 }
 
+func TestNewGORMLogger_SlowQueryThreshold(t *testing.T) {
+	t.Parallel()
+
+	t.Run("default when unset", func(t *testing.T) {
+		log := zerolog.Nop()
+		gl := newGORMLogger(&log, &config.Config{})
+		if gl.slowThreshold != defaultSlowThreshold {
+			t.Errorf("slowThreshold = %v, want default %v", gl.slowThreshold, defaultSlowThreshold)
+		}
+	})
+
+	t.Run("configured value wins", func(t *testing.T) {
+		log := zerolog.Nop()
+		cfg := &config.Config{DB: config.DBConfig{SlowQueryThreshold: 42 * time.Millisecond}}
+		gl := newGORMLogger(&log, cfg)
+		if gl.slowThreshold != 42*time.Millisecond {
+			t.Errorf("slowThreshold = %v, want 42ms", gl.slowThreshold)
+		}
+	})
+}
+
 func TestGORMLogger_TraceWithError(t *testing.T) {
 	t.Parallel()
 

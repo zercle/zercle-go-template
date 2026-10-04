@@ -36,6 +36,7 @@ db:
   max_conn_idle: 30m
   max_conn_life: 1h
   connect_timeout: 5s
+  slow_query_threshold: 200ms
 
 valkey:
   host: localhost

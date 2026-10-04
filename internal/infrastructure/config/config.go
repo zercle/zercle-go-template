@@ -29,14 +29,16 @@ type leafBinding struct {
 //
 // Fields carry mapstructure tags (viper decoding) and validate tags only: the
 // config is never marshalled to YAML, only unmarshalled from it, so yaml tags
-// would be dead weight that drifts from the mapstructure names.
+// would be dead weight that drifts from the mapstructure names. Environment
+// binding is likewise explicit — leafBindings lists every env-var-to-key pair,
+// so a new field is env-readable only once it is added there.
 type Config struct {
-	App     AppConfig     `mapstructure:"app" validate:"required"`
-	HTTP    HTTPConfig    `mapstructure:"http" validate:"required"`
-	DB      DBConfig      `mapstructure:"db" validate:"required"`
-	Valkey  ValkeyConfig  `mapstructure:"valkey" validate:"required"`
-	OTel    OTelConfig    `mapstructure:"otel" validate:"required"`
-	Log     LogConfig     `mapstructure:"log" validate:"required"`
+	App     AppConfig     `mapstructure:"app"`
+	HTTP    HTTPConfig    `mapstructure:"http"`
+	DB      DBConfig      `mapstructure:"db"`
+	Valkey  ValkeyConfig  `mapstructure:"valkey"`
+	OTel    OTelConfig    `mapstructure:"otel"`
+	Log     LogConfig     `mapstructure:"log"`
 	Example ExampleConfig `mapstructure:"example"`
 }
 
@@ -44,73 +46,76 @@ type Config struct {
 // port) lives on HTTPConfig and OTelConfig; nothing reads a separate app-level
 // copy, so those fields are not declared here.
 type AppConfig struct {
-	Environment     string        `mapstructure:"environment" env:"APP_ENVIRONMENT" validate:"oneof=development staging production test"`
-	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout" env:"APP_SHUTDOWN_TIMEOUT" validate:"required,min=1s"`
+	Environment     string        `mapstructure:"environment" validate:"oneof=development staging production test"`
+	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout" validate:"required,min=1s"`
 }
 
 // HTTPConfig holds the HTTP server settings and CORS options.
 type HTTPConfig struct {
-	Host               string        `mapstructure:"host" env:"HTTP_HOST" validate:"ip|hostname"`
-	Port               int           `mapstructure:"port" env:"HTTP_PORT" validate:"required,min=1,max=65535"`
-	ReadTimeout        time.Duration `mapstructure:"read_timeout" env:"HTTP_READ_TIMEOUT" validate:"required,min=1s"`
-	WriteTimeout       time.Duration `mapstructure:"write_timeout" env:"HTTP_WRITE_TIMEOUT" validate:"required,min=1s"`
-	IdleTimeout        time.Duration `mapstructure:"idle_timeout" env:"HTTP_IDLE_TIMEOUT" validate:"required,min=1s"`
-	BodyLimit          string        `mapstructure:"body_limit" env:"HTTP_BODY_LIMIT" validate:"required"`
-	HealthProbeTimeout time.Duration `mapstructure:"health_probe_timeout" env:"HTTP_HEALTH_PROBE_TIMEOUT" validate:"required,min=1s"`
-	CORSAllowOrigins   []string      `mapstructure:"cors_allow_origins" env:"HTTP_CORS_ALLOW_ORIGINS"`
-	CORSAllowMethods   []string      `mapstructure:"cors_allow_methods" env:"HTTP_CORS_ALLOW_METHODS"`
-	CORSAllowHeaders   []string      `mapstructure:"cors_allow_headers" env:"HTTP_CORS_ALLOW_HEADERS"`
+	Host               string        `mapstructure:"host" validate:"ip|hostname"`
+	Port               int           `mapstructure:"port" validate:"required,min=1,max=65535"`
+	ReadTimeout        time.Duration `mapstructure:"read_timeout" validate:"required,min=1s"`
+	WriteTimeout       time.Duration `mapstructure:"write_timeout" validate:"required,min=1s"`
+	IdleTimeout        time.Duration `mapstructure:"idle_timeout" validate:"required,min=1s"`
+	BodyLimit          string        `mapstructure:"body_limit" validate:"required"`
+	HealthProbeTimeout time.Duration `mapstructure:"health_probe_timeout" validate:"required,min=1s"`
+	CORSAllowOrigins   []string      `mapstructure:"cors_allow_origins"`
+	CORSAllowMethods   []string      `mapstructure:"cors_allow_methods"`
+	CORSAllowHeaders   []string      `mapstructure:"cors_allow_headers"`
 }
 
 // DBConfig holds the PostgreSQL connection and pool settings.
 type DBConfig struct {
-	Host     string `mapstructure:"host" env:"DB_HOST" validate:"required,hostname|ip"`
-	Port     int    `mapstructure:"port" env:"DB_PORT" validate:"required,min=1,max=65535"`
-	Name     string `mapstructure:"name" env:"DB_NAME" validate:"required"`
-	User     string `mapstructure:"user" env:"DB_USER" validate:"required"`
-	Password string `mapstructure:"password" env:"DB_PASSWORD" validate:"required"`
-	SSLMode  string `mapstructure:"ssl_mode" env:"DB_SSL_MODE" validate:"oneof=disable prefer require verify-ca verify-full"`
-	MaxConns int32  `mapstructure:"max_conns" env:"DB_MAX_CONNS" validate:"required,min=1"`
+	Host     string `mapstructure:"host" validate:"required,hostname|ip"`
+	Port     int    `mapstructure:"port" validate:"required,min=1,max=65535"`
+	Name     string `mapstructure:"name" validate:"required"`
+	User     string `mapstructure:"user" validate:"required"`
+	Password string `mapstructure:"password" validate:"required"`
+	SSLMode  string `mapstructure:"ssl_mode" validate:"oneof=disable prefer require verify-ca verify-full"`
+	MaxConns int32  `mapstructure:"max_conns" validate:"required,min=1"`
 	// MaxIdleConns is the maximum number of idle connections retained in the
 	// pool. Maps to database/sql SetMaxIdleConns (idle connection ceiling, not
 	// a floor).
-	MaxIdleConns   int32         `mapstructure:"max_idle_conns" env:"DB_MAX_IDLE_CONNS" validate:"min=0"`
-	MaxConnIdle    time.Duration `mapstructure:"max_conn_idle" env:"DB_MAX_CONN_IDLE" validate:"required,min=1s"`
-	MaxConnLife    time.Duration `mapstructure:"max_conn_life" env:"DB_MAX_CONN_LIFE" validate:"required,min=1s"`
-	ConnectTimeout time.Duration `mapstructure:"connect_timeout" env:"DB_CONNECT_TIMEOUT" validate:"required,min=1s"`
+	MaxIdleConns   int32         `mapstructure:"max_idle_conns" validate:"min=0"`
+	MaxConnIdle    time.Duration `mapstructure:"max_conn_idle" validate:"required,min=1s"`
+	MaxConnLife    time.Duration `mapstructure:"max_conn_life" validate:"required,min=1s"`
+	ConnectTimeout time.Duration `mapstructure:"connect_timeout" validate:"required,min=1s"`
+	// SlowQueryThreshold is how long a query may run before GORM logs it as
+	// slow. Zero falls back to the logger's built-in default.
+	SlowQueryThreshold time.Duration `mapstructure:"slow_query_threshold" validate:"omitempty,min=1ms"`
 }
 
 // ValkeyConfig holds the Valkey client settings. TTL is how long a cache-aside
 // entry stays valid in Valkey.
 type ValkeyConfig struct {
-	Host           string        `mapstructure:"host" env:"VALKEY_HOST" validate:"required,hostname|ip"`
-	Port           int           `mapstructure:"port" env:"VALKEY_PORT" validate:"required,min=1,max=65535"`
-	Password       string        `mapstructure:"password" env:"VALKEY_PASSWORD"`
-	DB             int           `mapstructure:"db" env:"VALKEY_DB" validate:"min=0"`
-	ConnectTimeout time.Duration `mapstructure:"connect_timeout" env:"VALKEY_CONNECT_TIMEOUT" validate:"omitempty,min=1s"`
-	TTL            time.Duration `mapstructure:"ttl" env:"VALKEY_TTL" validate:"omitempty,min=1s"`
+	Host           string        `mapstructure:"host" validate:"required,hostname|ip"`
+	Port           int           `mapstructure:"port" validate:"required,min=1,max=65535"`
+	Password       string        `mapstructure:"password"`
+	DB             int           `mapstructure:"db" validate:"min=0"`
+	ConnectTimeout time.Duration `mapstructure:"connect_timeout" validate:"omitempty,min=1s"`
+	TTL            time.Duration `mapstructure:"ttl" validate:"omitempty,min=1s"`
 }
 
 // OTelConfig holds OpenTelemetry exporter settings.
 type OTelConfig struct {
-	Exporter    string  `mapstructure:"exporter" env:"OTEL_EXPORTER" validate:"oneof=otlp none"`
-	Endpoint    string  `mapstructure:"endpoint" env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
-	ServiceName string  `mapstructure:"service_name" env:"OTEL_SERVICE_NAME" validate:"required"`
-	Sampling    float64 `mapstructure:"sampling" env:"OTEL_TRACES_SAMPLER_ARG" validate:"min=0,max=1"`
+	Exporter    string  `mapstructure:"exporter" validate:"oneof=otlp none"`
+	Endpoint    string  `mapstructure:"endpoint"`
+	ServiceName string  `mapstructure:"service_name" validate:"required"`
+	Sampling    float64 `mapstructure:"sampling" validate:"min=0,max=1"`
 }
 
 // LogConfig holds the zerolog settings.
 type LogConfig struct {
-	Level  string `mapstructure:"level" env:"LOG_LEVEL" validate:"oneof=trace debug info warn error fatal panic"`
-	Format string `mapstructure:"format" env:"LOG_FORMAT" validate:"oneof=json console"`
+	Level  string `mapstructure:"level" validate:"oneof=trace debug info warn error fatal panic"`
+	Format string `mapstructure:"format" validate:"oneof=json console"`
 }
 
 // ExampleConfig is a feature toggle and settings for the stub feature.
 type ExampleConfig struct {
-	Enabled         bool  `mapstructure:"enabled" env:"EXAMPLE_ENABLED"`
-	DefaultPageSize int32 `mapstructure:"default_page_size" env:"EXAMPLE_DEFAULT_PAGE_SIZE"`
-	MaxPageSize     int32 `mapstructure:"max_page_size" env:"EXAMPLE_MAX_PAGE_SIZE"`
-	MaxNameLength   int32 `mapstructure:"max_name_length" env:"EXAMPLE_MAX_NAME_LENGTH"`
+	Enabled         bool  `mapstructure:"enabled"`
+	DefaultPageSize int32 `mapstructure:"default_page_size"`
+	MaxPageSize     int32 `mapstructure:"max_page_size"`
+	MaxNameLength   int32 `mapstructure:"max_name_length"`
 }
 
 // exampleMaxPageSizeUpperBound caps EXAMPLE_MAX_PAGE_SIZE to a sane ceiling so
@@ -297,12 +302,13 @@ func setDefaults(v *viper.Viper) {
 		"http.cors_allow_methods":   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		"http.cors_allow_headers":   []string{"Authorization", "Content-Type", "X-Request-ID"},
 
-		"db.ssl_mode":        "disable",
-		"db.max_conns":       10,
-		"db.max_idle_conns":  2,
-		"db.max_conn_idle":   30 * time.Minute,
-		"db.max_conn_life":   1 * time.Hour,
-		"db.connect_timeout": 5 * time.Second,
+		"db.ssl_mode":             "disable",
+		"db.max_conns":            10,
+		"db.max_idle_conns":       2,
+		"db.max_conn_idle":        30 * time.Minute,
+		"db.max_conn_life":        1 * time.Hour,
+		"db.connect_timeout":      5 * time.Second,
+		"db.slow_query_threshold": 200 * time.Millisecond,
 
 		"valkey.db":              0,
 		"valkey.connect_timeout": 5 * time.Second,
@@ -355,6 +361,7 @@ func leafBindings() []leafBinding {
 		{"db.max_conn_idle", "DB_MAX_CONN_IDLE"},
 		{"db.max_conn_life", "DB_MAX_CONN_LIFE"},
 		{"db.connect_timeout", "DB_CONNECT_TIMEOUT"},
+		{"db.slow_query_threshold", "DB_SLOW_QUERY_THRESHOLD"},
 
 		{"valkey.host", "VALKEY_HOST"},
 		{"valkey.port", "VALKEY_PORT"},

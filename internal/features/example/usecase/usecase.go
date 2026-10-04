@@ -101,6 +101,11 @@ func (u *Usecase) Get(ctx context.Context, id string) (*contract.ItemResponse, e
 
 // List returns a paginated list of items. It enforces safe defaults so a
 // zero-value limit (e.g. no query parameter) never produces LIMIT 0.
+//
+// Pagination is offset-based, so a concurrent insert between two page requests
+// can shift rows across a page boundary (a page may repeat or skip an item).
+// Keyset/cursor pagination on (created_at, id) would be stable but changes the
+// published request contract, so it is left as a documented limitation here.
 func (u *Usecase) List(ctx context.Context, req *contract.ListItemsRequest) (*contract.ListItemsResponse, error) {
 	var limit, offset int32
 	if req != nil {

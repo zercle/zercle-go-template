@@ -42,10 +42,15 @@ func newGORMLogger(log *zerolog.Logger, cfg *config.Config) *gormLogger {
 		level = logger.Info
 	}
 
+	slowThreshold := cfg.DB.SlowQueryThreshold
+	if slowThreshold <= 0 {
+		slowThreshold = defaultSlowThreshold
+	}
+
 	return &gormLogger{
 		log:                       log,
 		level:                     level,
-		slowThreshold:             defaultSlowThreshold,
+		slowThreshold:             slowThreshold,
 		ignoreRecordNotFoundError: true,
 	}
 }
