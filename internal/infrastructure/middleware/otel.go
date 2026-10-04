@@ -36,11 +36,14 @@ func OTel(tp trace.TracerProvider, propagator propagation.TextMapPropagator) ech
 
 			c.SetRequest(c.Request().WithContext(newCtx))
 
-			span.SetAttributes(attribute.String("http.method", c.Request().Method))
-			span.SetAttributes(attribute.String("url.path", c.Request().URL.Path))
-			if route != "" {
-				span.SetAttributes(attribute.String("http.route", route))
+			attrs := []attribute.KeyValue{
+				attribute.String("http.method", c.Request().Method),
+				attribute.String("url.path", c.Request().URL.Path),
 			}
+			if route != "" {
+				attrs = append(attrs, attribute.String("http.route", route))
+			}
+			span.SetAttributes(attrs...)
 
 			err := next(c)
 

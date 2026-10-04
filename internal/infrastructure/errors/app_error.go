@@ -45,7 +45,7 @@ var (
 	ErrUnauthorized     = &AppError{Code: errcodes.Unauthorized, Message: "unauthorized", HTTPStatus: http.StatusUnauthorized}
 	ErrForbidden        = &AppError{Code: errcodes.Forbidden, Message: "forbidden", HTTPStatus: http.StatusForbidden}
 	ErrConflict         = &AppError{Code: errcodes.Conflict, Message: "conflict", HTTPStatus: http.StatusConflict}
-	ErrCanceled         = &AppError{Code: errcodes.Canceled, Message: "request canceled", HTTPStatus: 499}
+	ErrCanceled         = &AppError{Code: errcodes.Canceled, Message: "request canceled", HTTPStatus: clientClosedRequest}
 	ErrDeadlineExceeded = &AppError{Code: errcodes.DeadlineExceeded, Message: "deadline exceeded", HTTPStatus: http.StatusGatewayTimeout}
 	ErrInternal         = &AppError{Code: errcodes.Internal, Message: "internal error", HTTPStatus: http.StatusInternalServerError}
 )

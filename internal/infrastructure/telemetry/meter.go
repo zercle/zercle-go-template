@@ -11,8 +11,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	otelprom "go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
-
-	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
 )
 
 // NewMeterProvider builds a Prometheus exporter-backed meter provider that
@@ -21,7 +19,7 @@ import (
 // prometheus.DefaultRegisterer: building a second provider in one process would
 // otherwise fail with "duplicate metrics collector registration attempted" and
 // make /metrics return 500.
-func NewMeterProvider(_ *config.Config, reg prometheus.Registerer) (*metric.MeterProvider, func(context.Context) error, error) {
+func NewMeterProvider(reg prometheus.Registerer) (*metric.MeterProvider, func(context.Context) error, error) {
 	exporter, err := otelprom.New(otelprom.WithRegisterer(reg))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create Prometheus exporter: %w", err)

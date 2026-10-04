@@ -19,6 +19,9 @@ func (valkeyChecker) Name() string {
 
 // Check verifies Valkey is reachable by sending a PING command.
 func (c valkeyChecker) Check(ctx context.Context) error {
+	if c.client == nil {
+		return fmt.Errorf("valkey client is not initialized")
+	}
 	if err := c.client.Do(ctx, c.client.B().Ping().Build()).Error(); err != nil {
 		return fmt.Errorf("ping valkey: %w", err)
 	}

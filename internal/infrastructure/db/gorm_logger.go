@@ -26,28 +26,20 @@ type gormLogger struct {
 	ignoreRecordNotFoundError bool
 }
 
-// newGORMLogger creates a GORM logger backed by the application's zerolog.
-// The level is derived from cfg.Log.Level via zerolog.ParseLevel; if log is
-// nil, a nop logger is used defensively (never panics).
+// newGORMLogger creates a GORM logger backed by the application's zerolog. The
+// level is mapped from cfg.Log.Level by the switch below (GORM's LogLevel is
+// ordered Silent < Error < Warn < Info, so a message at severity S is emitted
+// when level >= S); unknown levels fall back to Info, the most verbose setting.
+// Callers must pass a non-nil logger and config — NewDB enforces both.
 func newGORMLogger(log *zerolog.Logger, cfg *config.Config) *gormLogger {
-	if log == nil {
-		nop := zerolog.Nop()
-		log = &nop
-	}
-
-	// GORM's LogLevel is ordered Silent < Error < Warn < Info: a message at
-	// severity S is emitted when level >= S. Info is the most verbose setting,
-	// Error the least besides Silent, matching gorm's own logger semantics.
-	level := logger.Info
-	if cfg != nil {
-		switch cfg.Log.Level {
-		case "panic", "fatal", "error":
-			level = logger.Error
-		case "warn":
-			level = logger.Warn
-		default: // info, debug, trace — log SQL statements too
-			level = logger.Info
-		}
+	var level logger.LogLevel
+	switch cfg.Log.Level {
+	case "panic", "fatal", "error":
+		level = logger.Error
+	case "warn":
+		level = logger.Warn
+	default: // info, debug, trace — log SQL statements too
+		level = logger.Info
 	}
 
 	return &gormLogger{

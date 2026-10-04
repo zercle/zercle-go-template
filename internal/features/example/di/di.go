@@ -55,7 +55,6 @@ func Register(c do.Injector) error {
 		if err != nil {
 			return nil, fmt.Errorf("resolve valkey cache-aside client: %w", err)
 		}
-		cfg := do.MustInvoke[*config.Config](i)
 		return postgres.NewCachedRepository(repo, aside, cfg.Valkey.TTL), nil
 	})
 

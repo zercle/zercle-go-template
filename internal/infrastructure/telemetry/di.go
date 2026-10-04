@@ -51,9 +51,8 @@ func Register(ctx context.Context, c do.Injector) error {
 	})
 
 	do.Provide(c, func(i do.Injector) (*metric.MeterProvider, error) {
-		cfg := do.MustInvoke[*config.Config](i)
 		reg := do.MustInvoke[*prometheus.Registry](i)
-		provider, _, err := NewMeterProvider(cfg, reg)
+		provider, _, err := NewMeterProvider(reg)
 		if err != nil {
 			return nil, err
 		}

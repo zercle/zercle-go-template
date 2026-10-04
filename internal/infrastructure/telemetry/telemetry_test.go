@@ -54,8 +54,7 @@ func TestNewTracer_OTLPRequiresEndpoint(t *testing.T) {
 }
 
 func TestNewMeterProvider(t *testing.T) {
-	cfg := &config.Config{OTel: config.OTelConfig{Exporter: "none", ServiceName: "test"}}
-	provider, shutdown, err := telemetry.NewMeterProvider(cfg, telemetry.NewPrometheusRegistry())
+	provider, shutdown, err := telemetry.NewMeterProvider(telemetry.NewPrometheusRegistry())
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 	require.NotNil(t, shutdown)
@@ -80,13 +79,11 @@ func TestMetricsHandler(t *testing.T) {
 // registry was injectable both providers registered on the default registerer
 // and /metrics returned 500 with a duplicate "target_info" collection error.
 func TestMeterProvider_InstancesAreIsolated(t *testing.T) {
-	cfg := &config.Config{OTel: config.OTelConfig{Exporter: "none", ServiceName: "test"}}
-
 	reg1 := telemetry.NewPrometheusRegistry()
-	p1, _, err := telemetry.NewMeterProvider(cfg, reg1)
+	p1, _, err := telemetry.NewMeterProvider(reg1)
 	require.NoError(t, err)
 	reg2 := telemetry.NewPrometheusRegistry()
-	p2, _, err := telemetry.NewMeterProvider(cfg, reg2)
+	p2, _, err := telemetry.NewMeterProvider(reg2)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = p1.Shutdown(context.Background())

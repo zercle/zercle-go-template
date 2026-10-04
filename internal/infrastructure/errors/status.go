@@ -9,6 +9,11 @@ import (
 	"github.com/zercle/zercle-go-template/pkg/api/errcodes"
 )
 
+// clientClosedRequest is the non-standard 499 status (nginx convention) used
+// when the client closes the connection before the server responds. net/http
+// has no constant for it, so it is named once here and shared with ErrCanceled.
+const clientClosedRequest = 499
+
 // Sentinel mappings for framework statuses that have no domain sentinel of
 // their own. They are values, not exported vars, because callers receive clones.
 var (
@@ -37,7 +42,7 @@ func ForHTTPStatus(status int) *AppError {
 		return clone(ErrConflict)
 	case http.StatusRequestEntityTooLarge:
 		return clone(errPayloadTooLarge)
-	case 499: // client closed request (nginx convention, matches ErrCanceled)
+	case clientClosedRequest:
 		return clone(ErrCanceled)
 	case http.StatusGatewayTimeout:
 		return clone(ErrDeadlineExceeded)

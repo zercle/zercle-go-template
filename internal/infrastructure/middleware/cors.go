@@ -25,26 +25,16 @@ var defaultCORSExposeHeaders = []string{"Content-Length"}
 const defaultCORSMaxAge = 86400
 
 // CORS returns echo's built-in CORS middleware configured from cfg.HTTP.CORS*.
-// When no origins are configured it defaults to allowing all origins. A nil
-// cfg yields the package CORS defaults (allow all origins, standard
-// methods/headers, Content-Length exposed, 24h preflight cache).
+// A nil cfg or an empty list falls back to the package defaults: all origins,
+// the standard methods/headers, Content-Length exposed, and a 24h preflight
+// cache. Defaults are applied per field, so a partial config keeps them for the
+// fields it does not set.
 func CORS(cfg *config.Config) echo.MiddlewareFunc {
-	if cfg == nil {
-		return middleware.CORSWithConfig(middleware.CORSConfig{
-			AllowOrigins:  []string{"*"},
-			AllowMethods:  defaultCORSMethods,
-			AllowHeaders:  defaultCORSHeaders,
-			ExposeHeaders: defaultCORSExposeHeaders,
-			MaxAge:        defaultCORSMaxAge,
-		})
-	}
-
-	corsCfg := middleware.CORSConfig{
-		AllowOrigins:  cfg.HTTP.CORSAllowOrigins,
-		AllowMethods:  cfg.HTTP.CORSAllowMethods,
-		AllowHeaders:  cfg.HTTP.CORSAllowHeaders,
-		ExposeHeaders: defaultCORSExposeHeaders,
-		MaxAge:        defaultCORSMaxAge,
+	var corsCfg middleware.CORSConfig
+	if cfg != nil {
+		corsCfg.AllowOrigins = cfg.HTTP.CORSAllowOrigins
+		corsCfg.AllowMethods = cfg.HTTP.CORSAllowMethods
+		corsCfg.AllowHeaders = cfg.HTTP.CORSAllowHeaders
 	}
 
 	if len(corsCfg.AllowOrigins) == 0 {
@@ -56,6 +46,8 @@ func CORS(cfg *config.Config) echo.MiddlewareFunc {
 	if len(corsCfg.AllowHeaders) == 0 {
 		corsCfg.AllowHeaders = defaultCORSHeaders
 	}
+	corsCfg.ExposeHeaders = defaultCORSExposeHeaders
+	corsCfg.MaxAge = defaultCORSMaxAge
 
 	return middleware.CORSWithConfig(corsCfg)
 }

@@ -14,9 +14,3 @@ type Item struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
-
-// Rename updates the item name and refreshes the updated-at timestamp.
-func (i *Item) Rename(name string) {
-	i.Name = name
-	i.UpdatedAt = time.Now().UTC()
-}

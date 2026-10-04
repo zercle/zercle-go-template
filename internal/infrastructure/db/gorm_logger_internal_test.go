@@ -44,36 +44,6 @@ func TestNewGORMLogger_LevelMapping(t *testing.T) {
 	}
 }
 
-func TestNewGORMLogger_NilLogger(t *testing.T) {
-	t.Parallel()
-
-	cfg := &config.Config{Log: config.LogConfig{Level: "info"}}
-	gl := newGORMLogger(nil, cfg)
-
-	if gl.log == nil {
-		t.Error("expected a non-nil logger (should fall back to nop)")
-	}
-
-	// Should not panic — verify by calling a method.
-	gl.Info(context.Background(), "test")
-}
-
-func TestNewGORMLogger_NilConfig(t *testing.T) {
-	t.Parallel()
-
-	log := zerolog.Nop()
-	gl := newGORMLogger(&log, nil)
-
-	// With nil config, level defaults to Info.
-	if gl.level != logger.Info {
-		t.Errorf("level = %v, want Info (default)", gl.level)
-	}
-
-	if gl.slowThreshold != defaultSlowThreshold {
-		t.Errorf("slowThreshold = %v, want %v", gl.slowThreshold, defaultSlowThreshold)
-	}
-}
-
 func TestGORMLogger_TraceWithError(t *testing.T) {
 	t.Parallel()
 
