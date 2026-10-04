@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"uuid"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"

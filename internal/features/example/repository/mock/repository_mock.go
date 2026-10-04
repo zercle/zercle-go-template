@@ -12,8 +12,8 @@ package mock
 import (
 	context "context"
 	reflect "reflect"
+	uuid "uuid"
 
-	uuid "github.com/google/uuid"
 	domain "github.com/zercle/zercle-go-template/internal/features/example/domain"
 	gomock "go.uber.org/mock/gomock"
 )

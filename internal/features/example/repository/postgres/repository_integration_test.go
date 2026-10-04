@@ -9,11 +9,11 @@ import (
 	"errors"
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // postgres driver
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"

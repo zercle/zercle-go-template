@@ -9,8 +9,7 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/contract"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
@@ -85,7 +84,7 @@ func (u *Usecase) Create(ctx context.Context, req *contract.CreateItemRequest) (
 // path.
 func (u *Usecase) Get(ctx context.Context, id string) (*contract.ItemResponse, error) {
 	parsed, err := uuid.Parse(id)
-	if err != nil || parsed == uuid.Nil {
+	if err != nil || parsed == uuid.Nil() {
 		return nil, domain.ErrInvalidID
 	}
 	item, err := u.repo.GetByID(ctx, parsed)

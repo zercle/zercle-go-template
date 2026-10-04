@@ -5,8 +5,7 @@ package models
 
 import (
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // Item is the GORM persistence model for the "items" table.

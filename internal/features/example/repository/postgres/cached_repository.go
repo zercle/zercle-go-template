@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/valkey-io/valkey-go/valkeyaside"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"

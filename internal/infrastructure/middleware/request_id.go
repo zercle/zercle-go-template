@@ -2,7 +2,8 @@
 package middleware
 
 import (
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/labstack/echo/v5"
 )
 
@@ -46,7 +47,7 @@ func RequestID() echo.MiddlewareFunc {
 			req := c.Request()
 			id := req.Header.Get(requestIDHeader)
 			if !isValidRequestID(id) {
-				id = uuid.NewString()
+				id = uuid.New().String()
 			}
 
 			c.Set(string(requestIDKey), id)

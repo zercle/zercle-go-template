@@ -14,9 +14,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"uuid"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"

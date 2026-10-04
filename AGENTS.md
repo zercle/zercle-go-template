@@ -31,7 +31,7 @@ Clean (DDD) architecture **per feature** under `internal/features/<name>/`, cros
 ```
 consumer services ──> pkg/api/v1 ──> features/*/contract    (published contract, outward-only)
 handler ──> usecase.Service ──> repository.Repository <── repository/postgres
-all layers ──> domain (entities + sentinel errors; stdlib + uuid only)
+all layers ──> domain (entities + sentinel errors; standard library only)
 infrastructure/* ── feature-agnostic, never imports features/**
 ```
 

@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/require"
 
@@ -187,5 +187,5 @@ func TestRequestID_GeneratesValidUUIDOnInvalid(t *testing.T) {
 	require.NotEqual(t, invalid, got, "invalid header must not be echoed back")
 	parsed, err := uuid.Parse(got)
 	require.NoError(t, err, "generated id must be a valid UUID")
-	require.NotEqual(t, uuid.Nil, parsed, "generated id must not be the nil UUID")
+	require.NotEqual(t, uuid.Nil(), parsed, "generated id must not be the nil UUID")
 }

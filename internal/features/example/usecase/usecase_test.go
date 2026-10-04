@@ -9,8 +9,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
@@ -36,7 +36,7 @@ func TestService_Create_Happy(t *testing.T) {
 	require.Equal(t, "stub", resp.Name)
 	parsed, err := uuid.Parse(resp.ID)
 	require.NoError(t, err)
-	require.NotEqual(t, uuid.Nil, parsed)
+	require.NotEqual(t, uuid.Nil(), parsed)
 	require.NotEmpty(t, resp.CreatedAt)
 	require.NotEmpty(t, resp.UpdatedAt)
 }
@@ -114,7 +114,7 @@ func TestService_Get_InvalidIDRejected(t *testing.T) {
 	require.ErrorIs(t, err, domain.ErrInvalidID)
 	require.Nil(t, resp)
 
-	resp, err = svc.Get(ctx, uuid.Nil.String())
+	resp, err = svc.Get(ctx, uuid.Nil().String())
 	require.ErrorIs(t, err, domain.ErrInvalidID)
 	require.Nil(t, resp)
 }

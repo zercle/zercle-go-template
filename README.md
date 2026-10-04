@@ -37,7 +37,7 @@ zercle-go-template/
 │   ├── architecture_test.go    # executable dependency gates (runs in task test)
 │   ├── features/
 │   │   └── example/            # STUB FEATURE — delete to start
-│   │       ├── domain/         # entities + sentinel errors (stdlib + uuid only)
+│   │       ├── domain/         # entities + sentinel errors (standard library only)
 │   │       ├── contract/       # canonical inbound wire types
 │   │       ├── usecase/        # use-case service + implementation + mocks
 │   │       ├── repository/     # outbound interface + mocks
@@ -84,7 +84,7 @@ all layers ──> domain (entities + sentinel errors)
 infrastructure/* ── cross-cutting, never imports features/**
 ```
 
-- `domain` holds entities and sentinel errors (stdlib + uuid only).
+- `domain` holds entities and sentinel errors (standard library only: `uuid` is stdlib in Go 1.27+).
 - `contract` holds the canonical inbound wire types (json/validate tags, zero dependencies) — the single source of the API shapes.
 - `usecase` declares the inbound use-case service (`Service`, speaking contract types) and its `Usecase` implementation.
 - `repository` declares the outbound (driven) interface; `repository/postgres` satisfies it structurally with GORM (over pgx) and owns the persistence models and SQL migrations.

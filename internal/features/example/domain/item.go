@@ -4,8 +4,7 @@ package domain
 
 import (
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // Item is the trivial example entity.

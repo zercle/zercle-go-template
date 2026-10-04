@@ -7,8 +7,7 @@ package repository
 
 import (
 	"context"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
 )

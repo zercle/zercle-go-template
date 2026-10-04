@@ -79,9 +79,6 @@ func isThirdParty(imp string) bool {
 	return !isStdlib(imp) && !strings.HasPrefix(imp, modulePath+"/")
 }
 
-// allowedThirdParty lists the external packages the inner layers may use.
-const allowedUUID = "github.com/google/uuid"
-
 var rules = []rule{
 	{
 		name: "published-contract-is-outward-only",
@@ -95,19 +92,13 @@ var rules = []rule{
 	},
 	{
 		name: "domain-is-innermost",
-		why:  "domain may depend on nothing but the standard library and uuid",
+		why:  "domain may depend on nothing but the standard library",
 		applies: func(rel string) bool {
 			segs := segments(rel)
 			return len(segs) == 3 && segs[0] == "features" && segs[2] == "domain"
 		},
 		denied: func(_, imp string) bool {
-			if isStdlib(imp) {
-				return false
-			}
-			if isThirdParty(imp) {
-				return imp != allowedUUID
-			}
-			return internalRel(imp) != ""
+			return isThirdParty(imp) || internalRel(imp) != ""
 		},
 	},
 	{
@@ -133,7 +124,7 @@ var rules = []rule{
 				return false
 			}
 			if isThirdParty(imp) {
-				return imp != allowedUUID
+				return true
 			}
 			allowed := "features/" + feature(rel) + "/domain"
 			return internalRel(imp) != allowed
@@ -151,7 +142,7 @@ var rules = []rule{
 				return false
 			}
 			if isThirdParty(imp) {
-				return imp != allowedUUID
+				return true
 			}
 			f := feature(rel)
 			allowed := map[string]bool{
