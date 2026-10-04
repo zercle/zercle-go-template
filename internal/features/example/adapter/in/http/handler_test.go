@@ -11,6 +11,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 
@@ -193,4 +194,49 @@ func TestHandler_List_NoQueryParams(t *testing.T) {
 	e.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+// TestHandler_Create_NameAtConfiguredLimit proves the wire layer does not cap
+// the name at a hardcoded length: a name permitted by the configured maximum
+// must reach the application service instead of being rejected by a stale
+// validate:"max=255" tag.
+func TestHandler_Create_NameAtConfiguredLimit(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	e, svc := setupTest(t)
+
+	name := strings.Repeat("a", 1000) // > old hardcoded 255, < configured cap 4096
+	svc.EXPECT().Create(ctx, &contract.CreateItemRequest{Name: name}).
+		Return(&contract.ItemResponse{ID: uuid.New().String(), Name: name}, nil)
+
+	body, err := json.Marshal(map[string]string{"name": name})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/items", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusCreated, rec.Code, "configured limit must govern, not a hardcoded tag")
+}
+
+// TestHandler_List_LimitAboveOldHardcodedCap proves the query limit is not
+// rejected by a hardcoded max=100 tag; clamping happens in the application.
+func TestHandler_List_LimitAboveOldHardcodedCap(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	e, svc := setupTest(t)
+
+	svc.EXPECT().List(ctx, &contract.ListItemsRequest{Limit: 500, Offset: 0}).
+		Return(&contract.ListItemsResponse{}, nil)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/items?limit=500", nil)
+
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code, "configured limit must govern, not a hardcoded tag")
 }

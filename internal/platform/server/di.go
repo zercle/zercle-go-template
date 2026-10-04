@@ -3,17 +3,19 @@ package server
 
 import (
 	"github.com/labstack/echo/v5"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"github.com/samber/do/v2"
-	"google.golang.org/grpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
-// Register wires *echo.Echo, *grpc.Server, and the Application orchestrator
-// into the DI container. It depends on config, logger, telemetry providers,
-// and the health registry already being registered.
+// Register wires *echo.Echo and the Application orchestrator into the DI
+// container. It depends on config, logger, telemetry providers, and the health
+// registry already being registered.
 //
 // Note: samber/do v2's Provide signature is `func Provide[T any](i Injector,
 // provider Provider[T])` and returns no error. Any construction failure
@@ -24,12 +26,10 @@ func Register(c do.Injector) error {
 		cfg := do.MustInvoke[*config.Config](i)
 		logger := do.MustInvoke[*zerolog.Logger](i)
 		registry := do.MustInvoke[*telemetry.Registry](i)
-		return NewHTTP(cfg, logger, registry), nil
-	})
-
-	do.Provide(c, func(i do.Injector) (*grpc.Server, error) {
-		logger := do.MustInvoke[*zerolog.Logger](i)
-		return NewGRPC(logger), nil
+		tp := do.MustInvoke[*trace.TracerProvider](i)
+		propagator := do.MustInvoke[propagation.TextMapPropagator](i)
+		gatherer := do.MustInvoke[*prometheus.Registry](i)
+		return NewHTTP(cfg, logger, registry, tp, propagator, gatherer), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (*Application, error) {

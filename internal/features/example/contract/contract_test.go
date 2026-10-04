@@ -5,39 +5,40 @@
 package contract_test
 
 import (
-	"testing"
-
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
+	"strings"
+	"testing"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/contract"
 )
 
-func TestCreateItemRequest_Validation(t *testing.T) {
+// TestCreateItemRequest_StructuralValidation pins that the wire type only
+// enforces structural constraints. The length cap is deployment-configurable
+// and enforced in the application layer, so a name longer than any default must
+// pass the tag: otherwise the tag would silently cap the configurable limit.
+func TestCreateItemRequest_StructuralValidation(t *testing.T) {
 	v := validator.New()
 
-	valid := contract.CreateItemRequest{Name: "valid name"}
-	assert.NoError(t, v.Struct(valid))
+	assert.NoError(t, v.Struct(contract.CreateItemRequest{Name: "valid name"}))
 
-	empty := contract.CreateItemRequest{Name: ""}
-	assert.Error(t, v.Struct(empty))
+	// Far beyond every default limit but still structurally valid.
+	assert.NoError(t, v.Struct(contract.CreateItemRequest{Name: strings.Repeat("a", 5000)}))
 
-	long := contract.CreateItemRequest{Name: string(make([]byte, 256))}
-	assert.Error(t, v.Struct(long))
+	// Empty name is structurally invalid regardless of configuration.
+	assert.Error(t, v.Struct(contract.CreateItemRequest{Name: ""}))
 }
 
-func TestListItemsRequest_Validation(t *testing.T) {
+// TestListItemsRequest_StructuralValidation pins that pagination bounds are not
+// hardcoded in the wire type: any non-negative limit passes the tag and the
+// application layer clamps it to the configured maximum.
+func TestListItemsRequest_StructuralValidation(t *testing.T) {
 	v := validator.New()
 
-	valid := contract.ListItemsRequest{Limit: 10, Offset: 0}
-	assert.NoError(t, v.Struct(valid))
+	assert.NoError(t, v.Struct(contract.ListItemsRequest{Limit: 10, Offset: 0}))
+	assert.NoError(t, v.Struct(contract.ListItemsRequest{}))
+	assert.NoError(t, v.Struct(contract.ListItemsRequest{Limit: 100_000, Offset: 0}))
 
-	defaultLimit := contract.ListItemsRequest{}
-	assert.NoError(t, v.Struct(defaultLimit))
-
-	highLimit := contract.ListItemsRequest{Limit: 101, Offset: 0}
-	assert.Error(t, v.Struct(highLimit))
-
-	negativeOffset := contract.ListItemsRequest{Limit: 10, Offset: -1}
-	assert.Error(t, v.Struct(negativeOffset))
+	assert.Error(t, v.Struct(contract.ListItemsRequest{Limit: -1}))
+	assert.Error(t, v.Struct(contract.ListItemsRequest{Offset: -1}))
 }

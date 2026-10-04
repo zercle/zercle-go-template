@@ -1,5 +1,5 @@
-// Application orchestrates starting and gracefully shutting down HTTP, gRPC,
-// database (gorm), Valkey, and telemetry providers.
+// Application orchestrates starting and gracefully shutting down the HTTP
+// server, database (gorm), Valkey, and telemetry providers.
 package server
 
 import (
@@ -19,7 +19,6 @@ import (
 	"github.com/valkey-io/valkey-go"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"google.golang.org/grpc"
 	"gorm.io/gorm"
 
 	"github.com/zercle/zercle-go-template/internal/platform/config"
@@ -37,16 +36,15 @@ type Application struct {
 	httpStartCancel context.CancelFunc
 	httpStopped     chan struct{}
 	httpStartErr    error
-	grpcServer      *grpc.Server
-	grpcListener    net.Listener
 	injector        do.Injector
 	startMu         sync.Mutex
 	httpStarted     chan struct{}
 }
 
 // NewApplication builds the runtime orchestrator from a populated DI
-// container. It reads optional shutdown callbacks from the container and will
-// look up infrastructure dependencies at runtime inside Run.
+// container. It resolves nothing eagerly: infrastructure dependencies are
+// looked up inside Run and Shutdown, so a partially-wired container still
+// yields a usable Application.
 func NewApplication(injector do.Injector, cfg *config.Config, logger *zerolog.Logger) *Application {
 	return &Application{
 		cfg:         cfg,
@@ -98,18 +96,14 @@ func (a *Application) Logger() *zerolog.Logger {
 	return a.logger
 }
 
-// Run starts the HTTP and gRPC servers and blocks until a signal or a server
-// error occurs, then performs an ordered graceful shutdown.
+// Run starts the HTTP server and blocks until a signal or a server error
+// occurs, then performs an ordered graceful shutdown.
 func (a *Application) Run(ctx context.Context) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	if err := a.StartHTTP(ctx); err != nil {
 		return fmt.Errorf("start http: %w", err)
-	}
-
-	if err := a.startGRPC(); err != nil {
-		return fmt.Errorf("start grpc: %w", err)
 	}
 
 	var runErr error
@@ -127,8 +121,7 @@ func (a *Application) Run(ctx context.Context) error {
 }
 
 // StartHTTP eagerly resolves and starts the HTTP server. It is safe to call
-// multiple times; subsequent calls are no-ops. The gRPC server is still started
-// inside Run().
+// multiple times; subsequent calls are no-ops.
 func (a *Application) StartHTTP(ctx context.Context) error {
 	a.startMu.Lock()
 	if a.httpStartCtx != nil {
@@ -182,35 +175,13 @@ func (a *Application) StartHTTP(ctx context.Context) error {
 	return nil
 }
 
-// startGRPC resolves the shared gRPC server from the DI container and binds the
-// listener. HTTP must be started before or alongside this call.
-func (a *Application) startGRPC() error {
-	listener, err := net.Listen("tcp", a.cfg.GRPCAddr())
-	if err != nil {
-		return fmt.Errorf("listen grpc %s: %w", a.cfg.GRPCAddr(), err)
-	}
-
-	var grpcErr error
-	a.grpcServer, grpcErr = do.Invoke[*grpc.Server](a.injector)
-	if grpcErr != nil {
-		_ = listener.Close()
-		return fmt.Errorf("resolve grpc server: %w", grpcErr)
-	}
-	a.grpcListener = listener
-
-	return nil
-}
-
-// serverErrorChannel launches both servers and returns a channel that receives
-// the first fatal error from either.
+// serverErrorChannel launches the HTTP server and returns a channel that
+// receives its first fatal error.
 func (a *Application) serverErrorChannel() <-chan error {
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 1)
 
 	go func() {
 		errCh <- a.runHTTPServer()
-	}()
-	go func() {
-		errCh <- a.grpcServer.Serve(a.grpcListener)
 	}()
 
 	return errCh
@@ -237,17 +208,6 @@ func (a *Application) shutdown(ctx context.Context) {
 
 	if err := a.shutdownHTTP(shutdownCtx); err != nil {
 		a.logger.Error().Err(err).Msg("http shutdown error")
-	}
-
-	done := make(chan struct{})
-	go func() {
-		a.grpcServer.GracefulStop()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-shutdownCtx.Done():
-		a.grpcServer.Stop()
 	}
 
 	if db, ok := a.invokeDB(); ok {

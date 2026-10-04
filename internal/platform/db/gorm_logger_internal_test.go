@@ -357,3 +357,81 @@ func TestGORMLogger_LogMode(t *testing.T) {
 		t.Errorf("expected warn level in output, got: %s", buf.String())
 	}
 }
+
+// TestGORMLogger_WarnSuppressedAtErrorLevel pins GORM's LogLevel ordering: at
+// "error" (gorm Error=2) a warn-level message must be dropped, because the
+// guard is level >= Warn, not the inverted level <= Warn. The zerolog sink has
+// no level filter, so only the gorm guard can suppress the record.
+func TestGORMLogger_WarnSuppressedAtErrorLevel(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	log := zerolog.New(&buf)
+
+	cfg := &config.Config{Log: config.LogConfig{Level: "error"}}
+	gl := newGORMLogger(&log, cfg)
+
+	gl.Info(context.Background(), "info must not appear")
+	gl.Warn(context.Background(), "warn must not appear")
+
+	if buf.Len() != 0 {
+		t.Errorf("expected no info/warn output at Error level, got: %s", buf.String())
+	}
+
+	gl.Error(context.Background(), "error must appear")
+
+	if !bytes.Contains(buf.Bytes(), []byte("error must appear")) {
+		t.Errorf("expected error output at Error level, got: %s", buf.String())
+	}
+}
+
+// TestGORMLogger_TraceSlowQuerySuppressedAtErrorLevel pins the Trace branch
+// guards: a slow but successful query is a warn-severity event and must be
+// dropped when the configured level is "error".
+func TestGORMLogger_TraceSlowQuerySuppressedAtErrorLevel(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	log := zerolog.New(&buf)
+
+	cfg := &config.Config{Log: config.LogConfig{Level: "error"}}
+	gl := newGORMLogger(&log, cfg)
+	gl.slowThreshold = 1 * time.Millisecond
+
+	fc := func() (string, int64) { return "SELECT 1", 0 }
+	begin := time.Now().Add(-5 * time.Millisecond)
+
+	gl.Trace(context.Background(), begin, fc, nil)
+
+	if buf.Len() != 0 {
+		t.Errorf("expected no slow-query output at Error level, got: %s", buf.String())
+	}
+
+	gl.Trace(context.Background(), begin, fc, errors.New("boom"))
+
+	if !bytes.Contains(buf.Bytes(), []byte("boom")) {
+		t.Errorf("expected failed query to still log at Error level, got: %s", buf.String())
+	}
+}
+
+// TestGORMLogger_TraceErrorSuppressedAtSilentLevel pins that Silent silences
+// even error-severity trace events.
+func TestGORMLogger_TraceErrorSuppressedAtSilentLevel(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	log := zerolog.New(&buf)
+
+	cfg := &config.Config{Log: config.LogConfig{Level: "error"}}
+	gl, ok := newGORMLogger(&log, cfg).LogMode(logger.Silent).(*gormLogger)
+	if !ok {
+		t.Fatal("LogMode should return *gormLogger")
+	}
+
+	fc := func() (string, int64) { return "SELECT 1", 0 }
+	gl.Trace(context.Background(), time.Now(), fc, errors.New("connection refused"))
+
+	if buf.Len() != 0 {
+		t.Errorf("expected no output at Silent level, got: %s", buf.String())
+	}
+}

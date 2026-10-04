@@ -1,19 +1,18 @@
-// HTTP and gRPC mapping logic for the shared boundary errors.
+// HTTP mapping logic for the shared boundary errors.
 package errors
 
 import (
 	"context"
 	"errors"
-	"net/http"
-
-	"google.golang.org/grpc/status"
 )
 
-// HTTPError maps any error to an HTTP status code and a JSON-shaped response
-// body. A nil error maps to 200 with a success body.
+// HTTPError maps any error to an HTTP status code and a JSON-shaped error body
+// ({"error": code, "message": msg}). A nil error is programmer error: there is
+// no failure to describe, so it returns (0, nil) rather than fabricating a 200
+// "success" envelope that no caller can distinguish from a real response.
 func HTTPError(err error) (int, map[string]any) {
 	if err == nil {
-		return http.StatusOK, map[string]any{"status": "ok"}
+		return 0, nil
 	}
 
 	app := resolveAppError(err)
@@ -26,17 +25,6 @@ func HTTPError(err error) (int, map[string]any) {
 	return app.HTTPStatus, body
 }
 
-// GRPCErr maps any error to a gRPC status error. A nil error maps to nil.
-func GRPCErr(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	app := resolveAppError(err)
-
-	return status.Error(app.GRPCCode, app.Message)
-}
-
 // resolveAppError converts err into an AppError using, in order:
 //  1. direct *AppError match via errors.As,
 //  2. a registered domain sentinel via errors.Is,
@@ -47,29 +35,19 @@ func GRPCErr(err error) error {
 // never mutate shared sentinels or the AppError they passed in.
 func resolveAppError(err error) *AppError {
 	if app, ok := errors.AsType[*AppError](err); ok {
-		clone := *app
-		clone.Cause = err
-		return &clone
+		return withCause(app, err)
 	}
 
 	if app := sentinelFor(err); app != nil {
-		clone := *app
-		clone.Cause = err
-		return &clone
+		return withCause(app, err)
 	}
 
 	if errors.Is(err, context.Canceled) {
-		clone := *ErrCanceled
-		clone.Cause = err
-		return &clone
+		return withCause(ErrCanceled, err)
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		clone := *ErrDeadlineExceeded
-		clone.Cause = err
-		return &clone
+		return withCause(ErrDeadlineExceeded, err)
 	}
 
-	clone := *ErrInternal
-	clone.Cause = err
-	return &clone
+	return withCause(ErrInternal, err)
 }

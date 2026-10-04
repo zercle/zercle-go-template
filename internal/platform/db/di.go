@@ -28,10 +28,7 @@ func Register(ctx context.Context, c do.Injector) error {
 		return err
 	}
 	do.ProvideValue(c, db)
-	// NewShutdowner and the Shutdowner struct live in shutdowner.go (same
-	// package); they adapt *gorm.DB to do's ShutdownerWithContextAndError so
-	// injector.Shutdown() closes the connection pool.
-	do.ProvideValue(c, NewShutdowner(db))
+	do.ProvideValue(c, NewShutdownCloser(db))
 
 	registry, err := do.Invoke[*telemetry.Registry](c)
 	if err != nil {

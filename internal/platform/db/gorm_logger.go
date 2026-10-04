@@ -1,6 +1,5 @@
-// Package db provides a zerolog-backed GORM logger that bridges GORM's logging
-// interface to the application's zerolog instance. This replaces the previous
-// logger.Discard, enabling GORM error and slow-query logging through zerolog.
+// Zerolog-backed GORM logger: it reports GORM errors and slow queries through
+// the application's zerolog instance (see the package doc in db.go).
 package db
 
 import (
@@ -36,14 +35,17 @@ func newGORMLogger(log *zerolog.Logger, cfg *config.Config) *gormLogger {
 		log = &nop
 	}
 
-	level := logger.Info // default: info and above (info, warn, error)
+	// GORM's LogLevel is ordered Silent < Error < Warn < Info: a message at
+	// severity S is emitted when level >= S. Info is the most verbose setting,
+	// Error the least besides Silent, matching gorm's own logger semantics.
+	level := logger.Info
 	if cfg != nil {
 		switch cfg.Log.Level {
 		case "panic", "fatal", "error":
 			level = logger.Error
 		case "warn":
 			level = logger.Warn
-		default: // info, debug, trace — all log at Info level in GORM terms
+		default: // info, debug, trace — log SQL statements too
 			level = logger.Info
 		}
 	}
@@ -66,30 +68,30 @@ func (g *gormLogger) LogMode(level logger.LogLevel) logger.Interface {
 	}
 }
 
-// Info logs info-level messages. Only when the logger level allows it.
+// Info logs info-level messages when the configured level is at least Info.
 func (g *gormLogger) Info(ctx context.Context, msg string, args ...any) {
-	if g.level <= logger.Info {
+	if g.level >= logger.Info {
 		g.log.Info().Msgf(msg, args...)
 	}
 }
 
-// Warn logs warning-level messages. Only when the logger level allows it.
+// Warn logs warning-level messages when the configured level is at least Warn.
 func (g *gormLogger) Warn(ctx context.Context, msg string, args ...any) {
-	if g.level <= logger.Warn {
+	if g.level >= logger.Warn {
 		g.log.Warn().Msgf(msg, args...)
 	}
 }
 
-// Error logs error-level messages. Only when the logger level allows it.
+// Error logs error-level messages when the configured level is at least Error.
 func (g *gormLogger) Error(ctx context.Context, msg string, args ...any) {
-	if g.level <= logger.Error {
+	if g.level >= logger.Error {
 		g.log.Error().Msgf(msg, args...)
 	}
 }
 
 // Trace logs SQL execution details: slow queries, errors, and the SQL itself.
 func (g *gormLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql string, rowsAffected int64), err error) {
-	if g.level == logger.Silent {
+	if g.level <= logger.Silent {
 		return
 	}
 
@@ -98,18 +100,22 @@ func (g *gormLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql 
 
 	switch {
 	case err != nil && !errors.Is(err, gorm.ErrRecordNotFound):
-		g.log.Error().Str("module", "gorm").Err(err).Dur("elapsed", elapsed).Int64("rows", rows).Msg(sql)
+		if g.level >= logger.Error {
+			g.log.Error().Str("module", "gorm").Err(err).Dur("elapsed", elapsed).Int64("rows", rows).Msg(sql)
+		}
 
 	case errors.Is(err, gorm.ErrRecordNotFound):
-		if !g.ignoreRecordNotFoundError {
+		if !g.ignoreRecordNotFoundError && g.level >= logger.Warn {
 			g.log.Warn().Str("module", "gorm").Int64("rows", rows).Msg(sql)
 		}
 
 	case g.slowThreshold > 0 && elapsed > g.slowThreshold:
-		g.log.Warn().Str("module", "gorm").Dur("elapsed", elapsed).Int64("rows", rows).Msgf("slow query: %s (threshold: %v)", sql, g.slowThreshold)
+		if g.level >= logger.Warn {
+			g.log.Warn().Str("module", "gorm").Dur("elapsed", elapsed).Int64("rows", rows).Msgf("slow query: %s (threshold: %v)", sql, g.slowThreshold)
+		}
 
 	default:
-		if g.level <= logger.Info {
+		if g.level >= logger.Info {
 			g.log.Debug().Str("module", "gorm").Dur("elapsed", elapsed).Int64("rows", rows).Msg(sql)
 		}
 	}

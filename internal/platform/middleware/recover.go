@@ -2,6 +2,9 @@
 package middleware
 
 import (
+	"errors"
+	"net/http"
+
 	"github.com/labstack/echo/v5"
 	"github.com/rs/zerolog"
 
@@ -9,12 +12,18 @@ import (
 )
 
 // Recover returns echo middleware that recovers from panics, logs the failure
-// with the request id, and returns a structured 500 response.
+// with the request id, and returns a structured 500 response. Like echo's own
+// recover middleware it re-panics http.ErrAbortHandler: net/http treats that
+// sentinel as "abort this request without logging", so swallowing it would turn
+// an intentional abort into a logged 500.
 func Recover(logger *zerolog.Logger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			defer func() {
 				if r := recover(); r != nil {
+					if err, ok := r.(error); ok && errors.Is(err, http.ErrAbortHandler) {
+						panic(r)
+					}
 					log := logger.Error().
 						Str("request_id", RequestIDFromContext(c)).
 						Str("method", c.Request().Method).

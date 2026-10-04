@@ -1,6 +1,6 @@
 // Sentinel registration allows feature packages to register their own typed
-// domain errors so the shared HTTP/gRPC mappers can translate them at the
-// transport boundary.
+// domain errors so the shared HTTP mapper can translate them at the transport
+// boundary.
 package errors
 
 import (

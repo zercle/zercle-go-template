@@ -1,6 +1,6 @@
 // Command server is the composition root and runtime entry point. It loads
 // config and delegates to package app for DI wiring, then starts and gracefully
-// shuts down the HTTP and gRPC servers.
+// shuts down the HTTP server.
 package main
 
 import (

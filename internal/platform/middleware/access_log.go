@@ -41,8 +41,7 @@ func AccessLog(logger *zerolog.Logger) echo.MiddlewareFunc {
 // will turn it into a 500, which is what we report.
 func responseStatus(c *echo.Context, err error) int {
 	if err != nil {
-		var httpErr *echo.HTTPError
-		if errors.As(err, &httpErr) && httpErr.Code != 0 {
+		if httpErr, ok := errors.AsType[*echo.HTTPError](err); ok && httpErr.Code != 0 {
 			return httpErr.Code
 		}
 		return http.StatusInternalServerError

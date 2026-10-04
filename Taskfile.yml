@@ -1,7 +1,7 @@
 version: '3'
 
 # NOTE: dotenv is deliberately per-task, not global. A global dotenv would
-# export APP_NAME/DB_* etc. into `task test`, and viper's env binding then
+# export APP_ENVIRONMENT/DB_* etc. into `task test`, and viper's env binding then
 # overrides the config values the unit tests assert on — the quick start's
 # `cp .env.example .env` would leave the default test command permanently red.
 vars:
@@ -59,8 +59,6 @@ tasks:
   fmt:
     desc: Format Go source
     cmds:
-      # api/pb is protoc-generated; goimports would regroup its imports every
-      # run, so format only the hand-written trees.
       - gofumpt -w cmd internal pkg test
       - goimports -w cmd internal pkg test
 
@@ -77,18 +75,10 @@ tasks:
       - git diff --exit-code go.mod go.sum
 
   generate:
-    desc: Generate mocks and protobuf code
+    desc: Generate mocks (task generate after changing a port interface)
     cmds:
       - go generate ./...
-      - task: proto
 
-  proto:
-    desc: Generate protobuf code
-    cmds:
-      - |
-        protoc -I api/proto --go_out=api/pb --go_opt=paths=source_relative \
-               --go-grpc_out=api/pb --go-grpc_opt=paths=source_relative \
-               example/v1/example.proto
 
   migrate-up:
     desc: Run database migrations

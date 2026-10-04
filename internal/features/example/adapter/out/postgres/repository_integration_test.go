@@ -47,7 +47,7 @@ func (s *RepositoryIntegrationSuite) SetupSuite() {
 	s.db, err = db.NewDB(context.Background(), cfg, &nop)
 	require.NoError(t, err)
 
-	s.runMigrations(cfg)
+	runMigrations(t, cfg)
 
 	s.repo = postgres.NewRepository(s.db)
 }
@@ -119,8 +119,9 @@ func (s *RepositoryIntegrationSuite) TestList() {
 	require.Len(t, items, 3)
 }
 
-func (s *RepositoryIntegrationSuite) runMigrations(cfg *config.Config) {
-	t := s.T()
+// runMigrations applies every embedded migration against cfg's database. It is
+// shared by the repository suites so each gets an identically prepared schema.
+func runMigrations(t *testing.T, cfg *config.Config) {
 	t.Helper()
 
 	src, err := iofs.New(migrations.FS, ".")
@@ -128,7 +129,7 @@ func (s *RepositoryIntegrationSuite) runMigrations(cfg *config.Config) {
 
 	m, err := migrate.NewWithSourceInstance("iofs", src, cfg.DBConnString())
 	require.NoError(t, err)
-	s.T().Cleanup(func() {
+	t.Cleanup(func() {
 		_, _ = m.Close()
 	})
 

@@ -21,7 +21,7 @@ func TestShutdowner_NilClientIsSafe(t *testing.T) {
 
 	ctx := context.Background()
 
-	s := valkey.NewShutdowner(nil)
+	s := valkey.NewShutdownCloser(nil)
 	require.NotNil(t, s, "shutdowner constructor must return non-nil")
 
 	assert.NoError(t, s.Shutdown(ctx), "shutdown with nil client must return nil")
@@ -38,7 +38,7 @@ func TestShutdowner_Idempotent(t *testing.T) {
 
 	ctx := context.Background()
 
-	s := valkey.NewShutdowner(nil)
+	s := valkey.NewShutdownCloser(nil)
 	require.NotNil(t, s)
 
 	assert.NoError(t, s.Shutdown(ctx), "first shutdown on nil client must return nil")

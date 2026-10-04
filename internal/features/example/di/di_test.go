@@ -12,20 +12,37 @@ import (
 	"github.com/samber/do/v2"
 	"github.com/stretchr/testify/require"
 
+	"github.com/zercle/zercle-go-template/internal/features/example/application"
 	"github.com/zercle/zercle-go-template/internal/features/example/di"
 	"github.com/zercle/zercle-go-template/internal/platform/config"
 	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
 // TestRegister_DepsMissing returns an error when required DI dependencies are
-// not registered.
+// not registered while the feature is enabled.
 func TestRegister_DepsMissing(t *testing.T) {
 	t.Parallel()
 
 	injector := do.New()
+	do.ProvideValue(injector, &config.Config{Example: config.ExampleConfig{Enabled: true}})
 
 	err := di.Register(injector)
 	require.Error(t, err)
+}
+
+// TestRegister_DisabledSkipsFeature pins the feature-flag contract: with
+// Enabled=false the feature registers nothing, resolves nothing, and mounts no
+// routes, so a disabled feature cannot fail to wire or expose endpoints.
+func TestRegister_DisabledSkipsFeature(t *testing.T) {
+	t.Parallel()
+
+	injector := do.New()
+	do.ProvideValue(injector, &config.Config{Example: config.ExampleConfig{Enabled: false}})
+
+	require.NoError(t, di.Register(injector))
+
+	_, err := do.Invoke[application.Service](injector)
+	require.Error(t, err, "disabled feature must not provide its service")
 }
 
 // TestRegister_WithStubs verifies the feature DI registers its providers when
@@ -35,10 +52,7 @@ func TestRegister_WithStubs(t *testing.T) {
 
 	cfg := &config.Config{
 		App: config.AppConfig{
-			Name:            "zercle-go-template",
 			Environment:     "test",
-			Host:            "0.0.0.0",
-			Port:            8080,
 			ShutdownTimeout: 5 * time.Second,
 		},
 		HTTP: config.HTTPConfig{
@@ -49,10 +63,15 @@ func TestRegister_WithStubs(t *testing.T) {
 			IdleTimeout:  60 * time.Second,
 			BodyLimit:    "1M",
 		},
-		GRPC:   config.GRPCConfig{Host: "0.0.0.0", Port: 50051},
 		OTel:   config.OTelConfig{Exporter: "none", ServiceName: "test"},
 		Log:    config.LogConfig{Level: "info", Format: "json"},
 		Valkey: config.ValkeyConfig{Host: "127.0.0.1", Port: 6379, DB: 0},
+		Example: config.ExampleConfig{
+			Enabled:         true,
+			DefaultPageSize: 20,
+			MaxPageSize:     100,
+			MaxNameLength:   255,
+		},
 	}
 
 	injector := do.New()

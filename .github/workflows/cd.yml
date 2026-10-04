@@ -7,7 +7,7 @@
 #   - Push of a version tag (v*)
 #
 # Jobs:
-#   - build-and-push: multi-arch (amd64/arm64) server + migrate images to ghcr.io
+#   - build-and-push: multi-arch (amd64/arm64) server image to ghcr.io
 # =============================================================================
 
 name: CD
@@ -80,19 +80,5 @@ jobs:
             VERSION=${{ steps.meta.outputs.version }}
             COMMIT_SHA=${{ steps.meta.outputs.commit_sha }}
             BUILD_TIME=${{ steps.meta.outputs.build_time }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push migrate image with docker/build-push-action
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./Containerfile.migrate
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}-migrate:${{ steps.meta.outputs.version }}
-            ghcr.io/${{ github.repository }}-migrate:latest
-            ghcr.io/${{ github.repository }}-migrate:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

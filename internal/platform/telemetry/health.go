@@ -75,17 +75,14 @@ func runCheckers(ctx context.Context, checkers []Checker) error {
 		errs []error
 	)
 
-	wg.Add(len(checkers))
 	for _, c := range checkers {
-		go func(checker Checker) {
-			defer wg.Done()
-
-			if err := checker.Check(ctx); err != nil {
+		wg.Go(func() {
+			if err := c.Check(ctx); err != nil {
 				mu.Lock()
 				defer mu.Unlock()
-				errs = append(errs, fmt.Errorf("%s: %w", checker.Name(), err))
+				errs = append(errs, fmt.Errorf("%s: %w", c.Name(), err))
 			}
-		}(c)
+		})
 	}
 	wg.Wait()
 

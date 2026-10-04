@@ -132,6 +132,7 @@ jobs:
           VALKEY_HOST: localhost
           VALKEY_PORT: 6379
           VALKEY_DB: 0
+          VALKEY_TTL: 30s
           APP_ENVIRONMENT: test
         run: go test -race -tags=integration ./...
 

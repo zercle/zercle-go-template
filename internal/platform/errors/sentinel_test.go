@@ -5,8 +5,6 @@ package errors
 import (
 	stderrors "errors"
 	"testing"
-
-	"google.golang.org/grpc/codes"
 )
 
 var errFoo = stderrors.New("foo")
@@ -27,8 +25,8 @@ func withIsolatedSentinels(t *testing.T) {
 func TestRegisterSentinel_ReplacesExistingEntryInPlace(t *testing.T) {
 	withIsolatedSentinels(t)
 
-	a := &AppError{Code: "A", HTTPStatus: 1, GRPCCode: codes.Unknown}
-	b := &AppError{Code: "B", HTTPStatus: 2, GRPCCode: codes.Unknown}
+	a := &AppError{Code: "A", HTTPStatus: 1}
+	b := &AppError{Code: "B", HTTPStatus: 2}
 
 	RegisterSentinel(errFoo, a)
 
@@ -52,8 +50,8 @@ func TestRegisterSentinel_ReplacesExistingEntryInPlace(t *testing.T) {
 func TestRegisterSentinel_AppendsNewSentinel(t *testing.T) {
 	withIsolatedSentinels(t)
 
-	a := &AppError{Code: "A", HTTPStatus: 1, GRPCCode: codes.Unknown}
-	b := &AppError{Code: "B", HTTPStatus: 2, GRPCCode: codes.Unknown}
+	a := &AppError{Code: "A", HTTPStatus: 1}
+	b := &AppError{Code: "B", HTTPStatus: 2}
 	errBar := stderrors.New("bar")
 
 	RegisterSentinel(errFoo, a)

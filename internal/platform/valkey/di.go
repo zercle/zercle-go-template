@@ -11,9 +11,9 @@ import (
 	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
 )
 
-// Register provides valkeygo.Client and registers the Valkey readiness
-// checker. The ctx is used to drive the initial client construction so
-// startup cancellation/timeouts propagate.
+// Register provides the cache-aside client, its underlying valkeygo.Client, and
+// registers the Valkey readiness checker. The ctx drives the initial client
+// construction so startup cancellation/timeouts propagate.
 func Register(ctx context.Context, c do.Injector) error {
 	cfg, err := do.Invoke[*config.Config](c)
 	if err != nil {
@@ -25,14 +25,15 @@ func Register(ctx context.Context, c do.Injector) error {
 		return fmt.Errorf("resolve health registry: %w", err)
 	}
 
-	client, err := NewClient(ctx, cfg)
+	aside, err := NewCacheAside(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	do.ProvideValue(c, client)
-	do.ProvideValue(c, NewShutdowner(client))
+	do.ProvideValue(c, aside)
+	do.ProvideValue(c, aside.Client())
+	do.ProvideValue(c, NewShutdownCloser(aside))
 
-	registry.AddReadiness(valkeyChecker{client: client})
+	registry.AddReadiness(valkeyChecker{client: aside.Client()})
 
 	return nil
 }

@@ -1,36 +1,43 @@
-// Minimal OpenTelemetry echo middleware. It starts a span from the request
-// context, records HTTP attributes, and records errors on the span.
+// OpenTelemetry echo middleware. It starts a server span, links it to an
+// inbound parent context via the supplied propagator, records HTTP attributes,
+// and records errors on the span.
 package middleware
 
 import (
 	"github.com/labstack/echo/v5"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
 
-// OTel returns echo middleware that creates an OpenTelemetry span for each
-// request using the trace.TracerProvider available via the request context.
-// It sets standard HTTP attributes and ends the span after the handler runs,
-// recording any returned error.
-func OTel() echo.MiddlewareFunc {
+// instrumentationScope names the tracer used for server spans.
+const instrumentationScope = "github.com/zercle/zercle-go-template"
+
+// OTel returns echo middleware that creates an OpenTelemetry server span for
+// each request. The tracer comes from tp; the inbound context is extracted with
+// propagator so an upstream service's traceparent becomes the parent span. The
+// providers are passed explicitly so the middleware records spans regardless of
+// whether the OTel globals have been installed. It sets standard HTTP
+// attributes and ends the span after the handler runs, recording any error.
+func OTel(tp trace.TracerProvider, propagator propagation.TextMapPropagator) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			echoCtx := c.Request().Context()
-			tracer := trace.SpanFromContext(echoCtx).TracerProvider().Tracer("github.com/zercle/zercle-go-template")
+			ctx := propagator.Extract(c.Request().Context(), propagation.HeaderCarrier(c.Request().Header))
+			tracer := tp.Tracer(instrumentationScope)
 
 			route := c.Path()
 			spanName := c.Request().Method
 			if route != "" {
 				spanName = c.Request().Method + " " + route
 			}
-			newCtx, span := tracer.Start(echoCtx, spanName)
+			newCtx, span := tracer.Start(ctx, spanName, trace.WithSpanKind(trace.SpanKindServer))
 			defer span.End()
 
-			req := c.Request().WithContext(newCtx)
-			c.SetRequest(req)
+			c.SetRequest(c.Request().WithContext(newCtx))
 
 			span.SetAttributes(attribute.String("http.method", c.Request().Method))
+			span.SetAttributes(attribute.String("url.path", c.Request().URL.Path))
 			if route != "" {
 				span.SetAttributes(attribute.String("http.route", route))
 			}

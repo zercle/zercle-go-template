@@ -8,9 +8,6 @@ import (
 	"net/http"
 	"testing"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
 )
 
@@ -20,13 +17,16 @@ func init() {
 	apperrors.RegisterSentinel(errDomainSentinel, apperrors.ErrNotFound)
 }
 
+// TestHTTPError_Nil pins that a nil error is not mapped to a fabricated 200
+// "success" envelope: there is no failure to describe, so the mapper returns a
+// zero status and no body, forcing the caller to handle it explicitly.
 func TestHTTPError_Nil(t *testing.T) {
 	status, body := apperrors.HTTPError(nil)
-	if status != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, status)
+	if status != 0 {
+		t.Fatalf("expected zero status for nil error, got %d", status)
 	}
-	if body["status"] != "ok" {
-		t.Fatalf("expected ok body, got %v", body)
+	if body != nil {
+		t.Fatalf("expected nil body for nil error, got %v", body)
 	}
 }
 
@@ -35,7 +35,6 @@ func TestHTTPError_AppError(t *testing.T) {
 		Code:       "BOOM",
 		Message:    "boom message",
 		HTTPStatus: http.StatusTeapot,
-		GRPCCode:   codes.Unavailable,
 		Cause:      errors.New("cause"),
 	}
 	status, body := apperrors.HTTPError(app)
@@ -94,50 +93,5 @@ func TestHTTPError_UnknownDoesNotLeakCause(t *testing.T) {
 	}
 	if body["message"] != "internal error" {
 		t.Fatalf("expected sentinel message, got %v", body["message"])
-	}
-}
-
-func TestGRPCErr_Nil(t *testing.T) {
-	if apperrors.GRPCErr(nil) != nil {
-		t.Fatal("expected nil for nil error")
-	}
-}
-
-func TestGRPCErr_AppError(t *testing.T) {
-	app := &apperrors.AppError{
-		Code:       "BOOM",
-		Message:    "boom message",
-		HTTPStatus: http.StatusTeapot,
-		GRPCCode:   codes.Unavailable,
-	}
-	err := apperrors.GRPCErr(app)
-	st, ok := status.FromError(err)
-	if !ok {
-		t.Fatal("expected status error")
-	}
-	if st.Code() != codes.Unavailable {
-		t.Fatalf("expected code %v, got %v", codes.Unavailable, st.Code())
-	}
-}
-
-func TestGRPCErr_RegisteredSentinel(t *testing.T) {
-	err := apperrors.GRPCErr(errDomainSentinel)
-	st, ok := status.FromError(err)
-	if !ok {
-		t.Fatal("expected status error")
-	}
-	if st.Code() != codes.NotFound {
-		t.Fatalf("expected code %v, got %v", codes.NotFound, st.Code())
-	}
-}
-
-func TestGRPCErr_Unknown(t *testing.T) {
-	err := apperrors.GRPCErr(errors.New("random failure"))
-	st, ok := status.FromError(err)
-	if !ok {
-		t.Fatal("expected status error")
-	}
-	if st.Code() != codes.Internal {
-		t.Fatalf("expected code %v, got %v", codes.Internal, st.Code())
 	}
 }

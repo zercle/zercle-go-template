@@ -4,9 +4,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"strconv"
-	"time"
 
 	"github.com/rs/zerolog"
 	"gorm.io/driver/postgres"
@@ -15,11 +12,10 @@ import (
 	"github.com/zercle/zercle-go-template/internal/platform/config"
 )
 
-// NewDB builds a configured *gorm.DB from the application config. It derives
-// a DSN from cfg.DBConnString(), augments it with connect_timeout, opens the
-// GORM connection, applies pool tuning via the underlying *sql.DB, and pings
-// the database before returning. The caller is responsible for closing the
-// underlying *sql.DB obtained via (*gorm.DB).DB().
+// NewDB builds a configured *gorm.DB from the application config. It opens the
+// GORM connection using cfg.DBConnString(), applies pool tuning via the
+// underlying *sql.DB, and pings the database before returning. The caller is
+// responsible for closing the underlying *sql.DB obtained via (*gorm.DB).DB().
 //
 // Schema is owned by golang-migrate; AutoMigrate is never invoked here.
 func NewDB(ctx context.Context, cfg *config.Config, log *zerolog.Logger) (*gorm.DB, error) {
@@ -31,10 +27,7 @@ func NewDB(ctx context.Context, cfg *config.Config, log *zerolog.Logger) (*gorm.
 		return nil, fmt.Errorf("logger is nil")
 	}
 
-	dsn, err := buildDSN(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("build dsn: %w", err)
-	}
+	dsn := cfg.DBConnString()
 
 	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger:                 newGORMLogger(log, cfg),
@@ -67,23 +60,4 @@ func NewDB(ctx context.Context, cfg *config.Config, log *zerolog.Logger) (*gorm.
 	}
 
 	return gormDB, nil
-}
-
-// buildDSN derives a DSN from cfg.DBConnString() and injects connect_timeout
-// as an integer-second query parameter (minimum 1). pgx's stdlib driver honors
-// connect_timeout, so the underlying transport respects the configured
-// connect timeout without needing per-driver plumbing.
-func buildDSN(cfg *config.Config) (string, error) {
-	u, err := url.Parse(cfg.DBConnString())
-	if err != nil {
-		return "", fmt.Errorf("parse dsn: %w", err)
-	}
-
-	q := u.Query()
-	seconds := int(cfg.DB.ConnectTimeout / time.Second)
-	seconds = max(seconds, 1)
-	q.Set("connect_timeout", strconv.Itoa(seconds))
-	u.RawQuery = q.Encode()
-
-	return u.String(), nil
 }

@@ -36,16 +36,16 @@ func newMockGormDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {
 	return gormDB, mock
 }
 
-// TestShutdowner_NilDBIsSafe verifies that constructing a shutdowner with
-// a nil *gorm.DB does not panic and returns nil from Shutdown — covering
-// the case where the DI container is asked to close a never-configured DB.
+// TestShutdowner_NilDBIsSafe verifies that the DI container's shutdown hook
+// tolerates a nil *gorm.DB — covering the case where the container is asked to
+// close a never-configured database.
 func TestShutdowner_NilDBIsSafe(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 
-	s := db.NewShutdowner(nil)
-	require.NotNil(t, s, "shutdowner constructor must return non-nil")
+	s := db.NewShutdownCloser(nil)
+	require.NotNil(t, s)
 
 	assert.NoError(t, s.Shutdown(ctx), "shutdown with nil db must return nil")
 	assert.NoError(t, s.Shutdown(ctx), "second shutdown call must remain a no-op")
@@ -64,7 +64,7 @@ func TestShutdowner_ClosesUnderlyingPool(t *testing.T) {
 
 	mock.ExpectClose()
 
-	s := db.NewShutdowner(gormDB)
+	s := db.NewShutdownCloser(gormDB)
 	require.NotNil(t, s)
 
 	firstErr := s.Shutdown(ctx)

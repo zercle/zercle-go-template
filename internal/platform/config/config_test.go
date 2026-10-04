@@ -32,10 +32,7 @@ func TestLoad_ReadsConfigFile(t *testing.T) {
 
 	content := `
 app:
-  name: test-app
   environment: test
-  host: 127.0.0.1
-  port: 7000
   shutdown_timeout: 5s
 http:
   host: 127.0.0.1
@@ -44,9 +41,6 @@ http:
   write_timeout: 10s
   idle_timeout: 30s
   body_limit: 2M
-grpc:
-  host: 127.0.0.1
-  port: 7002
 db:
   host: 127.0.0.1
   port: 5432
@@ -80,7 +74,6 @@ otel:
 	require.NoError(t, err)
 	require.NoError(t, cfg.Validate())
 
-	require.Equal(t, "test-app", cfg.App.Name)
 	require.Equal(t, "test", cfg.App.Environment)
 	require.Equal(t, "127.0.0.1", cfg.HTTP.Host)
 	require.Equal(t, 7001, cfg.HTTP.Port)
@@ -120,7 +113,7 @@ otel:
 	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0o600))
 	t.Setenv("CONFIG_FILE", cfgPath)
 
-	t.Setenv("APP_NAME", "env-app")
+	t.Setenv("APP_ENVIRONMENT", "production")
 	t.Setenv("HTTP_PORT", "2222")
 	t.Setenv("DB_NAME", "envdb")
 	t.Setenv("OTEL_SERVICE_NAME", "env-service")
@@ -130,7 +123,7 @@ otel:
 	require.NoError(t, err)
 	require.NoError(t, cfg.Validate())
 
-	require.Equal(t, "env-app", cfg.App.Name)
+	require.Equal(t, "production", cfg.App.Environment)
 	require.Equal(t, 2222, cfg.HTTP.Port)
 	require.Equal(t, "envdb", cfg.DB.Name)
 	require.Equal(t, "env-service", cfg.OTel.ServiceName)
@@ -144,7 +137,6 @@ func TestLoad_SliceEnvVariable(t *testing.T) {
 	content := `
 app:
   environment: test
-  port: 8080
 http:
   port: 8080
   read_timeout: 10s
@@ -356,20 +348,10 @@ func TestDBConnString(t *testing.T) {
 	require.Equal(t, "disable", parsed.Query().Get("sslmode"))
 }
 
-func TestGRPCAddr(t *testing.T) {
-	cfg := validConfig()
-	cfg.GRPC.Host = "127.0.0.1"
-	cfg.GRPC.Port = 50051
-	require.Equal(t, "127.0.0.1:50051", cfg.GRPCAddr())
-}
-
 func validConfig() *config.Config {
 	return &config.Config{
 		App: config.AppConfig{
-			Name:            "test",
 			Environment:     "test",
-			Host:            "127.0.0.1",
-			Port:            8080,
 			ShutdownTimeout: 15 * time.Second,
 		},
 		HTTP: config.HTTPConfig{
@@ -380,10 +362,6 @@ func validConfig() *config.Config {
 			IdleTimeout:        60 * time.Second,
 			BodyLimit:          "1M",
 			HealthProbeTimeout: 5 * time.Second,
-		},
-		GRPC: config.GRPCConfig{
-			Host: "127.0.0.1",
-			Port: 50051,
 		},
 		DB: config.DBConfig{
 			Host:           "127.0.0.1",

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -54,14 +55,14 @@ func TestNewTracer_OTLPRequiresEndpoint(t *testing.T) {
 
 func TestNewMeterProvider(t *testing.T) {
 	cfg := &config.Config{OTel: config.OTelConfig{Exporter: "none", ServiceName: "test"}}
-	provider, shutdown, err := telemetry.NewMeterProvider(cfg)
+	provider, shutdown, err := telemetry.NewMeterProvider(cfg, telemetry.NewPrometheusRegistry())
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 	require.NotNil(t, shutdown)
 }
 
 func TestMetricsHandler(t *testing.T) {
-	handler := telemetry.MetricsHandler()
+	handler := telemetry.MetricsHandler(telemetry.NewPrometheusRegistry())
 	require.NotNil(t, handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
@@ -70,4 +71,32 @@ func TestMetricsHandler(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "go_info")
+}
+
+// TestMeterProvider_InstancesAreIsolated is the regression guard for duplicate
+// Prometheus collector registration: every meter provider gets its own registry
+// (mirroring one per app instance), so a second provider in the same process
+// cannot collide on prometheus.DefaultRegisterer and break /metrics. Before the
+// registry was injectable both providers registered on the default registerer
+// and /metrics returned 500 with a duplicate "target_info" collection error.
+func TestMeterProvider_InstancesAreIsolated(t *testing.T) {
+	cfg := &config.Config{OTel: config.OTelConfig{Exporter: "none", ServiceName: "test"}}
+
+	reg1 := telemetry.NewPrometheusRegistry()
+	p1, _, err := telemetry.NewMeterProvider(cfg, reg1)
+	require.NoError(t, err)
+	reg2 := telemetry.NewPrometheusRegistry()
+	p2, _, err := telemetry.NewMeterProvider(cfg, reg2)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = p1.Shutdown(context.Background())
+		_ = p2.Shutdown(context.Background())
+	})
+
+	for i, reg := range []*prometheus.Registry{reg1, reg2} {
+		rec := httptest.NewRecorder()
+		telemetry.MetricsHandler(reg).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+		require.Equal(t, http.StatusOK, rec.Code, "provider %d must serve /metrics: %s", i, rec.Body.String())
+		require.Contains(t, rec.Body.String(), "target_info", "each registry must own the OTel exporter collector")
+	}
 }
