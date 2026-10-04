@@ -333,6 +333,27 @@ func TestValidate_AcceptsValidConfig(t *testing.T) {
 	require.NoError(t, cfg.Validate())
 }
 
+func TestValidate_InvalidBodyLimitFails(t *testing.T) {
+	cfg := validConfig()
+	cfg.HTTP.BodyLimit = "1XB"
+
+	err := cfg.Validate()
+
+	require.Error(t, err, "an unparseable body limit must fail startup, not silently disable the middleware")
+	require.Contains(t, err.Error(), "HTTP_BODY_LIMIT")
+}
+
+func TestValidate_OTLPEndpointRequiresSchemeAndHost(t *testing.T) {
+	cfg := validConfig()
+	cfg.OTel.Exporter = "otlp"
+	cfg.OTel.Endpoint = "not-a-url"
+
+	err := cfg.Validate()
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "OTEL_EXPORTER_OTLP_ENDPOINT")
+}
+
 func TestDBConnString(t *testing.T) {
 	cfg := validConfig()
 	cfg.DB.Password = "p@ss w#rd"

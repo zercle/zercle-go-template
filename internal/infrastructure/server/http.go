@@ -4,10 +4,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"math"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -48,7 +45,7 @@ const defaultProbeTimeout = 5 * time.Second
 // recorded, inbound trace context is honored, and /metrics serves the same
 // registry the meter provider exports into — without depending on
 // process-global OTel or Prometheus state.
-func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Registry, tp trace.TracerProvider, propagator propagation.TextMapPropagator, gatherer prometheus.Gatherer) *echo.Echo {
+func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Registry, tp trace.TracerProvider, propagator propagation.TextMapPropagator, gatherer prometheus.Gatherer) (*echo.Echo, error) {
 	e := echo.New()
 	e.Validator = &echoValidator{v: validator.New()}
 	e.HTTPErrorHandler = errorHandler(logger)
@@ -61,7 +58,15 @@ func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Reg
 	e.Use(middleware.RequestID())
 	e.Use(middleware.OTel(tp, propagator))
 	e.Use(middleware.CORS(cfg))
-	if limit := parseBodyLimitBytes(cfg.HTTP.BodyLimit); limit > 0 {
+
+	// An empty limit means "unconfigured" (skip). A non-empty but unparseable
+	// limit is a misconfiguration and must fail loudly rather than silently
+	// dropping the body-size protection it was meant to install.
+	limit, err := config.ParseByteSize(cfg.HTTP.BodyLimit)
+	if err != nil {
+		return nil, fmt.Errorf("parse HTTP_BODY_LIMIT: %w", err)
+	}
+	if limit > 0 {
 		e.Use(echomw.BodyLimit(limit))
 	}
 
@@ -74,7 +79,7 @@ func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Reg
 	e.GET("/readyz", readyzHandler(registry, logger, probeTimeout))
 	e.GET("/metrics", echo.WrapHandler(telemetry.MetricsHandler(gatherer)))
 
-	return e
+	return e, nil
 }
 
 // errorHandler is echo's centralized error handler. It routes every error that
@@ -153,38 +158,4 @@ func readyzHandler(registry *telemetry.Registry, logger *zerolog.Logger, probeTi
 		}
 		return c.NoContent(http.StatusOK)
 	}
-}
-
-// parseBodyLimitBytes converts a human-friendly byte size string such as
-// "1M" or "512K" into the raw byte count accepted by echo's BodyLimit
-// middleware. It returns 0 (i.e. "skip") for empty or unparseable input.
-func parseBodyLimitBytes(s string) int64 {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0
-	}
-	upper := strings.ToUpper(s)
-	upper = strings.TrimSuffix(upper, "B")
-	upper = strings.TrimSuffix(upper, "I")
-	multiplier := int64(1)
-	switch {
-	case strings.HasSuffix(upper, "K"):
-		multiplier = 1024
-		upper = strings.TrimSuffix(upper, "K")
-	case strings.HasSuffix(upper, "M"):
-		multiplier = 1024 * 1024
-		upper = strings.TrimSuffix(upper, "M")
-	case strings.HasSuffix(upper, "G"):
-		multiplier = 1024 * 1024 * 1024
-		upper = strings.TrimSuffix(upper, "G")
-	}
-	upper = strings.TrimSpace(upper)
-	n, err := strconv.ParseInt(upper, 10, 64)
-	if err != nil || n <= 0 {
-		return 0
-	}
-	if n > math.MaxInt64/multiplier {
-		return 0
-	}
-	return n * multiplier
 }

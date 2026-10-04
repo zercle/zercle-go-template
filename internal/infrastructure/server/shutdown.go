@@ -8,17 +8,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 
 	"github.com/labstack/echo/v5"
 	"github.com/rs/zerolog"
 	"github.com/samber/do/v2"
 	"github.com/valkey-io/valkey-go"
-	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/trace"
 	"gorm.io/gorm"
 
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
@@ -96,12 +91,11 @@ func (a *Application) Logger() *zerolog.Logger {
 	return a.logger
 }
 
-// Run starts the HTTP server and blocks until a signal or a server error
-// occurs, then performs an ordered graceful shutdown.
+// Run starts the HTTP server and blocks until the context is cancelled or the
+// server stops on its own, then performs an ordered graceful shutdown. It never
+// installs process-level signal handlers; the caller supplies a context that is
+// cancelled on SIGINT/SIGTERM (see cmd/server).
 func (a *Application) Run(ctx context.Context) error {
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
 	if err := a.StartHTTP(ctx); err != nil {
 		return fmt.Errorf("start http: %w", err)
 	}
@@ -110,12 +104,23 @@ func (a *Application) Run(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		a.logger.Info().Msg("shutdown signal received")
-	case err := <-a.serverErrorChannel():
-		a.logger.Error().Err(err).Msg("server error")
-		runErr = err
+	case <-a.httpStopped:
+		// The server stopped without the context being cancelled: a bind/serve
+		// failure (or an externally closed listener). Surface the recorded error
+		// instead of blocking forever.
+		if err := a.httpStartError(); err != nil {
+			a.logger.Error().Err(err).Msg("server error")
+			runErr = err
+		}
 	}
 
 	a.shutdown(ctx)
+
+	// A signal-triggered shutdown and a simultaneous start failure can race the
+	// select above; report a recorded error that was not observed there.
+	if runErr == nil {
+		runErr = a.httpStartError()
+	}
 
 	return runErr
 }
@@ -163,40 +168,29 @@ func (a *Application) StartHTTP(ctx context.Context) error {
 		}
 		if err := sc.Start(a.httpStartCtx, a.httpServer); err != nil {
 			a.logger.Error().Err(err).Msg("http server stopped")
-			a.startMu.Lock()
-			if a.httpListener == nil {
+			// A graceful stop (context cancelled) surfaces as ErrServerClosed or
+			// context.Canceled; that is a normal shutdown, not a startup failure.
+			// Anything else — including a bind failure after ListenerAddrFunc
+			// already closed httpStarted — is recorded so Run can surface it
+			// instead of blocking until an external signal.
+			if !errors.Is(err, http.ErrServerClosed) && !errors.Is(err, context.Canceled) {
+				a.startMu.Lock()
 				a.httpStartErr = err
-				close(a.httpStarted)
+				a.startMu.Unlock()
 			}
-			a.startMu.Unlock()
 		}
 	}()
 
 	return nil
 }
 
-// serverErrorChannel launches the HTTP server and returns a channel that
-// receives its first fatal error.
-func (a *Application) serverErrorChannel() <-chan error {
-	errCh := make(chan error, 1)
-
-	go func() {
-		errCh <- a.runHTTPServer()
-	}()
-
-	return errCh
-}
-
-// runHTTPServer blocks until the HTTP server stops. If the server failed to
-// bind (so the listener address was never produced), the start error is
-// returned so Run can surface it instead of blocking forever.
-func (a *Application) runHTTPServer() error {
-	<-a.httpStarted
-	if a.httpStartErr != nil {
-		return a.httpStartErr
-	}
-	<-a.httpStartCtx.Done()
-	return nil
+// httpStartError returns the HTTP start/serve failure, if any. It reads under
+// the start mutex so callers never race with the serve goroutine recording an
+// error after the listener has already bound.
+func (a *Application) httpStartError() error {
+	a.startMu.Lock()
+	defer a.startMu.Unlock()
+	return a.httpStartErr
 }
 
 // shutdown performs the ordered graceful shutdown sequence using a fresh,
@@ -218,17 +212,10 @@ func (a *Application) shutdown(ctx context.Context) {
 		client.Close()
 	}
 
-	if tp, ok := a.invokeTracerProvider(); ok {
-		if err := tp.Shutdown(shutdownCtx); err != nil {
-			a.logger.Error().Err(err).Msg("trace shutdown error")
-		}
-	}
-
-	if mp, ok := a.invokeMeterProvider(); ok {
-		if err := mp.Shutdown(shutdownCtx); err != nil {
-			a.logger.Error().Err(err).Msg("meter shutdown error")
-		}
-	}
+	// The OTel tracer and meter providers implement samber/do's shutdown
+	// interface, so the injector shuts them down itself (see app.Run's defer).
+	// Shutting them down here as well would be a second, redundant call that the
+	// Prometheus reader rejects with "reader is shutdown".
 
 	a.logger.Info().Msg("shutdown complete")
 }
@@ -287,34 +274,6 @@ func (a *Application) invokeValkey() (valkey.Client, bool) {
 	}
 	if !errors.Is(err, do.ErrServiceNotFound) {
 		a.logger.Warn().Err(err).Msg("optional valkey client not available")
-	}
-	return nil, false
-}
-
-// invokeTracerProvider looks up the OTel tracer provider from the DI container
-// and reports whether it was found. A missing provider is treated as "not
-// configured" and is skipped silently.
-func (a *Application) invokeTracerProvider() (*trace.TracerProvider, bool) {
-	tp, err := do.Invoke[*trace.TracerProvider](a.injector)
-	if err == nil {
-		return tp, true
-	}
-	if !errors.Is(err, do.ErrServiceNotFound) {
-		a.logger.Warn().Err(err).Msg("optional tracer provider not available")
-	}
-	return nil, false
-}
-
-// invokeMeterProvider looks up the OTel meter provider from the DI container
-// and reports whether it was found. A missing provider is treated as "not
-// configured" and is skipped silently.
-func (a *Application) invokeMeterProvider() (*metric.MeterProvider, bool) {
-	mp, err := do.Invoke[*metric.MeterProvider](a.injector)
-	if err == nil {
-		return mp, true
-	}
-	if !errors.Is(err, do.ErrServiceNotFound) {
-		a.logger.Warn().Err(err).Msg("optional meter provider not available")
 	}
 	return nil, false
 }

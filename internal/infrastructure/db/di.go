@@ -16,7 +16,10 @@ import (
 // The ctx drives the initial DB construction so startup cancellation and
 // connect timeouts propagate.
 func Register(ctx context.Context, c do.Injector) error {
-	cfg := do.MustInvoke[*config.Config](c)
+	cfg, err := do.Invoke[*config.Config](c)
+	if err != nil {
+		return fmt.Errorf("resolve config: %w", err)
+	}
 
 	log, err := do.Invoke[*zerolog.Logger](c)
 	if err != nil {

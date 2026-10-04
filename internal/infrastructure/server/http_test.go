@@ -29,8 +29,11 @@ import (
 // newTestHTTP builds an echo instance with the shared middleware using a no-op
 // tracer provider and TraceContext propagator; these tests exercise routing,
 // health, and binding, not span export.
-func newTestHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Registry) *echo.Echo {
-	return server.NewHTTP(cfg, logger, registry, trace.NewTracerProvider(), propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
+func newTestHTTP(t *testing.T, cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Registry) *echo.Echo {
+	t.Helper()
+	e, err := server.NewHTTP(cfg, logger, registry, trace.NewTracerProvider(), propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
+	require.NoError(t, err)
+	return e
 }
 
 func newTestConfig(t *testing.T) *config.Config {
@@ -53,7 +56,7 @@ func TestNewHTTP_Healthz(t *testing.T) {
 	logger := zerolog.New(nil)
 	registry := telemetry.NewRegistry()
 
-	e := newTestHTTP(cfg, &logger, registry)
+	e := newTestHTTP(t, cfg, &logger, registry)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
@@ -68,7 +71,7 @@ func TestNewHTTP_Readyz(t *testing.T) {
 	logger := zerolog.New(nil)
 	registry := telemetry.NewRegistry()
 
-	e := newTestHTTP(cfg, &logger, registry)
+	e := newTestHTTP(t, cfg, &logger, registry)
 
 	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	rec := httptest.NewRecorder()
@@ -83,7 +86,7 @@ func TestNewHTTP_Metrics(t *testing.T) {
 	logger := zerolog.New(nil)
 	registry := telemetry.NewRegistry()
 
-	e := newTestHTTP(cfg, &logger, registry)
+	e := newTestHTTP(t, cfg, &logger, registry)
 
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
@@ -99,7 +102,7 @@ func TestNewHTTP_ValidatorRegistered(t *testing.T) {
 	logger := zerolog.New(nil)
 	registry := telemetry.NewRegistry()
 
-	e := newTestHTTP(cfg, &logger, registry)
+	e := newTestHTTP(t, cfg, &logger, registry)
 
 	require.NotNil(t, e.Validator, "echo validator must be registered")
 }
@@ -109,7 +112,7 @@ func TestNewHTTP_ValidatorBinding(t *testing.T) {
 	logger := zerolog.New(nil)
 	registry := telemetry.NewRegistry()
 
-	e := newTestHTTP(cfg, &logger, registry)
+	e := newTestHTTP(t, cfg, &logger, registry)
 	e.POST("/validate", func(c *echo.Context) error {
 		var req struct {
 			Name string `json:"name" validate:"required"`
@@ -148,7 +151,8 @@ func TestNewHTTP_RecordsSpanAndLinksParent(t *testing.T) {
 	tp := trace.NewTracerProvider(trace.WithSyncer(exporter), trace.WithSampler(trace.AlwaysSample()))
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
 
-	e := server.NewHTTP(cfg, &logger, registry, tp, propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
+	e, err := server.NewHTTP(cfg, &logger, registry, tp, propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
+	require.NoError(t, err)
 	e.GET("/items/:id", func(c *echo.Context) error { return c.NoContent(http.StatusNoContent) })
 
 	req := httptest.NewRequest(http.MethodGet, "/items/42", nil)
@@ -173,7 +177,7 @@ func TestNewHTTP_PanickedRequestIsAccessLogged(t *testing.T) {
 	logger := zerolog.New(&buf)
 	registry := telemetry.NewRegistry()
 
-	e := newTestHTTP(cfg, &logger, registry)
+	e := newTestHTTP(t, cfg, &logger, registry)
 	e.GET("/panic", func(c *echo.Context) error { panic("boom") })
 
 	req := httptest.NewRequest(http.MethodGet, "/panic", nil)
@@ -193,7 +197,7 @@ func TestNewHTTP_NotFoundUsesErrorEnvelope(t *testing.T) {
 	logger := zerolog.New(nil)
 	registry := telemetry.NewRegistry()
 
-	e := newTestHTTP(cfg, &logger, registry)
+	e := newTestHTTP(t, cfg, &logger, registry)
 
 	req := httptest.NewRequest(http.MethodGet, "/does-not-exist", nil)
 	rec := httptest.NewRecorder()
@@ -215,7 +219,7 @@ func TestNewHTTP_HandlerErrorUsesErrorEnvelope(t *testing.T) {
 	logger := zerolog.New(nil)
 	registry := telemetry.NewRegistry()
 
-	e := newTestHTTP(cfg, &logger, registry)
+	e := newTestHTTP(t, cfg, &logger, registry)
 	e.GET("/boom", func(c *echo.Context) error { return errors.New("kaboom") })
 
 	req := httptest.NewRequest(http.MethodGet, "/boom", nil)

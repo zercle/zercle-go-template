@@ -5,6 +5,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/url"
 	"os"
@@ -189,36 +190,57 @@ func (c *Config) Validate() error {
 	if err := validate.Struct(c); err != nil {
 		return fmt.Errorf("config validation failed: %w", err)
 	}
-
-	if c.OTel.Exporter == "otlp" && c.OTel.Endpoint == "" {
-		return fmt.Errorf("OTEL_EXPORTER_OTLP_ENDPOINT is required when OTEL_EXPORTER=otlp")
+	if err := c.validateOTel(); err != nil {
+		return err
 	}
-
-	if c.OTel.Exporter == "otlp" {
-		if _, err := url.Parse(c.OTel.Endpoint); err != nil {
-			return fmt.Errorf("OTEL_EXPORTER_OTLP_ENDPOINT is invalid: %w", err)
+	if c.HTTP.BodyLimit != "" {
+		if _, err := ParseByteSize(c.HTTP.BodyLimit); err != nil {
+			return fmt.Errorf("HTTP_BODY_LIMIT: %w", err)
 		}
 	}
-
 	if c.DB.MaxConns < c.DB.MaxIdleConns {
 		return fmt.Errorf("DB_MAX_CONNS must be >= DB_MAX_IDLE_CONNS")
 	}
-
 	if c.Example.Enabled {
-		if err := validateExamplePositivity(c.Example); err != nil {
+		if err := validateExample(c.Example); err != nil {
 			return err
 		}
-		if c.Example.DefaultPageSize > c.Example.MaxPageSize {
-			return fmt.Errorf("EXAMPLE_DEFAULT_PAGE_SIZE must be <= EXAMPLE_MAX_PAGE_SIZE")
-		}
-		if c.Example.MaxPageSize > exampleMaxPageSizeUpperBound {
-			return fmt.Errorf("EXAMPLE_MAX_PAGE_SIZE exceeds maximum allowed value %d", exampleMaxPageSizeUpperBound)
-		}
-		if c.Example.MaxNameLength > exampleMaxNameLengthUpperBound {
-			return fmt.Errorf("EXAMPLE_MAX_NAME_LENGTH exceeds maximum allowed value %d", exampleMaxNameLengthUpperBound)
-		}
 	}
+	return nil
+}
 
+// validateOTel requires a well-formed endpoint when the OTLP exporter is on.
+func (c *Config) validateOTel() error {
+	if c.OTel.Exporter != "otlp" {
+		return nil
+	}
+	if c.OTel.Endpoint == "" {
+		return fmt.Errorf("OTEL_EXPORTER_OTLP_ENDPOINT is required when OTEL_EXPORTER=otlp")
+	}
+	u, err := url.Parse(c.OTel.Endpoint)
+	if err != nil {
+		return fmt.Errorf("OTEL_EXPORTER_OTLP_ENDPOINT is invalid: %w", err)
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return fmt.Errorf("OTEL_EXPORTER_OTLP_ENDPOINT must include a scheme and host: %q", c.OTel.Endpoint)
+	}
+	return nil
+}
+
+// validateExample enforces the stub feature's bounds when it is enabled.
+func validateExample(cfg ExampleConfig) error {
+	if err := validateExamplePositivity(cfg); err != nil {
+		return err
+	}
+	if cfg.DefaultPageSize > cfg.MaxPageSize {
+		return fmt.Errorf("EXAMPLE_DEFAULT_PAGE_SIZE must be <= EXAMPLE_MAX_PAGE_SIZE")
+	}
+	if cfg.MaxPageSize > exampleMaxPageSizeUpperBound {
+		return fmt.Errorf("EXAMPLE_MAX_PAGE_SIZE exceeds maximum allowed value %d", exampleMaxPageSizeUpperBound)
+	}
+	if cfg.MaxNameLength > exampleMaxNameLengthUpperBound {
+		return fmt.Errorf("EXAMPLE_MAX_NAME_LENGTH exceeds maximum allowed value %d", exampleMaxNameLengthUpperBound)
+	}
 	return nil
 }
 
@@ -364,4 +386,45 @@ func errorsIsConfigNotFound(err error) bool {
 	}
 	_, ok := errors.AsType[viper.ConfigFileNotFoundError](err)
 	return ok
+}
+
+// ParseByteSize parses a human-friendly byte size such as "1M", "512KiB", or a
+// bare byte count into a raw byte count. An empty string yields (0, nil), which
+// callers treat as "unset". A non-empty but unparseable, non-positive, or
+// overflowing value yields an error, so a misconfigured limit fails loudly at
+// startup instead of silently disabling the protection it configures.
+func ParseByteSize(s string) (int64, error) {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return 0, nil
+	}
+
+	upper := strings.ToUpper(trimmed)
+	upper = strings.TrimSuffix(upper, "B")
+	upper = strings.TrimSuffix(upper, "I")
+	multiplier := int64(1)
+	switch {
+	case strings.HasSuffix(upper, "K"):
+		multiplier = 1024
+		upper = strings.TrimSuffix(upper, "K")
+	case strings.HasSuffix(upper, "M"):
+		multiplier = 1024 * 1024
+		upper = strings.TrimSuffix(upper, "M")
+	case strings.HasSuffix(upper, "G"):
+		multiplier = 1024 * 1024 * 1024
+		upper = strings.TrimSuffix(upper, "G")
+	}
+	upper = strings.TrimSpace(upper)
+
+	n, err := strconv.ParseInt(upper, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid byte size %q: %w", s, err)
+	}
+	if n <= 0 {
+		return 0, fmt.Errorf("invalid byte size %q: must be positive", s)
+	}
+	if n > math.MaxInt64/multiplier {
+		return 0, fmt.Errorf("invalid byte size %q: overflows int64", s)
+	}
+	return n * multiplier, nil
 }

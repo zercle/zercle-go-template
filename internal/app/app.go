@@ -38,6 +38,9 @@ func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Inj
 	if cfg == nil {
 		return nil, nil, fmt.Errorf("config is nil")
 	}
+	if err := cfg.Validate(); err != nil {
+		return nil, nil, fmt.Errorf("invalid config: %w", err)
+	}
 
 	injector := do.New()
 

@@ -29,7 +29,7 @@ func Register(c do.Injector) error {
 		tp := do.MustInvoke[*trace.TracerProvider](i)
 		propagator := do.MustInvoke[propagation.TextMapPropagator](i)
 		gatherer := do.MustInvoke[*prometheus.Registry](i)
-		return NewHTTP(cfg, logger, registry, tp, propagator, gatherer), nil
+		return NewHTTP(cfg, logger, registry, tp, propagator, gatherer)
 	})
 
 	do.Provide(c, func(i do.Injector) (*Application, error) {
