@@ -13,6 +13,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres" // postgres driver registers "postgres://" DSNs
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 
+	"github.com/zercle/zercle-go-template/internal/fsmerge"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
 )
 
@@ -75,7 +76,7 @@ func run(args []string) (exitCode int) {
 // newMigrator builds a golang-migrate instance backed by the embedded SQL
 // files of every feature, merged into one namespace.
 func newMigrator(dsn string) (*migrate.Migrate, error) {
-	src, err := iofs.New(mergedFS(migrationSources()), ".")
+	src, err := iofs.New(fsmerge.Merge(migrationSources()...), ".")
 	if err != nil {
 		return nil, fmt.Errorf("create migration source: %w", err)
 	}

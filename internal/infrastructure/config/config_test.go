@@ -81,7 +81,6 @@ otel:
 	require.Equal(t, "testdb", cfg.DB.Name)
 	require.Equal(t, int32(5), cfg.DB.MaxConns)
 	require.Equal(t, "127.0.0.1:6379", cfg.ValkeyAddr())
-	require.False(t, cfg.Example.Enabled)
 }
 
 func TestLoad_OverridesFromEnv(t *testing.T) {
@@ -117,7 +116,6 @@ otel:
 	t.Setenv("HTTP_PORT", "2222")
 	t.Setenv("DB_NAME", "envdb")
 	t.Setenv("OTEL_SERVICE_NAME", "env-service")
-	t.Setenv("EXAMPLE_ENABLED", "false")
 
 	cfg, err := config.Load()
 	require.NoError(t, err)
@@ -127,7 +125,6 @@ otel:
 	require.Equal(t, 2222, cfg.HTTP.Port)
 	require.Equal(t, "envdb", cfg.DB.Name)
 	require.Equal(t, "env-service", cfg.OTel.ServiceName)
-	require.False(t, cfg.Example.Enabled)
 }
 
 func TestLoad_SliceEnvVariable(t *testing.T) {
@@ -176,45 +173,6 @@ otel:
 	require.Equal(t, []string{"X-Custom"}, cfg.HTTP.CORSAllowHeaders)
 }
 
-func TestLoad_ExampleDefaults(t *testing.T) {
-	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "config.yaml")
-
-	content := `
-app:
-  environment: test
-http:
-  port: 8080
-db:
-  host: 127.0.0.1
-  port: 5432
-  name: db
-  user: u
-  password: p
-valkey:
-  host: 127.0.0.1
-  port: 6379
-log:
-  level: info
-  format: json
-otel:
-  exporter: none
-  service_name: svc
-  sampling: 1.0
-`
-	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0o600))
-	t.Setenv("CONFIG_FILE", cfgPath)
-
-	cfg, err := config.Load()
-	require.NoError(t, err)
-	require.NoError(t, cfg.Validate())
-
-	require.Equal(t, int32(20), cfg.Example.DefaultPageSize)
-	require.Equal(t, int32(100), cfg.Example.MaxPageSize)
-	require.Equal(t, int32(255), cfg.Example.MaxNameLength)
-	require.Equal(t, 5*time.Second, cfg.HTTP.HealthProbeTimeout)
-}
-
 func TestValidate_InvalidEnvironment(t *testing.T) {
 	cfg := validConfig()
 	cfg.App.Environment = "invalid"
@@ -251,81 +209,6 @@ func TestValidate_InvalidOTLPURL(t *testing.T) {
 
 	err := cfg.Validate()
 	require.Error(t, err)
-}
-
-func TestValidate_ExampleDefaultPageSizeExceedsMax(t *testing.T) {
-	cfg := validConfig()
-	cfg.Example.Enabled = true
-	cfg.Example.DefaultPageSize = 100
-	cfg.Example.MaxPageSize = 10
-
-	err := cfg.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "EXAMPLE_DEFAULT_PAGE_SIZE must be <= EXAMPLE_MAX_PAGE_SIZE")
-}
-
-func TestValidate_ExampleMaxPageSizeExceedsUpperBound(t *testing.T) {
-	cfg := validConfig()
-	cfg.Example.Enabled = true
-	cfg.Example.MaxPageSize = 100000
-
-	err := cfg.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "EXAMPLE_MAX_PAGE_SIZE exceeds")
-}
-
-func TestValidate_ExampleDisabledSkipsChecks(t *testing.T) {
-	cfg := validConfig()
-	cfg.Example.Enabled = false
-	cfg.Example.DefaultPageSize = 1000
-	cfg.Example.MaxPageSize = 10
-
-	require.NoError(t, cfg.Validate())
-}
-
-// TestValidate_ExampleDisabledAllowsZeroValues verifies that when the example
-// feature is disabled, zero-valued ExampleConfig fields do not fail validation.
-// This lets users delete the example: block from config.yaml without startup
-// failing on required,min=1 tags.
-func TestValidate_ExampleDisabledAllowsZeroValues(t *testing.T) {
-	t.Parallel()
-
-	cfg := validConfig()
-	cfg.Example.Enabled = false
-	cfg.Example.DefaultPageSize = 0
-	cfg.Example.MaxPageSize = 0
-	cfg.Example.MaxNameLength = 0
-
-	require.NoError(t, cfg.Validate())
-}
-
-// TestValidate_ExampleEnabledRejectsZeroValues verifies that explicit validation
-// rejects zero-valued ExampleConfig fields when the feature is enabled.
-func TestValidate_ExampleEnabledRejectsZeroValues(t *testing.T) {
-	t.Parallel()
-
-	cfg := validConfig()
-	cfg.Example.Enabled = true
-	cfg.Example.DefaultPageSize = 0
-
-	err := cfg.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "EXAMPLE_DEFAULT_PAGE_SIZE must be >= 1")
-}
-
-// TestValidate_ExampleEnabledRejectsNegativeValues verifies that explicit validation
-// rejects negative-valued ExampleConfig fields when the feature is enabled,
-// confirming the min=1 positivity guarantee.
-func TestValidate_ExampleEnabledRejectsNegativeValues(t *testing.T) {
-	t.Parallel()
-
-	cfg := validConfig()
-	cfg.Example.Enabled = true
-	cfg.Example.DefaultPageSize = -1
-
-	err := cfg.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "EXAMPLE_DEFAULT_PAGE_SIZE must be >= 1")
 }
 
 func TestValidate_AcceptsValidConfig(t *testing.T) {
@@ -367,6 +250,226 @@ func TestDBConnString(t *testing.T) {
 	require.True(t, hasPassword)
 	require.Equal(t, "p@ss w#rd", password)
 	require.Equal(t, "disable", parsed.Query().Get("sslmode"))
+}
+
+// TestLoad_FeatureDefaults pins the new feature sections' defaults: disabled
+// with the same page-size/name-length defaults as the example feature.
+func TestLoad_FeatureDefaults(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	content := `
+app:
+  environment: test
+http:
+  port: 8080
+db:
+  host: 127.0.0.1
+  port: 5432
+  name: db
+  user: u
+  password: p
+valkey:
+  host: 127.0.0.1
+  port: 6379
+log:
+  level: info
+  format: json
+otel:
+  exporter: none
+  service_name: svc
+  sampling: 1.0
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0o600))
+	t.Setenv("CONFIG_FILE", cfgPath)
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+
+	require.False(t, cfg.Catalog.Enabled)
+	require.Equal(t, int32(20), cfg.Catalog.DefaultPageSize)
+	require.Equal(t, int32(100), cfg.Catalog.MaxPageSize)
+	require.Equal(t, int32(255), cfg.Catalog.MaxNameLength)
+
+	require.False(t, cfg.Machines.Enabled)
+	require.Equal(t, int32(20), cfg.Machines.DefaultPageSize)
+	require.Equal(t, int32(100), cfg.Machines.MaxPageSize)
+	require.Equal(t, int32(255), cfg.Machines.MaxLabelLength)
+
+	require.False(t, cfg.Sales.Enabled)
+}
+
+// TestLoad_FeatureEnvOverrides proves every new leaf is explicit-bound: setting
+// the env vars overrides both the file and the defaults.
+func TestLoad_FeatureEnvOverrides(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	content := `
+app:
+  environment: test
+http:
+  port: 8080
+db:
+  host: 127.0.0.1
+  port: 5432
+  name: db
+  user: u
+  password: p
+valkey:
+  host: 127.0.0.1
+  port: 6379
+log:
+  level: info
+  format: json
+otel:
+  exporter: none
+  service_name: svc
+  sampling: 1.0
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0o600))
+	t.Setenv("CONFIG_FILE", cfgPath)
+
+	t.Setenv("CATALOG_ENABLED", "true")
+	t.Setenv("CATALOG_DEFAULT_PAGE_SIZE", "30")
+	t.Setenv("CATALOG_MAX_PAGE_SIZE", "300")
+	t.Setenv("CATALOG_MAX_NAME_LENGTH", "512")
+	t.Setenv("MACHINES_ENABLED", "true")
+	t.Setenv("MACHINES_DEFAULT_PAGE_SIZE", "40")
+	t.Setenv("MACHINES_MAX_PAGE_SIZE", "400")
+	t.Setenv("MACHINES_MAX_LABEL_LENGTH", "128")
+	t.Setenv("SALES_ENABLED", "true")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+
+	require.True(t, cfg.Catalog.Enabled)
+	require.Equal(t, int32(30), cfg.Catalog.DefaultPageSize)
+	require.Equal(t, int32(300), cfg.Catalog.MaxPageSize)
+	require.Equal(t, int32(512), cfg.Catalog.MaxNameLength)
+
+	require.True(t, cfg.Machines.Enabled)
+	require.Equal(t, int32(40), cfg.Machines.DefaultPageSize)
+	require.Equal(t, int32(400), cfg.Machines.MaxPageSize)
+	require.Equal(t, int32(128), cfg.Machines.MaxLabelLength)
+
+	require.True(t, cfg.Sales.Enabled)
+}
+
+func TestValidate_CatalogDefaultPageSizeExceedsMax(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Catalog.Enabled = true
+	cfg.Catalog.DefaultPageSize = 100
+	cfg.Catalog.MaxPageSize = 10
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "CATALOG_DEFAULT_PAGE_SIZE must be <= CATALOG_MAX_PAGE_SIZE")
+}
+
+func TestValidate_CatalogMaxPageSizeExceedsUpperBound(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Catalog.Enabled = true
+	cfg.Catalog.MaxPageSize = 100000
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "CATALOG_MAX_PAGE_SIZE exceeds")
+}
+
+func TestValidate_CatalogMaxNameLengthExceedsUpperBound(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Catalog.Enabled = true
+	cfg.Catalog.MaxNameLength = 100000
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "CATALOG_MAX_NAME_LENGTH exceeds")
+}
+
+// TestValidate_CatalogEnabledRejectsZeroValues pins the positivity guarantee
+// when the feature is on.
+func TestValidate_CatalogEnabledRejectsZeroValues(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Catalog.Enabled = true
+	cfg.Catalog.DefaultPageSize = 0
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "CATALOG_DEFAULT_PAGE_SIZE must be >= 1")
+}
+
+// TestValidate_CatalogDisabledSkipsChecks lets the catalog block be omitted
+// from config.yaml without startup failing on zero values.
+func TestValidate_CatalogDisabledSkipsChecks(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Catalog.Enabled = false
+	cfg.Catalog.DefaultPageSize = 0
+	cfg.Catalog.MaxPageSize = 0
+	cfg.Catalog.MaxNameLength = 0
+
+	require.NoError(t, cfg.Validate())
+}
+
+func TestValidate_MachinesDefaultPageSizeExceedsMax(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Machines.Enabled = true
+	cfg.Machines.DefaultPageSize = 100
+	cfg.Machines.MaxPageSize = 10
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "MACHINES_DEFAULT_PAGE_SIZE must be <= MACHINES_MAX_PAGE_SIZE")
+}
+
+func TestValidate_MachinesMaxLabelLengthExceedsUpperBound(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Machines.Enabled = true
+	cfg.Machines.MaxLabelLength = 100000
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "MACHINES_MAX_LABEL_LENGTH exceeds")
+}
+
+// TestValidate_MachinesDisabledSkipsChecks mirrors the catalog disabled case.
+func TestValidate_MachinesDisabledSkipsChecks(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Machines.Enabled = false
+	cfg.Machines.DefaultPageSize = 0
+	cfg.Machines.MaxPageSize = 0
+	cfg.Machines.MaxLabelLength = 0
+
+	require.NoError(t, cfg.Validate())
+}
+
+// TestValidate_SalesEnabledAddsNoFieldConstraints confirms the sales toggle
+// carries no numeric fields to validate: enabling it alone stays valid.
+func TestValidate_SalesEnabledAddsNoFieldConstraints(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Sales.Enabled = true
+
+	require.NoError(t, cfg.Validate())
 }
 
 func validConfig() *config.Config {
@@ -412,11 +515,20 @@ func validConfig() *config.Config {
 			Level:  "info",
 			Format: "json",
 		},
-		Example: config.ExampleConfig{
+		Catalog: config.CatalogConfig{
 			Enabled:         true,
 			DefaultPageSize: 20,
 			MaxPageSize:     100,
 			MaxNameLength:   255,
+		},
+		Machines: config.MachinesConfig{
+			Enabled:         true,
+			DefaultPageSize: 20,
+			MaxPageSize:     100,
+			MaxLabelLength:  255,
+		},
+		Sales: config.SalesConfig{
+			Enabled: true,
 		},
 	}
 }

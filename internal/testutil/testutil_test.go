@@ -48,11 +48,21 @@ func TestDecodeJSON(t *testing.T) {
 	assert.Equal(t, "value", dst["key"])
 }
 
-func TestFixtures_NewItem(t *testing.T) {
-	item := fixtures.NewItem("fixture")
-	assert.Equal(t, "fixture", item.Name)
-	assert.NotZero(t, item.ID)
-	assert.NotZero(t, item.CreatedAt)
+func TestFixtures_NewProduct(t *testing.T) {
+	product := fixtures.NewProduct("fixture", 250, 3)
+	assert.Equal(t, "fixture", product.Name)
+	assert.Equal(t, int32(250), product.PriceCents)
+	assert.Equal(t, int32(3), product.Stock)
+	assert.NotZero(t, product.ID)
+	assert.NotZero(t, product.CreatedAt)
+}
+
+func TestFixtures_NewMachine(t *testing.T) {
+	machine := fixtures.NewMachine("fixture", fixtures.NewBank())
+	assert.Equal(t, "fixture", machine.Label)
+	assert.NotEmpty(t, machine.CoinBank)
+	assert.NotZero(t, machine.ID)
+	assert.NotZero(t, machine.CreatedAt)
 }
 
 func TestNewRequest_NilBody(t *testing.T) {

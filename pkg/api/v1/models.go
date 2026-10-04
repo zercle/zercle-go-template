@@ -10,21 +10,52 @@
 package apiv1
 
 import (
-	"github.com/zercle/zercle-go-template/internal/features/example/contract"
+	catalogcontract "github.com/zercle/zercle-go-template/internal/features/catalog/contract"
+	machinescontract "github.com/zercle/zercle-go-template/internal/features/machines/contract"
+	salescontract "github.com/zercle/zercle-go-template/internal/features/sales/contract"
 	"github.com/zercle/zercle-go-template/pkg/api/errcodes"
 )
 
-// CreateItemRequest is the payload for POST /api/v1/items.
-type CreateItemRequest = contract.CreateItemRequest
+// --- catalog ---------------------------------------------------------------
 
-// ItemResponse is the wire representation of an item.
-type ItemResponse = contract.ItemResponse
+// CreateProductRequest is the payload for POST /api/v1/products.
+type CreateProductRequest = catalogcontract.CreateProductRequest
 
-// ListItemsRequest carries the pagination query parameters for GET /api/v1/items.
-type ListItemsRequest = contract.ListItemsRequest
+// ProductResponse is the wire representation of a product.
+type ProductResponse = catalogcontract.ProductResponse
 
-// ListItemsResponse wraps a page of items.
-type ListItemsResponse = contract.ListItemsResponse
+// ListProductsRequest carries the pagination query parameters for
+// GET /api/v1/products.
+type ListProductsRequest = catalogcontract.ListProductsRequest
+
+// ListProductsResponse wraps a page of products.
+type ListProductsResponse = catalogcontract.ListProductsResponse
+
+// --- machines --------------------------------------------------------------
+
+// CreateMachineRequest is the payload for POST /api/v1/machines.
+type CreateMachineRequest = machinescontract.CreateMachineRequest
+
+// MachineResponse is the wire representation of a machine and its coin bank.
+type MachineResponse = machinescontract.MachineResponse
+
+// RestockBankRequest is the payload for POST /api/v1/machines/{id}/bank.
+type RestockBankRequest = machinescontract.RestockBankRequest
+
+// ListMachinesRequest carries the pagination query parameters for
+// GET /api/v1/machines.
+type ListMachinesRequest = machinescontract.ListMachinesRequest
+
+// ListMachinesResponse wraps a page of machines.
+type ListMachinesResponse = machinescontract.ListMachinesResponse
+
+// --- sales -----------------------------------------------------------------
+
+// PurchaseRequest is the payload for POST /api/v1/purchases.
+type PurchaseRequest = salescontract.PurchaseRequest
+
+// PurchaseResponse is the wire representation of a completed purchase.
+type PurchaseResponse = salescontract.PurchaseResponse
 
 // Error codes carried in the {"error": code, "message": msg} response
 // envelope, re-exported from the version-independent errcodes package.

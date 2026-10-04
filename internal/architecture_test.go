@@ -189,6 +189,23 @@ var rules = []rule{
 		},
 	},
 	{
+		name: "features-registry-imports-only-own-features",
+		why:  "the feature registry enumerates features; it must not depend on infrastructure or anything outside the features tree (samber/do excepted)",
+		applies: func(rel string) bool {
+			return rel == "features"
+		},
+		denied: func(_, imp string) bool {
+			if isStdlib(imp) || imp == "github.com/samber/do/v2" {
+				return false
+			}
+			rel := internalRel(imp)
+			if rel == "" {
+				return true
+			}
+			return !strings.HasPrefix(rel, "features/")
+		},
+	},
+	{
 		name: "infrastructure-ignores-features",
 		why:  "cross-cutting infrastructure must stay feature-agnostic; features depend on infrastructure, never the reverse",
 		applies: func(rel string) bool {

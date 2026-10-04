@@ -1,1 +1,0 @@
-DROP INDEX IF EXISTS idx_items_created_at_id_desc;
