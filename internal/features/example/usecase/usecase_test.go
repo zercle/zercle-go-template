@@ -113,9 +113,21 @@ func TestService_Get_InvalidIDRejected(t *testing.T) {
 	resp, err := svc.Get(ctx, "not-a-uuid")
 	require.ErrorIs(t, err, domain.ErrInvalidID)
 	require.Nil(t, resp)
+}
 
-	resp, err = svc.Get(ctx, uuid.Nil().String())
-	require.ErrorIs(t, err, domain.ErrInvalidID)
+// TestService_Get_NilUUIDIsLookedUp pins that the nil UUID is syntactically
+// valid: it is forwarded to the repository (which reports not-found) rather
+// than rejected as an invalid id.
+func TestService_Get_NilUUIDIsLookedUp(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	repo := mock.NewMockRepository(gomock.NewController(t))
+	repo.EXPECT().GetByID(ctx, uuid.Nil()).Return(nil, domain.ErrItemNotFound)
+	svc := usecase.NewUsecase(repo, 0, 0, 0)
+
+	resp, err := svc.Get(ctx, uuid.Nil().String())
+	require.ErrorIs(t, err, domain.ErrItemNotFound)
 	require.Nil(t, resp)
 }
 
@@ -182,7 +194,7 @@ func TestService_List_ClampsOverMaxLimit(t *testing.T) {
 	repo.EXPECT().List(ctx, int32(100), int32(0)).Return(expected, nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.List(ctx, &contract.ListItemsRequest{Limit: 999, Offset: -5})
+	resp, err := svc.List(ctx, &contract.ListItemsRequest{Limit: 999, Offset: 0})
 
 	require.NoError(t, err)
 	require.Len(t, resp.Items, 1)

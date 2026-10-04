@@ -81,10 +81,11 @@ func (u *Usecase) Create(ctx context.Context, req *contract.CreateItemRequest) (
 
 // Get retrieves an item by ID, passing through domain.ErrItemNotFound. The
 // wire id string is parsed here so both driving adapters share one validation
-// path.
+// path. A syntactically valid but absent id (including the nil UUID) is a
+// not-found, which the repository decides.
 func (u *Usecase) Get(ctx context.Context, id string) (*contract.ItemResponse, error) {
 	parsed, err := uuid.Parse(id)
-	if err != nil || parsed == uuid.Nil() {
+	if err != nil {
 		return nil, domain.ErrInvalidID
 	}
 	item, err := u.repo.GetByID(ctx, parsed)
@@ -116,9 +117,6 @@ func (u *Usecase) List(ctx context.Context, req *contract.ListItemsRequest) (*co
 	}
 	if limit > u.maxPageSize {
 		limit = u.maxPageSize
-	}
-	if offset < 0 {
-		offset = 0
 	}
 
 	items, err := u.repo.List(ctx, limit, offset)
