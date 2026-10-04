@@ -81,22 +81,22 @@ tasks:
 
 
   migrate-up:
-    desc: Run database migrations
+    desc: Run database migrations (self-contained runner; merges every registered feature's embedded migrations via the registry)
     dotenv: [".env"]
     cmds:
-      - migrate -path internal/features/example/repository/postgres/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
+      - go run ./cmd/migrate up
 
   migrate-down:
-    desc: Rollback one database migration
+    desc: Rollback N database migrations with the self-contained runner (default 1)
     dotenv: [".env"]
     cmds:
-      - migrate -path internal/features/example/repository/postgres/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" down 1
+      - go run ./cmd/migrate down {{.N | default 1}}
 
   migrate-create:
-    desc: "Create a new migration: task migrate-create NAME=add_users"
+    desc: "Create a new migration in a feature: task migrate-create FEATURE=catalog NAME=add_users (FEATURE = internal/features/<FEATURE>/repository/postgres/migrations)"
     dotenv: [".env"]
     cmds:
-      - migrate create -ext sql -dir internal/features/example/repository/postgres/migrations {{.NAME}}
+      - migrate create -ext sql -dir internal/features/{{.FEATURE}}/repository/postgres/migrations {{.NAME}}
 
   docker-build:
     desc: Build server container image

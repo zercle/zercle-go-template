@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/samber/do/v2"
 
-	exampledi "github.com/zercle/zercle-go-template/internal/features/example/di"
+	"github.com/zercle/zercle-go-template/internal/features"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/db"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/server"
@@ -31,7 +31,7 @@ var (
 // orchestrated application along with the populated injector.
 //
 // The sequence is config → telemetry → database → valkey → shared servers →
-// example feature. On error the partially-wired injector is returned; the
+// the feature registry. On error the partially-wired injector is returned; the
 // caller is responsible for calling injector.Shutdown() to release any
 // providers that were successfully constructed.
 func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Injector, error) {
@@ -73,8 +73,8 @@ func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Inj
 		return nil, injector, fmt.Errorf("register shared servers: %w", err)
 	}
 
-	if err := exampledi.Register(injector); err != nil {
-		return nil, injector, fmt.Errorf("register example feature: %w", err)
+	if err := features.RegisterAll(injector); err != nil {
+		return nil, injector, fmt.Errorf("register features: %w", err)
 	}
 
 	application := server.NewApplication(injector, cfg, logger)

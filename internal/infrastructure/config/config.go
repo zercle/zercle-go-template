@@ -33,13 +33,15 @@ type leafBinding struct {
 // binding is likewise explicit — leafBindings lists every env-var-to-key pair,
 // so a new field is env-readable only once it is added there.
 type Config struct {
-	App     AppConfig     `mapstructure:"app"`
-	HTTP    HTTPConfig    `mapstructure:"http"`
-	DB      DBConfig      `mapstructure:"db"`
-	Valkey  ValkeyConfig  `mapstructure:"valkey"`
-	OTel    OTelConfig    `mapstructure:"otel"`
-	Log     LogConfig     `mapstructure:"log"`
-	Example ExampleConfig `mapstructure:"example"`
+	App      AppConfig      `mapstructure:"app"`
+	HTTP     HTTPConfig     `mapstructure:"http"`
+	DB       DBConfig       `mapstructure:"db"`
+	Valkey   ValkeyConfig   `mapstructure:"valkey"`
+	OTel     OTelConfig     `mapstructure:"otel"`
+	Log      LogConfig      `mapstructure:"log"`
+	Catalog  CatalogConfig  `mapstructure:"catalog"`
+	Machines MachinesConfig `mapstructure:"machines"`
+	Sales    SalesConfig    `mapstructure:"sales"`
 }
 
 // AppConfig holds process-level settings. Service identity (name, listen host,
@@ -110,35 +112,25 @@ type LogConfig struct {
 	Format string `mapstructure:"format" validate:"oneof=json console"`
 }
 
-// ExampleConfig is a feature toggle and settings for the stub feature.
-type ExampleConfig struct {
+// CatalogConfig is a feature toggle and settings for the catalog feature.
+type CatalogConfig struct {
 	Enabled         bool  `mapstructure:"enabled"`
 	DefaultPageSize int32 `mapstructure:"default_page_size"`
 	MaxPageSize     int32 `mapstructure:"max_page_size"`
 	MaxNameLength   int32 `mapstructure:"max_name_length"`
 }
 
-// exampleMaxPageSizeUpperBound caps EXAMPLE_MAX_PAGE_SIZE to a sane ceiling so
-// a misconfiguration cannot request unbounded result sets.
-const exampleMaxPageSizeUpperBound int32 = 1000
+// MachinesConfig is a feature toggle and settings for the machines feature.
+type MachinesConfig struct {
+	Enabled         bool  `mapstructure:"enabled"`
+	DefaultPageSize int32 `mapstructure:"default_page_size"`
+	MaxPageSize     int32 `mapstructure:"max_page_size"`
+	MaxLabelLength  int32 `mapstructure:"max_label_length"`
+}
 
-// exampleMaxNameLengthUpperBound caps EXAMPLE_MAX_NAME_LENGTH to prevent
-// unreasonable storage/validation costs per name.
-const exampleMaxNameLengthUpperBound int32 = 4096
-
-// validateExamplePositivity returns an error if any of the example config
-// fields are less than 1, enforcing a minimum value when the feature is enabled.
-func validateExamplePositivity(cfg ExampleConfig) error {
-	if cfg.DefaultPageSize < 1 {
-		return fmt.Errorf("EXAMPLE_DEFAULT_PAGE_SIZE must be >= 1")
-	}
-	if cfg.MaxPageSize < 1 {
-		return fmt.Errorf("EXAMPLE_MAX_PAGE_SIZE must be >= 1")
-	}
-	if cfg.MaxNameLength < 1 {
-		return fmt.Errorf("EXAMPLE_MAX_NAME_LENGTH must be >= 1")
-	}
-	return nil
+// SalesConfig is a feature toggle for the sales feature.
+type SalesConfig struct {
+	Enabled bool `mapstructure:"enabled"`
 }
 
 // validate is the package-level validator instance.
@@ -206,8 +198,13 @@ func (c *Config) Validate() error {
 	if c.DB.MaxConns < c.DB.MaxIdleConns {
 		return fmt.Errorf("DB_MAX_CONNS must be >= DB_MAX_IDLE_CONNS")
 	}
-	if c.Example.Enabled {
-		if err := validateExample(c.Example); err != nil {
+	if c.Catalog.Enabled {
+		if err := validateCatalog(c.Catalog); err != nil {
+			return err
+		}
+	}
+	if c.Machines.Enabled {
+		if err := validateMachines(c.Machines); err != nil {
 			return err
 		}
 	}
@@ -232,19 +229,60 @@ func (c *Config) validateOTel() error {
 	return nil
 }
 
-// validateExample enforces the stub feature's bounds when it is enabled.
-func validateExample(cfg ExampleConfig) error {
-	if err := validateExamplePositivity(cfg); err != nil {
-		return err
+// maxPageSizeUpperBound caps a feature's max page size to a sane ceiling so a
+// misconfiguration cannot request unbounded result sets. Shared by the catalog
+// and machines features, whose pagination contracts are identical.
+const maxPageSizeUpperBound int32 = 1000
+
+// maxNameLengthUpperBound caps CATALOG_MAX_NAME_LENGTH to prevent unreasonable
+// storage/validation costs per product name.
+const maxNameLengthUpperBound int32 = 4096
+
+// maxLabelLengthUpperBound caps MACHINES_MAX_LABEL_LENGTH for the same reason.
+const maxLabelLengthUpperBound int32 = 4096
+
+// validateCatalog enforces the catalog feature's bounds when it is enabled.
+func validateCatalog(cfg CatalogConfig) error {
+	if cfg.DefaultPageSize < 1 {
+		return fmt.Errorf("CATALOG_DEFAULT_PAGE_SIZE must be >= 1")
+	}
+	if cfg.MaxPageSize < 1 {
+		return fmt.Errorf("CATALOG_MAX_PAGE_SIZE must be >= 1")
+	}
+	if cfg.MaxNameLength < 1 {
+		return fmt.Errorf("CATALOG_MAX_NAME_LENGTH must be >= 1")
 	}
 	if cfg.DefaultPageSize > cfg.MaxPageSize {
-		return fmt.Errorf("EXAMPLE_DEFAULT_PAGE_SIZE must be <= EXAMPLE_MAX_PAGE_SIZE")
+		return fmt.Errorf("CATALOG_DEFAULT_PAGE_SIZE must be <= CATALOG_MAX_PAGE_SIZE")
 	}
-	if cfg.MaxPageSize > exampleMaxPageSizeUpperBound {
-		return fmt.Errorf("EXAMPLE_MAX_PAGE_SIZE exceeds maximum allowed value %d", exampleMaxPageSizeUpperBound)
+	if cfg.MaxPageSize > maxPageSizeUpperBound {
+		return fmt.Errorf("CATALOG_MAX_PAGE_SIZE exceeds maximum allowed value %d", maxPageSizeUpperBound)
 	}
-	if cfg.MaxNameLength > exampleMaxNameLengthUpperBound {
-		return fmt.Errorf("EXAMPLE_MAX_NAME_LENGTH exceeds maximum allowed value %d", exampleMaxNameLengthUpperBound)
+	if cfg.MaxNameLength > maxNameLengthUpperBound {
+		return fmt.Errorf("CATALOG_MAX_NAME_LENGTH exceeds maximum allowed value %d", maxNameLengthUpperBound)
+	}
+	return nil
+}
+
+// validateMachines enforces the machines feature's bounds when it is enabled.
+func validateMachines(cfg MachinesConfig) error {
+	if cfg.DefaultPageSize < 1 {
+		return fmt.Errorf("MACHINES_DEFAULT_PAGE_SIZE must be >= 1")
+	}
+	if cfg.MaxPageSize < 1 {
+		return fmt.Errorf("MACHINES_MAX_PAGE_SIZE must be >= 1")
+	}
+	if cfg.MaxLabelLength < 1 {
+		return fmt.Errorf("MACHINES_MAX_LABEL_LENGTH must be >= 1")
+	}
+	if cfg.DefaultPageSize > cfg.MaxPageSize {
+		return fmt.Errorf("MACHINES_DEFAULT_PAGE_SIZE must be <= MACHINES_MAX_PAGE_SIZE")
+	}
+	if cfg.MaxPageSize > maxPageSizeUpperBound {
+		return fmt.Errorf("MACHINES_MAX_PAGE_SIZE exceeds maximum allowed value %d", maxPageSizeUpperBound)
+	}
+	if cfg.MaxLabelLength > maxLabelLengthUpperBound {
+		return fmt.Errorf("MACHINES_MAX_LABEL_LENGTH exceeds maximum allowed value %d", maxLabelLengthUpperBound)
 	}
 	return nil
 }
@@ -321,10 +359,17 @@ func setDefaults(v *viper.Viper) {
 		"log.level":  "info",
 		"log.format": "json",
 
-		"example.enabled":           false,
-		"example.default_page_size": int32(20),
-		"example.max_page_size":     int32(100),
-		"example.max_name_length":   int32(255),
+		"catalog.enabled":           false,
+		"catalog.default_page_size": int32(20),
+		"catalog.max_page_size":     int32(100),
+		"catalog.max_name_length":   int32(255),
+
+		"machines.enabled":           false,
+		"machines.default_page_size": int32(20),
+		"machines.max_page_size":     int32(100),
+		"machines.max_label_length":  int32(255),
+
+		"sales.enabled": false,
 	}
 
 	for key, value := range defaults {
@@ -378,10 +423,17 @@ func leafBindings() []leafBinding {
 		{"otel.service_name", "OTEL_SERVICE_NAME"},
 		{"otel.sampling", "OTEL_TRACES_SAMPLER_ARG"},
 
-		{"example.enabled", "EXAMPLE_ENABLED"},
-		{"example.default_page_size", "EXAMPLE_DEFAULT_PAGE_SIZE"},
-		{"example.max_page_size", "EXAMPLE_MAX_PAGE_SIZE"},
-		{"example.max_name_length", "EXAMPLE_MAX_NAME_LENGTH"},
+		{"catalog.enabled", "CATALOG_ENABLED"},
+		{"catalog.default_page_size", "CATALOG_DEFAULT_PAGE_SIZE"},
+		{"catalog.max_page_size", "CATALOG_MAX_PAGE_SIZE"},
+		{"catalog.max_name_length", "CATALOG_MAX_NAME_LENGTH"},
+
+		{"machines.enabled", "MACHINES_ENABLED"},
+		{"machines.default_page_size", "MACHINES_DEFAULT_PAGE_SIZE"},
+		{"machines.max_page_size", "MACHINES_MAX_PAGE_SIZE"},
+		{"machines.max_label_length", "MACHINES_MAX_LABEL_LENGTH"},
+
+		{"sales.enabled", "SALES_ENABLED"},
 	}
 }
 

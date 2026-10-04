@@ -2,11 +2,11 @@
 
 Repo-specific guidance for AI coding agents working in `zercle-go-template`.
 
-`README.md` holds the architecture rationale and the stub-deletion checklist. `Taskfile.yml`, `.golangci.yml`, and `.github/workflows/ci.yml` are the executable source of truth — verify anything here against them.
+`README.md` holds the architecture rationale and the feature-replacement checklist. `Taskfile.yml`, `.golangci.yml`, and `.github/workflows/ci.yml` are the executable source of truth — verify anything here against them.
 
 ## Project Overview
 
-An opinionated Go **HTTP service template**: clean (DDD) architecture per feature, `samber/do/v2` DI, echo v5 HTTP, GORM over pgx, a Valkey cache-aside example, zerolog logging, and OpenTelemetry tracing + Prometheus metrics. `internal/features/example/` is a **deletable stub CRUD feature** (items) meant to be copied or removed — see README §"Deleting the stub feature".
+An opinionated Go **HTTP service template**: clean (DDD) architecture per feature, `samber/do/v2` DI, echo v5 HTTP, GORM over pgx, a Valkey cache-aside example, zerolog logging, and OpenTelemetry tracing + Prometheus metrics. Three layered features form a **distributed-vending-machines demo** — `catalog` (global product pool), `machines` (vending machines + coin banks), and `sales` (purchases) — meant to be copied or replaced; see README §"Adding and deleting features".
 
 Consumers (other Go services) import only `pkg/api/v1` to construct payloads and interpret the `{"error": code, "message": msg}` envelope; internal code never imports it.
 
@@ -21,9 +21,9 @@ all layers ──> domain (entities + sentinel errors; standard library only)
 infrastructure/* ── feature-agnostic, never imports features/**
 ```
 
-A request flows: `cmd/server/main.go` loads config → `internal/app.Build` wires the do injector (`infrastructure: config → telemetry → db → valkey → server`, then each feature's `di.Register`) → route mounted at `g := e.Group("/api/v1")` → `handler` binds the contract type, calls `c.Validate`, calls `usecase.Service` → the usecase parses ids, applies business rules, maps domain↔contract → `repository.Repository` (GORM) behind an optional `CachedRepository` decorator (Valkey cache-aside) → domain sentinel errors are mapped to the HTTP envelope by `infrastructure/errors`.
+A request flows: `cmd/server/main.go` loads config → `internal/app.Build` wires the do injector (`infrastructure: config → telemetry → db → valkey → server`, then `features.RegisterAll` over the registry) → route mounted at `g := e.Group("/api/v1")` → `handler` binds the contract type, calls `c.Validate`, calls `usecase.Service` → the usecase parses ids, applies business rules, maps domain↔contract → `repository.Repository` (GORM) behind an optional `CachedRepository` decorator (Valkey cache-aside) → domain sentinel errors are mapped to the HTTP envelope by `infrastructure/errors`.
 
-**Dependency gates** — `internal/architecture_test.go` parses imports (`parser.ImportsOnly`, skipping `mock/` and `_test.go`) across 8 rules; a violation fails with `package %q violates %s`. If a change trips a rule, **restructure the change — never weaken the rule**:
+**Dependency gates** — `internal/architecture_test.go` parses imports (`parser.ImportsOnly`, skipping `mock/` and `_test.go`) across 9 rules; a violation fails with `package %q violates %s`. If a change trips a rule, **restructure the change — never weaken the rule**:
 
 | Rule | Forbids |
 |---|---|
@@ -34,15 +34,17 @@ A request flows: `cmd/server/main.go` loads config → `internal/app.Build` wire
 | `usecase-depends-on-domain-repository-contract` | the `usecase` package importing anything outside its own domain/repository/contract |
 | `repository-impl-ignores-usecase-and-handler` | `repository/<db>/**` importing `usecase` or `handler` |
 | `handler-ignores-repository` | the `handler` package importing `repository` |
+| `features-registry-imports-only-own-features` | `internal/features` (the registry) importing anything but stdlib, `samber/do/v2`, or `features/**` |
 | `infrastructure-ignores-features` | `infrastructure/**` importing `features/**` |
 
 ## Key Directories
 
 - `cmd/server/` — thin entry point: loads config, sets `Version`/`CommitSHA`/`BuildTime` (ldflags), installs the signal handler, calls `app.Run`.
-- `cmd/migrate/` — self-contained migration runner (`up`/`down [N]`/`force`/`version`); `fsmerge.go` unions every feature's embedded migration `fs.FS` via `migrationSources()`.
-- `internal/app/` — reusable composition root (`Build`, `Run`); the only place wiring order is defined.
+- `cmd/migrate/` — self-contained migration runner (`up`/`down [N]`/`force`/`version`); `fsmerge.go` unions every registered feature's embedded migration `fs.FS` via `migrationSources()`, which delegates to `internal/features`.
+- `internal/app/` — reusable composition root (`Build`, `Run`); the only place wiring order is defined. It iterates the feature registry via `features.RegisterAll`.
 - `internal/architecture_test.go` — the dependency gates above.
-- `internal/features/example/` — the stub feature. Layers, each its own package: `domain` (entity + sentinels), `contract` (zero-dep wire types), `usecase` (`Service` iface + `Usecase`), `repository` (outbound iface + `mock/`) and `repository/postgres/` (GORM impl, `models/`, `migrations/`, cache-aside decorator), `handler` (echo v5), `di`.
+- `internal/features/features.go` — the feature registry: `List`, `RegisterAll`, `MigrationSources`; the single place features are enumerated. Its order is also the migration order (catalog 1, machines 2, sales 3).
+- `internal/features/{catalog,machines,sales}/` — the three demo features. Layers, each its own package: `domain` (entities + sentinels), `contract` (zero-dep wire types), `usecase` (`Service` iface + `Usecase`), `repository` (outbound iface + `mock/`) and `repository/postgres/` (GORM impl, `models/`, `migrations/`, cache-aside decorator), `handler` (echo v5), `di`. Features never import each other; `sales` reads catalog/machines data through its own repository port in one transaction.
 - `internal/infrastructure/` — cross-cutting: `config`, `db`, `valkey`, `errors`, `lifecycle`, `middleware`, `server`, `telemetry`.
 - `internal/testutil/` — shared test helpers + `fixtures/`.
 - `pkg/api/errcodes/` — published error-code constants. `pkg/api/v1/` — type-alias facade over the feature contract (published surface).
@@ -58,13 +60,13 @@ A request flows: `cmd/server/main.go` loads config → `internal/app.Build` wire
 - `task test-e2e` — boots the full server (skips if the DB/Valkey TCP probe fails).
 - `task lint` / `task fmt` (gofumpt + goimports) / `task tidy` / `task verify` (tidy + `git diff --exit-code go.mod go.sum`).
 - `task generate` — regenerate mockgen mocks (`go generate ./...`); run after touching a repository/usecase interface.
-- `task migrate-up` / `migrate-down` / `migrate-create NAME=...` — need the golang-migrate CLI on `PATH`. `go run ./cmd/migrate up` is the self-contained equivalent used in CI and containers.
+- `task migrate-up` / `migrate-down [N=1]` — run the self-contained runner (`go run ./cmd/migrate up|down N`), which merges every registered feature's embedded migrations; `migrate-create FEATURE=<name> NAME=...` needs the golang-migrate CLI on `PATH` and writes into `internal/features/<name>/repository/postgres/migrations`.
 
 **Build tags are mandatory; plain `go test ./...` runs zero tests** — every `*_test.go` is gated by `unit`, `integration`, or `e2e`:
 
 ```bash
-go test -race -tags=unit -run TestName ./internal/features/example/usecase/...
-go test -race -tags=integration ./internal/features/example/repository/postgres/...
+go test -race -tags=unit -run TestName ./internal/features/catalog/usecase/...
+go test -race -tags=integration ./internal/features/catalog/repository/postgres/...
 go test -race -tags=unit ./internal/ -run TestArchitecture   # dependency gates only
 ```
 
@@ -75,7 +77,7 @@ The Taskfile's `dotenv` is deliberately **per-task** (`run`/`test-integration`/`
 - **Naming.** Layer packages are fixed lowercase nouns (`domain`, `contract`, `usecase`, `repository`, `handler`, `di`). Interfaces are named by role, not feature: `usecase.Service` (inbound), `repository.Repository` (outbound). Impls: `Usecase`, `Repository`, `CachedRepository` (decorator), `Handler`, `Application`. Constructors are `New*` returning concrete types; every layer's DI entrypoint is `Register(c do.Injector) error` (or `Register(ctx, c)` when construction needs cancellation).
 - **DI (samber/do/v2).** `internal/app.Build` is the composition root in fixed order; each feature wires itself via `do.Provide(...)` in `di.Register`. Providers implementing `Shutdowner*` are shut down by the container automatically — do not additionally close them in `Application.shutdown`.
 - **Error handling.** Three tiers: (1) **domain sentinels** — package-level `Err<Name>` via `errors.New` in `features/*/domain/errors.go`; (2) **boundary sentinels** — `*AppError{Code, Message, HTTPStatus, Cause}` in `infrastructure/errors` (`ErrNotFound`, `ErrInvalidInput`, `ErrInternal`, …), codes from `pkg/api/errcodes` so served and published codes cannot drift; (3) **registration** — features call `apperrors.RegisterSentinel(domain.ErrX, apperrors.ErrY)` in `di`, and the handler maps any error via `status, body := apperrors.HTTPError(err); return c.JSON(status, body)`. Framework errors (404/405/413) go through the same mapper. The envelope is always `{"error": code, "message": msg}`.
-- **Config.** Loaded from `config.yaml` + unprefixed env vars (viper + validator); every leaf is explicitly bound in `internal/infrastructure/config`. `CONFIG_FILE` overrides the path. `app.Build` calls `cfg.Validate()`, so bad values fail startup. `EXAMPLE_ENABLED=false` skips the stub feature's providers and routes entirely.
+- **Config.** Loaded from `config.yaml` + unprefixed env vars (viper + validator); every leaf is explicitly bound in `internal/infrastructure/config`. `CONFIG_FILE` overrides the path. `app.Build` calls `cfg.Validate()`, so bad values fail startup. `CATALOG_ENABLED` / `MACHINES_ENABLED` / `SALES_ENABLED` gate each demo feature's providers and routes entirely.
 - **Persistence.** The SQL schema is owned by golang-migrate files under `repository/postgres/migrations/` (embedded via `//go:embed`). GORM model tags only map to existing columns — **`AutoMigrate` is never used**.
 - **Generated code — regenerate, never hand-edit.** `//go:generate go tool mockgen` directives on `usecase/service.go` and `repository/repository.go` write into `*/mock/`. Tests won't compile after an interface change until `go generate ./...`. `*/mock/` is excluded from lint.
 - **Echo v5 gotcha.** Handlers take `*echo.Context` (v5 changed Context from interface to struct) and return `error`. This is correct, not a typo.
@@ -85,8 +87,8 @@ The Taskfile's `dotenv` is deliberately **per-task** (`run`/`test-integration`/`
 
 - `cmd/server/main.go` — process entry point (config, ldflags vars, signals, `app.Run`).
 - `internal/app/app.go` — composition root: DI wiring order, `Build`, `Run`.
-- `internal/architecture_test.go` — the 8 dependency gates (source of truth for layering).
-- `internal/features/example/di/di.go` — the canonical feature wiring: flag gate, sentinel registration, providers, route mount.
+- `internal/architecture_test.go` — the 9 dependency gates (source of truth for layering).
+- `internal/features/catalog/di/di.go` — the canonical feature wiring: flag gate, sentinel registration, providers, route mount.
 - `internal/infrastructure/config/config.go` — config struct, per-leaf env binding, `Validate`.
 - `internal/infrastructure/errors/` — `app_error.go`, `sentinel.go`, `mapper.go`, `status.go` (error→HTTP mapping).
 - `internal/infrastructure/server/` — `http.go` (echo bootstrap, error handler) and `shutdown.go` (graceful shutdown).
@@ -116,4 +118,4 @@ The Taskfile's `dotenv` is deliberately **per-task** (`run`/`test-integration`/`
 
 - `cp .env.example .env` (needed for integration/e2e) combined with a **global** dotenv would silently override `task test`'s asserted config values — hence per-task dotenv.
 - Changing the repository/usecase interface without `task generate` leaves a stale mock and a non-compiling tree.
-- The `example` feature is a stub: deleting it requires the README checklist (feature dir, `pkg/api/v1` aliases, `migrationSources()`, `app.Build`, `config.yaml`/`.env.example`, `Taskfile.yml` migrate paths).
+- The `catalog`, `machines`, and `sales` features are a replaceable demo: adding a feature is its directory plus one `features.List` entry; replacing them is the reverse (feature dirs, `features.List` entries, `pkg/api/v1` aliases, `config.yaml`/`.env.example`, `Taskfile.yml` migrate `FEATURE=`).

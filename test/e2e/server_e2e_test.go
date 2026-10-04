@@ -13,12 +13,13 @@
 package e2e_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/app"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 func TestServer_EndToEnd(t *testing.T) {
@@ -83,17 +85,120 @@ func TestServer_EndToEnd(t *testing.T) {
 		return r.StatusCode == http.StatusOK
 	}, 5*time.Second, 250*time.Millisecond, "readiness probe never passed")
 
-	// POST /api/v1/items creates an item.
-	resp, err = client.Post(server.URL+"/api/v1/items", "application/json", strings.NewReader(`{"name":"stub"}`))
-	require.NoError(t, err)
-	require.Equal(t, http.StatusCreated, resp.StatusCode)
-	_ = resp.Body.Close()
+	// POST /api/v1/products adds a product to the global catalog pool.
+	var product apiv1.ProductResponse
+	postJSON(t, client, server.URL+"/api/v1/products", apiv1.CreateProductRequest{
+		Name: "cola", PriceCents: 50, Stock: 10,
+	}, http.StatusCreated, &product)
+	require.NotEmpty(t, product.ID)
+	require.Equal(t, int32(50), product.PriceCents)
 
-	// GET /api/v1/items/:id retrieves it.
-	resp, err = client.Get(server.URL + "/api/v1/items")
+	// POST /api/v1/machines registers a machine with an initial coin bank deep
+	// enough to compose any single purchase's change.
+	var machine apiv1.MachineResponse
+	postJSON(t, client, server.URL+"/api/v1/machines", apiv1.CreateMachineRequest{
+		Label: "lobby", InitialCoins: []int32{25, 25, 50, 100},
+	}, http.StatusCreated, &machine)
+	require.NotEmpty(t, machine.ID)
+
+	// Exact payment: the sale succeeds and yields no change.
+	var exact apiv1.PurchaseResponse
+	postJSON(t, client, server.URL+"/api/v1/purchases", apiv1.PurchaseRequest{
+		MachineID: machine.ID, ProductID: product.ID, Coins: []int32{50},
+	}, http.StatusCreated, &exact)
+	require.Equal(t, int32(50), exact.TotalInsertedCents)
+	require.Equal(t, int32(0), exact.ChangeCents)
+	require.Empty(t, exact.ChangeCoins)
+
+	// Overpayment: change is composed from the machine bank and the coin
+	// breakdown sums back to the change amount.
+	var change apiv1.PurchaseResponse
+	postJSON(t, client, server.URL+"/api/v1/purchases", apiv1.PurchaseRequest{
+		MachineID: machine.ID, ProductID: product.ID, Coins: []int32{100},
+	}, http.StatusCreated, &change)
+	require.Equal(t, int32(50), change.ChangeCents)
+	require.NotEmpty(t, change.ChangeCoins)
+	var changeSum int32
+	for _, coin := range change.ChangeCoins {
+		changeSum += coin
+	}
+	require.Equal(t, change.ChangeCents, changeSum)
+
+	// Insufficient payment: 400 in the shared error envelope.
+	assertErrorEnvelope(t, client, server.URL+"/api/v1/purchases", apiv1.PurchaseRequest{
+		MachineID: machine.ID, ProductID: product.ID, Coins: []int32{25},
+	}, http.StatusBadRequest, apiv1.ErrCodeInvalidInput)
+
+	// Unknown machine: 404, because the product resolves but the bank does not.
+	assertErrorEnvelope(t, client, server.URL+"/api/v1/purchases", apiv1.PurchaseRequest{
+		MachineID: "00000000-0000-0000-0000-000000000000", ProductID: product.ID, Coins: []int32{50},
+	}, http.StatusNotFound, apiv1.ErrCodeNotFound)
+
+	// GET /api/v1/products lists the product just created.
+	var list apiv1.ListProductsResponse
+	getJSON(t, client, server.URL+"/api/v1/products", http.StatusOK, &list)
+	require.NotEmpty(t, list.Products)
+
+	// GET /api/v1/machines/:id retrieves the machine by id.
+	var fetched apiv1.MachineResponse
+	getJSON(t, client, server.URL+"/api/v1/machines/"+machine.ID, http.StatusOK, &fetched)
+	require.Equal(t, machine.ID, fetched.ID)
+}
+
+// postJSON marshals body as JSON, POSTs it, asserts the status, and decodes a
+// non-nil out into the response body.
+func postJSON(t *testing.T, client *http.Client, url string, body any, wantStatus int, out any) {
+	t.Helper()
+
+	data, err := json.Marshal(body)
 	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	_ = resp.Body.Close()
+
+	resp, err := client.Post(url, "application/json", bytes.NewReader(data))
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	require.Equal(t, wantStatus, resp.StatusCode)
+	if out != nil {
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(out))
+	}
+}
+
+// getJSON GETs url, asserts the status, and decodes a non-nil out.
+func getJSON(t *testing.T, client *http.Client, url string, wantStatus int, out any) {
+	t.Helper()
+
+	resp, err := client.Get(url)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	require.Equal(t, wantStatus, resp.StatusCode)
+	if out != nil {
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(out))
+	}
+}
+
+// assertErrorEnvelope POSTs body and asserts the response is the shared
+// {"error": code, "message": msg} envelope with the expected code and a
+// non-empty message.
+func assertErrorEnvelope(t *testing.T, client *http.Client, url string, body any, wantStatus int, wantCode string) {
+	t.Helper()
+
+	data, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	resp, err := client.Post(url, "application/json", bytes.NewReader(data))
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	require.Equal(t, wantStatus, resp.StatusCode)
+
+	var envelope struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&envelope))
+	require.Equal(t, wantCode, envelope.Error)
+	require.NotEmpty(t, envelope.Message)
 }
 
 // infraReachable returns true when both postgres and valkey respond to TCP

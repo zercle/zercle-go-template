@@ -53,11 +53,6 @@ func TestBuild_DatabaseUnreachable(t *testing.T) {
 		},
 		OTel: config.OTelConfig{Exporter: "none", ServiceName: "test"},
 		Log:  config.LogConfig{Level: "info", Format: "json"},
-		Example: config.ExampleConfig{
-			DefaultPageSize: 20,
-			MaxPageSize:     100,
-			MaxNameLength:   255,
-		},
 	}
 
 	require.NoError(t, cfg.Validate())
