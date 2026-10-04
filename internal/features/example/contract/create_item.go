@@ -8,7 +8,7 @@ package contract
 
 // CreateItemRequest is the payload for creating a new item. Only structural
 // constraints live here; the name-length limit is deployment-configurable
-// (EXAMPLE_MAX_NAME_LENGTH) and enforced in the application layer, so a
+// (EXAMPLE_MAX_NAME_LENGTH) and enforced in the usecase layer, so a
 // hardcoded max= tag would drift from the actual limit.
 type CreateItemRequest struct {
 	Name string `json:"name" validate:"required,min=1"`

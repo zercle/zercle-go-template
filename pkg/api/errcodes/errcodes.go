@@ -3,7 +3,7 @@
 // versioned contract (pkg/api/v1) so a future v2 facade can re-export the
 // same codes instead of forking them.
 //
-// The boundary sentinels in internal/platform/errors source their Code values
+// The boundary sentinels in internal/infrastructure/errors source their Code values
 // from these constants, so published codes and served codes cannot drift.
 // Consumers may import this package to branch on error codes without
 // depending on server internals.

@@ -12,10 +12,10 @@ import (
 	"github.com/samber/do/v2"
 	"github.com/stretchr/testify/require"
 
-	"github.com/zercle/zercle-go-template/internal/features/example/application"
 	"github.com/zercle/zercle-go-template/internal/features/example/di"
-	"github.com/zercle/zercle-go-template/internal/platform/config"
-	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
+	"github.com/zercle/zercle-go-template/internal/features/example/usecase"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/telemetry"
 )
 
 // TestRegister_DepsMissing returns an error when required DI dependencies are
@@ -41,7 +41,7 @@ func TestRegister_DisabledSkipsFeature(t *testing.T) {
 
 	require.NoError(t, di.Register(injector))
 
-	_, err := do.Invoke[application.Service](injector)
+	_, err := do.Invoke[usecase.Service](injector)
 	require.Error(t, err, "disabled feature must not provide its service")
 }
 

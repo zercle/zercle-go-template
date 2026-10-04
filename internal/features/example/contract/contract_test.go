@@ -5,17 +5,18 @@
 package contract_test
 
 import (
-	"github.com/go-playground/validator/v10"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/zercle/zercle-go-template/internal/features/example/contract"
 )
 
 // TestCreateItemRequest_StructuralValidation pins that the wire type only
 // enforces structural constraints. The length cap is deployment-configurable
-// and enforced in the application layer, so a name longer than any default must
+// and enforced in the usecase layer, so a name longer than any default must
 // pass the tag: otherwise the tag would silently cap the configurable limit.
 func TestCreateItemRequest_StructuralValidation(t *testing.T) {
 	v := validator.New()
@@ -31,7 +32,7 @@ func TestCreateItemRequest_StructuralValidation(t *testing.T) {
 
 // TestListItemsRequest_StructuralValidation pins that pagination bounds are not
 // hardcoded in the wire type: any non-negative limit passes the tag and the
-// application layer clamps it to the configured maximum.
+// usecase layer clamps it to the configured maximum.
 func TestListItemsRequest_StructuralValidation(t *testing.T) {
 	v := validator.New()
 

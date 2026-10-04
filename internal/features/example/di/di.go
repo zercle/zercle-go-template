@@ -9,13 +9,13 @@ import (
 	"github.com/samber/do/v2"
 	"github.com/valkey-io/valkey-go/valkeyaside"
 
-	httphandler "github.com/zercle/zercle-go-template/internal/features/example/adapter/in/http"
-	"github.com/zercle/zercle-go-template/internal/features/example/adapter/out/postgres"
-	"github.com/zercle/zercle-go-template/internal/features/example/application"
 	"github.com/zercle/zercle-go-template/internal/features/example/domain"
-	"github.com/zercle/zercle-go-template/internal/features/example/port"
-	"github.com/zercle/zercle-go-template/internal/platform/config"
-	apperrors "github.com/zercle/zercle-go-template/internal/platform/errors"
+	"github.com/zercle/zercle-go-template/internal/features/example/handler"
+	"github.com/zercle/zercle-go-template/internal/features/example/repository"
+	"github.com/zercle/zercle-go-template/internal/features/example/repository/postgres"
+	"github.com/zercle/zercle-go-template/internal/features/example/usecase"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
+	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
 
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
@@ -37,7 +37,7 @@ func Register(c do.Injector) error {
 	apperrors.RegisterSentinel(domain.ErrInvalidName, apperrors.ErrInvalidInput)
 	apperrors.RegisterSentinel(domain.ErrInvalidID, apperrors.ErrInvalidInput)
 
-	do.Provide(c, func(i do.Injector) (port.Repository, error) {
+	do.Provide(c, func(i do.Injector) (repository.Repository, error) {
 		gormDB, err := do.Invoke[*gorm.DB](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve gorm db: %w", err)
@@ -59,8 +59,8 @@ func Register(c do.Injector) error {
 		return postgres.NewCachedRepository(repo, aside, cfg.Valkey.TTL), nil
 	})
 
-	do.Provide(c, func(i do.Injector) (application.Service, error) {
-		repo, err := do.Invoke[port.Repository](i)
+	do.Provide(c, func(i do.Injector) (usecase.Service, error) {
+		repo, err := do.Invoke[repository.Repository](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve example repository: %w", err)
 		}
@@ -68,18 +68,18 @@ func Register(c do.Injector) error {
 		if err != nil {
 			return nil, fmt.Errorf("resolve config: %w", err)
 		}
-		return application.NewUsecase(repo, cfg.Example.DefaultPageSize, cfg.Example.MaxPageSize, cfg.Example.MaxNameLength), nil
+		return usecase.NewUsecase(repo, cfg.Example.DefaultPageSize, cfg.Example.MaxPageSize, cfg.Example.MaxNameLength), nil
 	})
 
-	do.Provide(c, func(i do.Injector) (*httphandler.Handler, error) {
-		svc, err := do.Invoke[application.Service](i)
+	do.Provide(c, func(i do.Injector) (*handler.Handler, error) {
+		svc, err := do.Invoke[usecase.Service](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve example service: %w", err)
 		}
-		return httphandler.New(svc), nil
+		return handler.New(svc), nil
 	})
 
-	h, err := do.Invoke[*httphandler.Handler](c)
+	h, err := do.Invoke[*handler.Handler](c)
 	if err != nil {
 		return fmt.Errorf("resolve example http handler: %w", err)
 	}

@@ -55,8 +55,8 @@ linters:
     generated: lax
     paths:
       - examples$
-      - internal/features/example/port/mock$
-      - internal/features/example/application/mock$
+      - internal/features/example/repository/mock$
+      - internal/features/example/usecase/mock$
     rules:
       - linters:
           - revive

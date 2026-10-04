@@ -3,10 +3,11 @@
 // Executable dependency gates for the clean-architecture layering. Each rule
 // scans the import statements of every non-test, non-generated Go file under
 // internal/ and fails with the violated rule's rationale. The rules mirror
-// the dependency direction documented in README.md: driving adapters depend
-// on the application port, the use case depends on outbound ports and the
-// domain, adapters satisfy ports structurally, and the published contract
-// facade pkg/api/v1 is importable only from outside internal/.
+// the dependency direction documented in README.md: the handler depends on the
+// use-case service, the use case depends on the outbound repository interface
+// and the domain, the repository implementation satisfies that interface
+// structurally, and the published contract facade pkg/api/v1 is importable only
+// from outside internal/.
 package internal
 
 import (
@@ -121,11 +122,11 @@ var rules = []rule{
 		},
 	},
 	{
-		name: "port-depends-only-on-domain",
-		why:  "outbound ports may reference only their own feature's domain",
+		name: "repository-interface-depends-only-on-domain",
+		why:  "the outbound repository interface may reference only its own feature's domain",
 		applies: func(rel string) bool {
 			segs := segments(rel)
-			return len(segs) == 3 && segs[0] == "features" && segs[2] == "port"
+			return len(segs) == 3 && segs[0] == "features" && segs[2] == "repository"
 		},
 		denied: func(rel, imp string) bool {
 			if isStdlib(imp) {
@@ -139,11 +140,11 @@ var rules = []rule{
 		},
 	},
 	{
-		name: "application-depends-on-domain-port-contract",
-		why:  "use cases orchestrate their own feature's domain, ports, and wire contract, nothing else",
+		name: "usecase-depends-on-domain-repository-contract",
+		why:  "use cases orchestrate their own feature's domain, repository interface, and wire contract, nothing else",
 		applies: func(rel string) bool {
 			segs := segments(rel)
-			return len(segs) == 3 && segs[0] == "features" && segs[2] == "application"
+			return len(segs) == 3 && segs[0] == "features" && segs[2] == "usecase"
 		},
 		denied: func(rel, imp string) bool {
 			if isStdlib(imp) {
@@ -154,18 +155,19 @@ var rules = []rule{
 			}
 			f := feature(rel)
 			allowed := map[string]bool{
-				"features/" + f + "/domain":   true,
-				"features/" + f + "/port":     true,
-				"features/" + f + "/contract": true,
+				"features/" + f + "/domain":     true,
+				"features/" + f + "/repository": true,
+				"features/" + f + "/contract":   true,
 			}
 			return !allowed[internalRel(imp)]
 		},
 	},
 	{
-		name: "driven-adapters-ignore-application",
-		why:  "adapter/out satisfies ports structurally and must not know about the application layer or driving adapters",
+		name: "repository-impl-ignores-usecase-and-handler",
+		why:  "the repository implementation satisfies the repository interface structurally and must not know about the use-case or handler layers",
 		applies: func(rel string) bool {
-			return strings.HasPrefix(rel, "features/") && strings.Contains(rel, "/adapter/out")
+			segs := segments(rel)
+			return len(segs) >= 4 && segs[0] == "features" && segs[2] == "repository"
 		},
 		denied: func(_, imp string) bool {
 			rel := internalRel(imp)
@@ -173,17 +175,18 @@ var rules = []rule{
 				return false
 			}
 			segs := segments(rel)
-			if len(segs) == 3 && segs[0] == "features" && segs[2] == "application" {
+			if len(segs) >= 3 && segs[0] == "features" && (segs[2] == "usecase" || segs[2] == "handler") {
 				return true
 			}
-			return strings.Contains(rel, "/adapter/in")
+			return false
 		},
 	},
 	{
-		name: "driving-adapters-ignore-ports-and-driven-adapters",
-		why:  "adapter/in talks to the application port only, never to outbound ports or other adapters",
+		name: "handler-ignores-repository",
+		why:  "the driving handler talks to the use-case service only, never to the outbound repository interface or its implementation",
 		applies: func(rel string) bool {
-			return strings.HasPrefix(rel, "features/") && strings.Contains(rel, "/adapter/in")
+			segs := segments(rel)
+			return len(segs) == 3 && segs[0] == "features" && segs[2] == "handler"
 		},
 		denied: func(_, imp string) bool {
 			rel := internalRel(imp)
@@ -191,17 +194,14 @@ var rules = []rule{
 				return false
 			}
 			segs := segments(rel)
-			if len(segs) == 3 && segs[0] == "features" && segs[2] == "port" {
-				return true
-			}
-			return strings.Contains(rel, "/adapter/out")
+			return len(segs) >= 3 && segs[0] == "features" && segs[2] == "repository"
 		},
 	},
 	{
-		name: "platform-ignores-features",
-		why:  "cross-cutting platform code must stay feature-agnostic; features depend on platform, never the reverse",
+		name: "infrastructure-ignores-features",
+		why:  "cross-cutting infrastructure must stay feature-agnostic; features depend on infrastructure, never the reverse",
 		applies: func(rel string) bool {
-			return strings.HasPrefix(rel, "platform/")
+			return strings.HasPrefix(rel, "infrastructure/")
 		},
 		denied: func(_, imp string) bool {
 			rel := internalRel(imp)

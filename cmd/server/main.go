@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	"github.com/zercle/zercle-go-template/internal/app"
-	"github.com/zercle/zercle-go-template/internal/platform/config"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
 )
 
 var (

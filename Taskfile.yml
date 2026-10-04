@@ -75,7 +75,7 @@ tasks:
       - git diff --exit-code go.mod go.sum
 
   generate:
-    desc: Generate mocks (task generate after changing a port interface)
+    desc: Generate mocks (task generate after changing the repository interface)
     cmds:
       - go generate ./...
 
@@ -84,19 +84,19 @@ tasks:
     desc: Run database migrations
     dotenv: [".env"]
     cmds:
-      - migrate -path internal/features/example/adapter/out/postgres/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
+      - migrate -path internal/features/example/repository/postgres/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
 
   migrate-down:
     desc: Rollback one database migration
     dotenv: [".env"]
     cmds:
-      - migrate -path internal/features/example/adapter/out/postgres/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" down 1
+      - migrate -path internal/features/example/repository/postgres/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" down 1
 
   migrate-create:
     desc: "Create a new migration: task migrate-create NAME=add_users"
     dotenv: [".env"]
     cmds:
-      - migrate create -ext sql -dir internal/features/example/adapter/out/postgres/migrations {{.NAME}}
+      - migrate create -ext sql -dir internal/features/example/repository/postgres/migrations {{.NAME}}
 
   docker-build:
     desc: Build server container image

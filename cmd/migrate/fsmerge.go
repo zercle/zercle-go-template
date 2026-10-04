@@ -11,7 +11,7 @@ import (
 	"path"
 	"time"
 
-	examplemigrations "github.com/zercle/zercle-go-template/internal/features/example/adapter/out/postgres/migrations"
+	examplemigrations "github.com/zercle/zercle-go-template/internal/features/example/repository/postgres/migrations"
 )
 
 // migrationSources lists every feature's embedded migrations in evaluation
