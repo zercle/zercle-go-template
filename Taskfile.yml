@@ -43,7 +43,9 @@ tasks:
     desc: Run integration tests (requires postgres + valkey)
     dotenv: ['.env']
     cmds:
-      - go test -v -race -tags=integration ./...
+      # -p 1: integration suites share one database and TRUNCATE each other's
+      # tables in SetupTest, so package binaries must not run in parallel.
+      - go test -v -race -tags=integration -p 1 ./...
 
   test-e2e:
     desc: Run end-to-end tests (boots full server)
