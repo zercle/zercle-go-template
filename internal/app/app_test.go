@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/zercle/zercle-go-template/internal/app"
-	"github.com/zercle/zercle-go-template/internal/platform/config"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
 )
 
 // TestBuild_DatabaseUnreachable verifies that Build returns an error and shuts
@@ -21,10 +21,7 @@ func TestBuild_DatabaseUnreachable(t *testing.T) {
 
 	cfg := &config.Config{
 		App: config.AppConfig{
-			Name:            "zercle-go-template",
 			Environment:     "test",
-			Host:            "0.0.0.0",
-			Port:            8080,
 			ShutdownTimeout: 5 * time.Second,
 		},
 		HTTP: config.HTTPConfig{
@@ -36,7 +33,6 @@ func TestBuild_DatabaseUnreachable(t *testing.T) {
 			BodyLimit:          "1M",
 			HealthProbeTimeout: 5 * time.Second,
 		},
-		GRPC: config.GRPCConfig{Host: "0.0.0.0", Port: 50051},
 		DB: config.DBConfig{
 			Host:           "192.0.2.1", // TEST-NET-1, should not be reachable
 			Port:           5432,

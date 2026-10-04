@@ -1,6 +1,6 @@
 // Command server is the composition root and runtime entry point. It loads
 // config and delegates to package app for DI wiring, then starts and gracefully
-// shuts down the HTTP and gRPC servers.
+// shuts down the HTTP server.
 package main
 
 import (
@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	"github.com/zercle/zercle-go-template/internal/app"
-	"github.com/zercle/zercle-go-template/internal/platform/config"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
 )
 
 var (

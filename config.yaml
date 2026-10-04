@@ -1,8 +1,5 @@
 app:
-  name: zercle-go-template
   environment: development
-  host: 0.0.0.0
-  port: 8080
   shutdown_timeout: 15s
 
 http:
@@ -27,10 +24,6 @@ http:
     - Content-Type
     - X-Request-ID
 
-grpc:
-  host: 0.0.0.0
-  port: 50051
-
 db:
   host: localhost
   port: 5432
@@ -43,12 +36,14 @@ db:
   max_conn_idle: 30m
   max_conn_life: 1h
   connect_timeout: 5s
+  slow_query_threshold: 200ms
 
 valkey:
   host: localhost
   port: 6379
   password: ""
   db: 0
+  ttl: 30s
 
 log:
   level: info

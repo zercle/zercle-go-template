@@ -37,4 +37,6 @@ const (
 	ErrCodeCanceled         = errcodes.Canceled
 	ErrCodeDeadlineExceeded = errcodes.DeadlineExceeded
 	ErrCodeInternal         = errcodes.Internal
+	ErrCodeMethodNotAllowed = errcodes.MethodNotAllowed
+	ErrCodePayloadTooLarge  = errcodes.PayloadTooLarge
 )

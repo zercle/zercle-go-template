@@ -6,9 +6,12 @@
 // services can construct payloads without importing server internals.
 package contract
 
-// CreateItemRequest is the payload for creating a new item.
+// CreateItemRequest is the payload for creating a new item. Only structural
+// constraints live here; the name-length limit is deployment-configurable
+// (EXAMPLE_MAX_NAME_LENGTH) and enforced in the usecase layer, so a
+// hardcoded max= tag would drift from the actual limit.
 type CreateItemRequest struct {
-	Name string `json:"name" validate:"required,min=1,max=255"`
+	Name string `json:"name" validate:"required,min=1"`
 }
 
 // ItemResponse is the JSON representation of an item.

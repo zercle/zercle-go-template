@@ -12,11 +12,11 @@ import (
 	"github.com/samber/do/v2"
 
 	exampledi "github.com/zercle/zercle-go-template/internal/features/example/di"
-	"github.com/zercle/zercle-go-template/internal/platform/config"
-	"github.com/zercle/zercle-go-template/internal/platform/db"
-	"github.com/zercle/zercle-go-template/internal/platform/server"
-	"github.com/zercle/zercle-go-template/internal/platform/telemetry"
-	"github.com/zercle/zercle-go-template/internal/platform/valkey"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/db"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/server"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/telemetry"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/valkey"
 )
 
 // Version metadata is populated by cmd/server/main.go via these package-level
@@ -37,6 +37,9 @@ var (
 func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Injector, error) {
 	if cfg == nil {
 		return nil, nil, fmt.Errorf("config is nil")
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, nil, fmt.Errorf("invalid config: %w", err)
 	}
 
 	injector := do.New()
