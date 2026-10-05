@@ -33,15 +33,16 @@ type leafBinding struct {
 // binding is likewise explicit — leafBindings lists every env-var-to-key pair,
 // so a new field is env-readable only once it is added there.
 type Config struct {
-	App      AppConfig      `mapstructure:"app"`
-	HTTP     HTTPConfig     `mapstructure:"http"`
-	DB       DBConfig       `mapstructure:"db"`
-	Valkey   ValkeyConfig   `mapstructure:"valkey"`
-	OTel     OTelConfig     `mapstructure:"otel"`
-	Log      LogConfig      `mapstructure:"log"`
-	Catalog  CatalogConfig  `mapstructure:"catalog"`
-	Machines MachinesConfig `mapstructure:"machines"`
-	Sales    SalesConfig    `mapstructure:"sales"`
+	App       AppConfig       `mapstructure:"app"`
+	HTTP      HTTPConfig      `mapstructure:"http"`
+	DB        DBConfig        `mapstructure:"db"`
+	Valkey    ValkeyConfig    `mapstructure:"valkey"`
+	OTel      OTelConfig      `mapstructure:"otel"`
+	Log       LogConfig       `mapstructure:"log"`
+	Catalog   CatalogConfig   `mapstructure:"catalog"`
+	Machines  MachinesConfig  `mapstructure:"machines"`
+	Sales     SalesConfig     `mapstructure:"sales"`
+	Reporting ReportingConfig `mapstructure:"reporting"`
 }
 
 // AppConfig holds process-level settings. Service identity (name, listen host,
@@ -133,6 +134,13 @@ type SalesConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
+// ReportingConfig is a feature toggle and settings for the reporting feature.
+type ReportingConfig struct {
+	Enabled            bool  `mapstructure:"enabled"`
+	DefaultTopMachines int32 `mapstructure:"default_top_machines"`
+	MaxTopMachines     int32 `mapstructure:"max_top_machines"`
+}
+
 // validate is the package-level validator instance.
 var validate = validator.New()
 
@@ -205,6 +213,11 @@ func (c *Config) Validate() error {
 	}
 	if c.Machines.Enabled {
 		if err := validateMachines(c.Machines); err != nil {
+			return err
+		}
+	}
+	if c.Reporting.Enabled {
+		if err := validateReporting(c.Reporting); err != nil {
 			return err
 		}
 	}
@@ -283,6 +296,27 @@ func validateMachines(cfg MachinesConfig) error {
 	}
 	if cfg.MaxLabelLength > maxLabelLengthUpperBound {
 		return fmt.Errorf("MACHINES_MAX_LABEL_LENGTH exceeds maximum allowed value %d", maxLabelLengthUpperBound)
+	}
+	return nil
+}
+
+// maxTopMachinesUpperBound caps REPORTING_MAX_TOP_MACHINES to a sane ceiling so
+// a misconfiguration cannot request an unbounded leaderboard.
+const maxTopMachinesUpperBound int32 = 100
+
+// validateReporting enforces the reporting feature's bounds when it is enabled.
+func validateReporting(cfg ReportingConfig) error {
+	if cfg.DefaultTopMachines < 1 {
+		return fmt.Errorf("REPORTING_DEFAULT_TOP_MACHINES must be >= 1")
+	}
+	if cfg.MaxTopMachines < 1 {
+		return fmt.Errorf("REPORTING_MAX_TOP_MACHINES must be >= 1")
+	}
+	if cfg.DefaultTopMachines > cfg.MaxTopMachines {
+		return fmt.Errorf("REPORTING_DEFAULT_TOP_MACHINES must be <= REPORTING_MAX_TOP_MACHINES")
+	}
+	if cfg.MaxTopMachines > maxTopMachinesUpperBound {
+		return fmt.Errorf("REPORTING_MAX_TOP_MACHINES exceeds maximum allowed value %d", maxTopMachinesUpperBound)
 	}
 	return nil
 }
@@ -370,6 +404,10 @@ func setDefaults(v *viper.Viper) {
 		"machines.max_label_length":  int32(255),
 
 		"sales.enabled": false,
+
+		"reporting.enabled":              false,
+		"reporting.default_top_machines": int32(5),
+		"reporting.max_top_machines":     int32(20),
 	}
 
 	for key, value := range defaults {
@@ -434,6 +472,10 @@ func leafBindings() []leafBinding {
 		{"machines.max_label_length", "MACHINES_MAX_LABEL_LENGTH"},
 
 		{"sales.enabled", "SALES_ENABLED"},
+
+		{"reporting.enabled", "REPORTING_ENABLED"},
+		{"reporting.default_top_machines", "REPORTING_DEFAULT_TOP_MACHINES"},
+		{"reporting.max_top_machines", "REPORTING_MAX_TOP_MACHINES"},
 	}
 }
 

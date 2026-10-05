@@ -298,6 +298,10 @@ otel:
 	require.Equal(t, int32(255), cfg.Machines.MaxLabelLength)
 
 	require.False(t, cfg.Sales.Enabled)
+
+	require.False(t, cfg.Reporting.Enabled)
+	require.Equal(t, int32(5), cfg.Reporting.DefaultTopMachines)
+	require.Equal(t, int32(20), cfg.Reporting.MaxTopMachines)
 }
 
 // TestLoad_FeatureEnvOverrides proves every new leaf is explicit-bound: setting
@@ -340,6 +344,9 @@ otel:
 	t.Setenv("MACHINES_MAX_PAGE_SIZE", "400")
 	t.Setenv("MACHINES_MAX_LABEL_LENGTH", "128")
 	t.Setenv("SALES_ENABLED", "true")
+	t.Setenv("REPORTING_ENABLED", "true")
+	t.Setenv("REPORTING_DEFAULT_TOP_MACHINES", "7")
+	t.Setenv("REPORTING_MAX_TOP_MACHINES", "50")
 
 	cfg, err := config.Load()
 	require.NoError(t, err)
@@ -356,6 +363,10 @@ otel:
 	require.Equal(t, int32(128), cfg.Machines.MaxLabelLength)
 
 	require.True(t, cfg.Sales.Enabled)
+
+	require.True(t, cfg.Reporting.Enabled)
+	require.Equal(t, int32(7), cfg.Reporting.DefaultTopMachines)
+	require.Equal(t, int32(50), cfg.Reporting.MaxTopMachines)
 }
 
 func TestValidate_CatalogDefaultPageSizeExceedsMax(t *testing.T) {
@@ -472,6 +483,58 @@ func TestValidate_SalesEnabledAddsNoFieldConstraints(t *testing.T) {
 	require.NoError(t, cfg.Validate())
 }
 
+func TestValidate_ReportingDefaultTopMachinesExceedsMax(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Reporting.Enabled = true
+	cfg.Reporting.DefaultTopMachines = 50
+	cfg.Reporting.MaxTopMachines = 10
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "REPORTING_DEFAULT_TOP_MACHINES must be <= REPORTING_MAX_TOP_MACHINES")
+}
+
+func TestValidate_ReportingMaxTopMachinesExceedsUpperBound(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Reporting.Enabled = true
+	cfg.Reporting.MaxTopMachines = 100000
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "REPORTING_MAX_TOP_MACHINES exceeds")
+}
+
+// TestValidate_ReportingEnabledRejectsZeroValues pins the positivity guarantee
+// when the feature is on.
+func TestValidate_ReportingEnabledRejectsZeroValues(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Reporting.Enabled = true
+	cfg.Reporting.DefaultTopMachines = 0
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "REPORTING_DEFAULT_TOP_MACHINES must be >= 1")
+}
+
+// TestValidate_ReportingDisabledSkipsChecks lets the reporting block be omitted
+// from config.yaml without startup failing on zero values.
+func TestValidate_ReportingDisabledSkipsChecks(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.Reporting.Enabled = false
+	cfg.Reporting.DefaultTopMachines = 0
+	cfg.Reporting.MaxTopMachines = 0
+
+	require.NoError(t, cfg.Validate())
+}
+
 func validConfig() *config.Config {
 	return &config.Config{
 		App: config.AppConfig{
@@ -529,6 +592,11 @@ func validConfig() *config.Config {
 		},
 		Sales: config.SalesConfig{
 			Enabled: true,
+		},
+		Reporting: config.ReportingConfig{
+			Enabled:            true,
+			DefaultTopMachines: 5,
+			MaxTopMachines:     20,
 		},
 	}
 }

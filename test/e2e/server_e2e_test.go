@@ -143,6 +143,35 @@ func TestServer_EndToEnd(t *testing.T) {
 	var fetched apiv1.MachineResponse
 	getJSON(t, client, server.URL+"/api/v1/machines/"+machine.ID, http.StatusOK, &fetched)
 	require.Equal(t, machine.ID, fetched.ID)
+
+	// GET /api/v1/reports/summary aggregates catalog, machines, and sales. The
+	// assertions use >= because earlier e2e runs may leave rows behind; the two
+	// purchases above guarantee the lower bounds.
+	var summary apiv1.SummaryResponse
+	getJSON(t, client, server.URL+"/api/v1/reports/summary", http.StatusOK, &summary)
+	require.GreaterOrEqual(t, summary.Sales.PurchaseCount, int64(2))
+	require.GreaterOrEqual(t, summary.Sales.RevenueCents, int64(100))
+	require.GreaterOrEqual(t, summary.Catalog.ProductCount, int64(1))
+	require.GreaterOrEqual(t, summary.Machines.MachineCount, int64(1))
+	require.Contains(t, topMachineLabels(summary.TopMachines), "lobby")
+
+	// A non-positive top value fails request validation: 400 in the envelope.
+	assertErrorEnvelopeGET(t, client, server.URL+"/api/v1/reports/summary?top=-1",
+		http.StatusBadRequest, apiv1.ErrCodeInvalidInput)
+
+	// An explicit valid top caps the leaderboard length.
+	var capped apiv1.SummaryResponse
+	getJSON(t, client, server.URL+"/api/v1/reports/summary?top=1", http.StatusOK, &capped)
+	require.LessOrEqual(t, len(capped.TopMachines), 1)
+}
+
+// topMachineLabels projects the leaderboard entries to their labels.
+func topMachineLabels(machines []apiv1.MachineSales) []string {
+	labels := make([]string, len(machines))
+	for i := range machines {
+		labels[i] = machines[i].Label
+	}
+	return labels
 }
 
 // postJSON marshals body as JSON, POSTs it, asserts the status, and decodes a
@@ -187,6 +216,27 @@ func assertErrorEnvelope(t *testing.T, client *http.Client, url string, body any
 	require.NoError(t, err)
 
 	resp, err := client.Post(url, "application/json", bytes.NewReader(data))
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	require.Equal(t, wantStatus, resp.StatusCode)
+
+	var envelope struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&envelope))
+	require.Equal(t, wantCode, envelope.Error)
+	require.NotEmpty(t, envelope.Message)
+}
+
+// assertErrorEnvelopeGET GETs url (no body) and asserts the response is the
+// shared {"error": code, "message": msg} envelope with the expected code and a
+// non-empty message.
+func assertErrorEnvelopeGET(t *testing.T, client *http.Client, url string, wantStatus int, wantCode string) {
+	t.Helper()
+
+	resp, err := client.Get(url)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 

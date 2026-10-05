@@ -75,6 +75,32 @@ func TestSalesAliasesRoundTripJSON(t *testing.T) {
 		string(data))
 }
 
+func TestReportingAliasesRoundTripJSON(t *testing.T) {
+	t.Parallel()
+
+	req := apiv1.SummaryRequest{TopMachines: 3}
+	data, err := json.Marshal(req)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"top":3}`, string(data))
+
+	resp := apiv1.SummaryResponse{
+		Catalog:  apiv1.CatalogStats{ProductCount: 2, TotalStock: 7},
+		Machines: apiv1.MachineStats{MachineCount: 1, TotalCoinBankCents: 150},
+		Sales:    apiv1.SalesStats{PurchaseCount: 3, RevenueCents: 120},
+		TopMachines: []apiv1.MachineSales{{
+			MachineID: "m1", Label: "lobby", PurchaseCount: 3, RevenueCents: 120,
+		}},
+	}
+	data, err = json.Marshal(resp)
+	require.NoError(t, err)
+	require.JSONEq(t,
+		`{"catalog":{"product_count":2,"total_stock":7},`+
+			`"machines":{"machine_count":1,"total_coin_bank_cents":150},`+
+			`"sales":{"purchase_count":3,"revenue_cents":120},`+
+			`"top_machines":[{"machine_id":"m1","label":"lobby","purchase_count":3,"revenue_cents":120}]}`,
+		string(data))
+}
+
 func TestErrCodeReExports(t *testing.T) {
 	t.Parallel()
 
