@@ -40,7 +40,7 @@ func (h *Handler) Create(c *echo.Context) error {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
-	if err := c.Validate(req); err != nil {
+	if err := c.Validate(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
@@ -74,7 +74,7 @@ func (h *Handler) List(c *echo.Context) error {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
-	if err := c.Validate(req); err != nil {
+	if err := c.Validate(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
@@ -96,7 +96,7 @@ func (h *Handler) RestockBank(c *echo.Context) error {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}
-	if err := c.Validate(req); err != nil {
+	if err := c.Validate(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
 	}

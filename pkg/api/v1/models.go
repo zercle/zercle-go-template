@@ -12,6 +12,7 @@ package apiv1
 import (
 	catalogcontract "github.com/zercle/zercle-go-template/internal/features/catalog/contract"
 	machinescontract "github.com/zercle/zercle-go-template/internal/features/machines/contract"
+	reportingcontract "github.com/zercle/zercle-go-template/internal/features/reporting/contract"
 	salescontract "github.com/zercle/zercle-go-template/internal/features/sales/contract"
 	"github.com/zercle/zercle-go-template/pkg/api/errcodes"
 )
@@ -56,6 +57,28 @@ type PurchaseRequest = salescontract.PurchaseRequest
 
 // PurchaseResponse is the wire representation of a completed purchase.
 type PurchaseResponse = salescontract.PurchaseResponse
+
+// --- reporting -------------------------------------------------------------
+
+// SummaryRequest carries the top-machines query parameter for
+// GET /api/v1/reports/summary.
+type SummaryRequest = reportingcontract.SummaryRequest
+
+// SummaryResponse is the cross-feature report: one block per source table
+// plus the top machines by revenue.
+type SummaryResponse = reportingcontract.SummaryResponse
+
+// CatalogStats is the catalog table's contribution to the report.
+type CatalogStats = reportingcontract.CatalogStats
+
+// MachineStats is the machines table's contribution to the report.
+type MachineStats = reportingcontract.MachineStats
+
+// SalesStats is the sales table's contribution to the report.
+type SalesStats = reportingcontract.SalesStats
+
+// MachineSales is one machine's sales aggregate in the leaderboard.
+type MachineSales = reportingcontract.MachineSales
 
 // Error codes carried in the {"error": code, "message": msg} response
 // envelope, re-exported from the version-independent errcodes package.

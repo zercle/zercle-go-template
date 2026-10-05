@@ -14,6 +14,7 @@ import (
 	catalogmigrations "github.com/zercle/zercle-go-template/internal/features/catalog/repository/postgres/migrations"
 	machinesdi "github.com/zercle/zercle-go-template/internal/features/machines/di"
 	machinesmigrations "github.com/zercle/zercle-go-template/internal/features/machines/repository/postgres/migrations"
+	reportingdi "github.com/zercle/zercle-go-template/internal/features/reporting/di"
 	salesdi "github.com/zercle/zercle-go-template/internal/features/sales/di"
 	salesmigrations "github.com/zercle/zercle-go-template/internal/features/sales/repository/postgres/migrations"
 )
@@ -26,8 +27,10 @@ type Feature struct {
 }
 
 // List is the ordered registry of features. The order is also the migration
-// order: catalog owns schema version 1, machines 2, and sales 3. Add one entry
-// per feature; leave Migrations nil when the feature owns no schema.
+// order: catalog owns schema version 1, machines 2, and sales 3. reporting
+// owns no schema (it reads the other features' tables), so it contributes no
+// migrations and does not advance the migration numbering. Add one entry per
+// feature; leave Migrations nil when the feature owns no schema.
 var List = []Feature{
 	{
 		Name:       "catalog",
@@ -43,6 +46,11 @@ var List = []Feature{
 		Name:       "sales",
 		Register:   salesdi.Register,
 		Migrations: salesmigrations.FS,
+	},
+	{
+		Name:     "reporting",
+		Register: reportingdi.Register,
+		// Migrations omitted (nil): feature owns no schema.
 	},
 }
 

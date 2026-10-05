@@ -120,7 +120,7 @@ func TestNewHTTP_ValidatorBinding(t *testing.T) {
 		if err := c.Bind(&req); err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]any{"error": "bind"})
 		}
-		if err := c.Validate(req); err != nil {
+		if err := c.Validate(&req); err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]any{"error": "invalid"})
 		}
 		return c.JSON(http.StatusOK, req)

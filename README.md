@@ -1,6 +1,6 @@
 # zercle-go-template
 
-Opinionated Go HTTP service template: clean (DDD) architecture, samber/do DI, OpenTelemetry tracing, Prometheus metrics, PostgreSQL via GORM, and a Valkey cache-aside example — with three layered features (catalog, machines, sales) forming a small distributed-vending-machines demo to copy or delete.
+Opinionated Go HTTP service template: clean (DDD) architecture, samber/do DI, OpenTelemetry tracing, Prometheus metrics, PostgreSQL via GORM, and a Valkey cache-aside example — with four layered features (catalog, machines, sales, reporting) forming a small distributed-vending-machines demo to copy or delete.
 
 ## Prerequisites
 
@@ -39,9 +39,10 @@ zercle-go-template/
 │   │   ├── features.go         # feature registry: the single enumeration point
 │   │   ├── catalog/            # global product pool (price + stock)
 │   │   ├── machines/           # vending machines + their coin banks
-│   │   └── sales/              # purchases: price a sale, compose change, commit
-│   │       # catalog, machines, and sales each repeat the same nine-layer
-│   │       # layout below:
+│   │   ├── sales/              # purchases: price a sale, compose change, commit
+│   │   └── reporting/          # read-only cross-feature GET /api/v1/reports/summary (no migrations)
+│   │       # catalog, machines, sales, and reporting each repeat the same
+│   │       # layer layout below (reporting owns no migrations):
 │   │       ├── domain/         # entities + sentinel errors (standard library only)
 │   │       ├── contract/       # canonical inbound wire types
 │   │       ├── usecase/        # use-case service + implementation + mocks
@@ -106,11 +107,11 @@ Composition uses **samber/do/v2**: every layer exposes `Register(c *do.Injector)
 infrastructure (config → telemetry → db → valkey → server) → features
 ```
 
-The registry is the **single enumeration point**: `features.List` holds one `Feature` (`Name`, `Register`, `Migrations`) per feature, `features.RegisterAll` wires the DI container, and `features.MigrationSources` feeds the migration runner. Adding or deleting a feature is therefore one entry in that list plus the feature's own directory. That order is also the migration order: `catalog` owns schema version 1, `machines` version 2, `sales` version 3.
+The registry is the **single enumeration point**: `features.List` holds one `Feature` (`Name`, `Register`, `Migrations`) per feature, `features.RegisterAll` wires the DI container, and `features.MigrationSources` feeds the migration runner. Adding or deleting a feature is therefore one entry in that list plus the feature's own directory. That order is also the migration order: `catalog` owns schema version 1, `machines` version 2, `sales` version 3; `reporting` registers with no migrations because it owns no schema of its own.
 
 **Migrations are feature-owned**: each feature's SQL lives in its `repository/postgres/migrations/` and is embedded per feature; `cmd/migrate` merges every registered feature's migrations via `migrationSources()` in `cmd/migrate/fsmerge.go`, which delegates to the registry, so deleting a feature deletes its schema with it. `task migrate-up` / `migrate-down` run the self-contained `go run ./cmd/migrate ...` runner; `migrate-create` still uses the golang-migrate CLI and takes the target directory from `FEATURE=<name>`. Migration version numbers are a **single namespace across all features**, not per feature: the next migration added to any feature takes the next free version.
 
-Configuration is loaded from `config.yaml` and the environment (no prefix) into a typed, validated struct via spf13/viper and go-playground/validator. `CATALOG_ENABLED`, `MACHINES_ENABLED`, and `SALES_ENABLED` gate each feature: when false its providers and routes are not registered at all. Name/label and page-size limits (`CATALOG_MAX_NAME_LENGTH`, `CATALOG_MAX_PAGE_SIZE`, `MACHINES_MAX_LABEL_LENGTH`, `MACHINES_MAX_PAGE_SIZE`) are enforced in the usecase layer, so a deployment can raise them without touching request validation.
+Configuration is loaded from `config.yaml` and the environment (no prefix) into a typed, validated struct via spf13/viper and go-playground/validator. `CATALOG_ENABLED`, `MACHINES_ENABLED`, `SALES_ENABLED`, and `REPORTING_ENABLED` gate each feature: when false its providers and routes are not registered at all. Name/label and page-size limits (`CATALOG_MAX_NAME_LENGTH`, `CATALOG_MAX_PAGE_SIZE`, `MACHINES_MAX_LABEL_LENGTH`, `MACHINES_MAX_PAGE_SIZE`) are enforced in the usecase layer, so a deployment can raise them without touching request validation. The reporting top-machines bounds (`REPORTING_DEFAULT_TOP_MACHINES`, `REPORTING_MAX_TOP_MACHINES`) are enforced the same way.
 
 ### Routes
 
@@ -124,10 +125,11 @@ Configuration is loaded from `config.yaml` and the environment (no prefix) into 
 | GET | `/api/v1/machines/:id` | machines | fetch one machine |
 | POST | `/api/v1/machines/:id/bank` | machines | restock a machine's coin bank |
 | POST | `/api/v1/purchases` | sales | buy a product: price, compose change, commit |
+| GET | `/api/v1/reports/summary` | reporting | cross-feature totals + top machines by revenue |
 
 Health and observability endpoints (`/healthz`, `/readyz`, `/metrics`) are served by `internal/infrastructure/server`.
 
-**Cross-feature boundaries.** Features never import each other; each owns its domain, contract, and repository port. `sales` consumes catalog and machines data only through its own `repository.Repository` port, whose postgres implementation reads the `catalog_products` and `machines` tables directly and commits the sale in one transaction. This is a deliberate single-database compromise — the tables are shared, but the port is the seam: a future service split replaces that one implementation without touching the sales domain or usecase. Stock is a **global pool** (decrementing a product affects every machine), while per-machine product slots are the documented extension if the demo grows.
+**Cross-feature boundaries.** Features never import each other; each owns its domain, contract, and repository port. `sales` consumes catalog and machines data only through its own `repository.Repository` port, whose postgres implementation reads the `catalog_products` and `machines` tables directly and commits the sale in one transaction. This is a deliberate single-database compromise — the tables are shared, but the port is the seam: a future service split replaces that one implementation without touching the sales domain or usecase. Stock is a **global pool** (decrementing a product affects every machine), while per-machine product slots are the documented extension if the demo grows. `reporting` demonstrates the read-only side of the same seam: it aggregates totals across all three features' tables through its own port and owns no schema of its own.
 
 Every HTTP failure — handler errors and framework errors (404/405, body-limit 413) alike — is served in the `{"error": code, "message": msg}` envelope, with codes from `pkg/api/errcodes`.
 
@@ -143,12 +145,12 @@ To add a feature:
 2. Add one entry to `features.List` in `internal/features/features.go` — `Name`, `Register`, and `Migrations` when it owns schema. Migrations are numbered in one global namespace, so take the next free version across all features.
 3. Register its config in `internal/infrastructure/config` and add its aliases in `pkg/api/v1` before publishing.
 
-To replace the demo features (catalog, machines, sales):
+To replace the demo features (catalog, machines, sales, reporting):
 
 1. Remove the feature directories under `internal/features/` you are replacing.
 2. Remove their entries from `features.List` in `internal/features/features.go`.
 3. Replace their aliases in `pkg/api/v1/models.go` with your feature's contract types.
-4. Delete the `catalog:` / `machines:` / `sales:` blocks from `config.yaml` and the matching `CATALOG_*` / `MACHINES_*` / `SALES_*` lines from `.env.example`.
+4. Delete the `catalog:` / `machines:` / `sales:` / `reporting:` blocks from `config.yaml` and the matching `CATALOG_*` / `MACHINES_*` / `SALES_*` / `REPORTING_*` lines from `.env.example`.
 
 ## Testing
 
