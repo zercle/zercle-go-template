@@ -16,9 +16,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/middleware"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/telemetry"
+	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
 type echoValidator struct {

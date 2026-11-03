@@ -20,7 +20,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/sales/domain"
 	"github.com/zercle/zercle-go-template/internal/features/sales/handler"
 	"github.com/zercle/zercle-go-template/internal/features/sales/usecase/mock"
-	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 	"github.com/zercle/zercle-go-template/internal/testutil"
 )
 

@@ -16,7 +16,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/catalog/repository/postgres"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/usecase"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
 // Register wires the catalog feature into the composition root. When

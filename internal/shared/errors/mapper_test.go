@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"testing"
 
-	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
 var errDomainSentinel = errors.New("domain: widget not found")
