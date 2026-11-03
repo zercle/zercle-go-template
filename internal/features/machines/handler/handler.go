@@ -7,7 +7,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/machines/contract"
 	"github.com/zercle/zercle-go-template/internal/features/machines/usecase"
-	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
 // Handler exposes the machines usecase service over HTTP.

@@ -7,7 +7,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/sales/contract"
 	"github.com/zercle/zercle-go-template/internal/features/sales/usecase"
-	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
 // Handler exposes the sales usecase service over HTTP.

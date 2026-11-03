@@ -34,7 +34,9 @@ zercle-go-template/
 │   └── server/main.go          # entry point: loads config, delegates to internal/app
 ├── internal/
 │   ├── app/                    # reusable composition root (DI wiring, app.Run)
-│   ├── architecture_test.go    # executable dependency gates (runs in task test)
+│   ├── archguard/              # executable dependency gates (runs in task test)
+│   │   ├── layering_test.go    # dependency direction between the layers
+│   │   └── imports_test.go    # what a package may import at all
 │   ├── features/
 │   │   ├── features.go         # feature registry: the single enumeration point
 │   │   ├── catalog/            # global product pool (price + stock)
@@ -45,7 +47,7 @@ zercle-go-template/
 │   │       # layer layout below (reporting owns no migrations):
 │   │       ├── domain/         # entities + sentinel errors (standard library only)
 │   │       ├── contract/       # canonical inbound wire types
-│   │       ├── usecase/        # use-case service + implementation + mocks
+│   │       ├── usecase/        # use-case service + one file per operation + mocks
 │   │       ├── repository/     # outbound interface + mocks
 │   │       │   └── postgres/  # GORM repository + cache aside + models + migrations
 │   │       ├── handler/        # echo v5 HTTP handler
@@ -54,11 +56,12 @@ zercle-go-template/
 │   │   ├── config/             # validated viper config
 │   │   ├── db/                 # gorm pool + zerolog GORM logger
 │   │   ├── valkey/             # valkey client + cache-aside facade
-│   │   ├── errors/             # typed errors + HTTP mapper
 │   │   ├── lifecycle/          # shared resource-close adapter for DI shutdown
 │   │   ├── middleware/         # recover, request-id, access-log, cors, otel
 │   │   ├── server/             # echo bootstrap + graceful shutdown
 │   │   └── telemetry/          # zerolog, tracer, meter, health
+│   ├── shared/
+│   │   └── errors/             # typed boundary errors + HTTP mapper (feature-agnostic)
 │   └── testutil/               # shared test helpers + fixtures
 ├── pkg/
 │   └── api/
@@ -92,14 +95,15 @@ infrastructure/* ── cross-cutting, never imports features/**
 
 - `domain` holds entities and sentinel errors (standard library only: `uuid` is stdlib in Go 1.27+).
 - `contract` holds the canonical inbound wire types (json/validate tags, zero dependencies) — the single source of the API shapes.
-- `usecase` declares the inbound use-case service (`Service`, speaking contract types) and its `Usecase` implementation.
+- `usecase` declares the inbound use-case service (`Service`, speaking contract types) and its `Usecase` implementation, one file per operation (`create_product.go`, `get_product.go`, `list_products.go`, …).
 - `repository` declares the outbound (driven) interface; `repository/postgres` satisfies it structurally with GORM (over pgx) and owns the persistence models and SQL migrations.
 - `handler` is the driving adapter: the echo handler binds contract types directly.
-- `internal/infrastructure` consolidates cross-cutting concerns: config, db pool, valkey, typed errors, middleware, servers, telemetry.
+- `internal/infrastructure` consolidates cross-cutting technical plumbing: config, db pool, valkey, middleware, servers, telemetry.
+- `internal/shared` holds code every feature uses: the typed boundary errors and the HTTP mapper that turns them into the response envelope.
 
 **Published inbound contract.** `pkg/api/v1` is an alias facade over the feature's `contract` types plus the error codes in `pkg/api/errcodes`, so another Go service can construct payloads and interpret the `{"error": code, "message": msg}` envelope without importing server internals. Internal code never imports `pkg/api/v1`.
 
-**Executable dependency gates.** `internal/architecture_test.go` scans imports across `internal/` and fails when a layer reaches sideways or outward: facade imports, domain/contract purity, usecase's allowlist, repository/handler separation, and infrastructure's feature-agnosticism. It runs as part of `task test`.
+**Executable dependency gates.** `internal/archguard/` scans imports across `internal/` and fails when a layer reaches sideways or outward: facade imports, domain/contract purity, usecase's allowlist, repository/handler separation, and infrastructure's and shared's feature-agnosticism. `layering_test.go` holds the direction rules, `imports_test.go` the import-surface rules. It runs as part of `task test`.
 
 Composition uses **samber/do/v2**: every layer exposes `Register(c *do.Injector) error`. `internal/app` is the reusable composition root that wires the DI container by iterating the feature registry in `internal/features/features.go`; `cmd/server/main.go` is a thin entry point that loads config, sets build-time vars (Version/CommitSHA/BuildTime), and calls `app.Run`, which bootstraps the container in dependency order:
 

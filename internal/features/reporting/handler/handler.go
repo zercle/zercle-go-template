@@ -7,7 +7,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/reporting/contract"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/usecase"
-	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
 // Handler exposes the reporting usecase service over HTTP.
