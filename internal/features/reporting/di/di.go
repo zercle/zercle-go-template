@@ -14,7 +14,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/reporting/repository/postgres"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/usecase"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
 // Register wires the reporting feature into the composition root. When

@@ -12,18 +12,18 @@ Consumers (other Go services) import only `pkg/api/v1` to construct payloads and
 
 ## Architecture & Data Flow
 
-Clean (DDD) architecture **per feature**, all dependencies pointing inward. This direction is **enforced by an executable test**, not convention alone (`internal/architecture_test.go`, build tag `unit`, runs in `task test`).
+Clean (DDD) architecture **per feature**, all dependencies pointing inward. This direction is **enforced by an executable test**, not convention alone (`internal/archguard/`, build tag `unit`, runs in `task test`).
 
 ```
 consumer services ──> pkg/api/v1 ──> features/*/contract    (published contract, outward-only)
 handler ──> usecase.Service ──> repository.Repository <── repository/<db>
 all layers ──> domain (entities + sentinel errors; standard library only)
-infrastructure/* ── feature-agnostic, never imports features/**
+infrastructure/* and shared/* ── feature-agnostic, never import features/**
 ```
 
-A request flows: `cmd/server/main.go` loads config → `internal/app.Build` wires the do injector (`infrastructure: config → telemetry → db → valkey → server`, then `features.RegisterAll` over the registry) → route mounted at `g := e.Group("/api/v1")` → `handler` binds the contract type, calls `c.Validate`, calls `usecase.Service` → the usecase parses ids, applies business rules, maps domain↔contract → `repository.Repository` (GORM) behind an optional `CachedRepository` decorator (Valkey cache-aside) → domain sentinel errors are mapped to the HTTP envelope by `infrastructure/errors`.
+A request flows: `cmd/server/main.go` loads config → `internal/app.Build` wires the do injector (`infrastructure: config → telemetry → db → valkey → server`, then `features.RegisterAll` over the registry) → route mounted at `g := e.Group("/api/v1")` → `handler` binds the contract type, calls `c.Validate`, calls `usecase.Service` → the usecase parses ids, applies business rules, maps domain↔contract → `repository.Repository` (GORM) behind an optional `CachedRepository` decorator (Valkey cache-aside) → domain sentinel errors are mapped to the HTTP envelope by `shared/errors`.
 
-**Dependency gates** — `internal/architecture_test.go` parses imports (`parser.ImportsOnly`, skipping `mock/` and `_test.go`) across 9 rules; a violation fails with `package %q violates %s`. If a change trips a rule, **restructure the change — never weaken the rule**:
+**Dependency gates** — `internal/archguard/` parses imports (`parser.ImportsOnly`, skipping `mock/` and `_test.go`); `layering_test.go` holds the direction rules, `imports_test.go` the import-surface rules. A violation fails with `package %q violates %s`. If a change trips a rule, **restructure the change — never weaken the rule**:
 
 | Rule | Forbids |
 |---|---|
@@ -36,16 +36,18 @@ A request flows: `cmd/server/main.go` loads config → `internal/app.Build` wire
 | `handler-ignores-repository` | the `handler` package importing `repository` |
 | `features-registry-imports-only-own-features` | `internal/features` (the registry) importing anything but stdlib, `samber/do/v2`, or `features/**` |
 | `infrastructure-ignores-features` | `infrastructure/**` importing `features/**` |
+| `shared-ignores-features` | `shared/**` importing `features/**` |
 
 ## Key Directories
 
 - `cmd/server/` — thin entry point: loads config, sets `Version`/`CommitSHA`/`BuildTime` (ldflags), installs the signal handler, calls `app.Run`.
 - `cmd/migrate/` — self-contained migration runner (`up`/`down [N]`/`force`/`version`); `fsmerge.go` unions every registered feature's embedded migration `fs.FS` via `migrationSources()`, which delegates to `internal/features`.
 - `internal/app/` — reusable composition root (`Build`, `Run`); the only place wiring order is defined. It iterates the feature registry via `features.RegisterAll`.
-- `internal/architecture_test.go` — the dependency gates above.
+- `internal/archguard/` — the dependency gates above (`layering_test.go`, `imports_test.go`).
 - `internal/features/features.go` — the feature registry: `List`, `RegisterAll`, `MigrationSources`; the single place features are enumerated. Its order is also the migration order (catalog 1, machines 2, sales 3).
-- `internal/features/{catalog,machines,sales}/` — the three demo features. Layers, each its own package: `domain` (entities + sentinels), `contract` (zero-dep wire types), `usecase` (`Service` iface + `Usecase`), `repository` (outbound iface + `mock/`) and `repository/postgres/` (GORM impl, `models/`, `migrations/`, cache-aside decorator), `handler` (echo v5), `di`. Features never import each other; `sales` reads catalog/machines data through its own repository port in one transaction.
-- `internal/infrastructure/` — cross-cutting: `config`, `db`, `valkey`, `errors`, `lifecycle`, `middleware`, `server`, `telemetry`.
+- `internal/features/{catalog,machines,sales}/` — the three demo features. Layers, each its own package: `domain` (entities + sentinels), `contract` (zero-dep wire types), `usecase` (`Service` iface + `Usecase`, one file per operation), `repository` (outbound iface + `mock/`) and `repository/postgres/` (GORM impl, `models/`, `migrations/`, cache-aside decorator), `handler` (echo v5), `di`. Features never import each other; `sales` reads catalog/machines data through its own repository port in one transaction.
+- `internal/infrastructure/` — cross-cutting technical plumbing: `config`, `db`, `valkey`, `lifecycle`, `middleware`, `server`, `telemetry`.
+- `internal/shared/` — cross-feature code: `errors/` (typed boundary errors + HTTP mapper).
 - `internal/testutil/` — shared test helpers + `fixtures/`.
 - `pkg/api/errcodes/` — published error-code constants. `pkg/api/v1/` — type-alias facade over the feature contract (published surface).
 - `test/e2e/` — end-to-end tests.
@@ -67,7 +69,7 @@ A request flows: `cmd/server/main.go` loads config → `internal/app.Build` wire
 ```bash
 go test -race -tags=unit -run TestName ./internal/features/catalog/usecase/...
 go test -race -tags=integration ./internal/features/catalog/repository/postgres/...
-go test -race -tags=unit ./internal/ -run TestArchitecture   # dependency gates only
+go test -race -tags=unit ./internal/archguard/...   # dependency gates only
 ```
 
 The Taskfile's `dotenv` is deliberately **per-task** (`run`/`test-integration`/`test-e2e`/`migrate-*` only). Do **not** make it global: viper binds env over `config.yaml`, so a global dotenv makes `task test` assert wrong values.
@@ -76,7 +78,7 @@ The Taskfile's `dotenv` is deliberately **per-task** (`run`/`test-integration`/`
 
 - **Naming.** Layer packages are fixed lowercase nouns (`domain`, `contract`, `usecase`, `repository`, `handler`, `di`). Interfaces are named by role, not feature: `usecase.Service` (inbound), `repository.Repository` (outbound). Impls: `Usecase`, `Repository`, `CachedRepository` (decorator), `Handler`, `Application`. Constructors are `New*` returning concrete types; every layer's DI entrypoint is `Register(c do.Injector) error` (or `Register(ctx, c)` when construction needs cancellation).
 - **DI (samber/do/v2).** `internal/app.Build` is the composition root in fixed order; each feature wires itself via `do.Provide(...)` in `di.Register`. Providers implementing `Shutdowner*` are shut down by the container automatically — do not additionally close them in `Application.shutdown`.
-- **Error handling.** Three tiers: (1) **domain sentinels** — package-level `Err<Name>` via `errors.New` in `features/*/domain/errors.go`; (2) **boundary sentinels** — `*AppError{Code, Message, HTTPStatus, Cause}` in `infrastructure/errors` (`ErrNotFound`, `ErrInvalidInput`, `ErrInternal`, …), codes from `pkg/api/errcodes` so served and published codes cannot drift; (3) **registration** — features call `apperrors.RegisterSentinel(domain.ErrX, apperrors.ErrY)` in `di`, and the handler maps any error via `status, body := apperrors.HTTPError(err); return c.JSON(status, body)`. Framework errors (404/405/413) go through the same mapper. The envelope is always `{"error": code, "message": msg}`.
+- **Error handling.** Three tiers: (1) **domain sentinels** — package-level `Err<Name>` via `errors.New` in `features/*/domain/errors.go`; (2) **boundary sentinels** — `*AppError{Code, Message, HTTPStatus, Cause}` in `shared/errors` (`ErrNotFound`, `ErrInvalidInput`, `ErrInternal`, …), codes from `pkg/api/errcodes` so served and published codes cannot drift; (3) **registration** — features call `apperrors.RegisterSentinel(domain.ErrX, apperrors.ErrY)` in `di`, and the handler maps any error via `status, body := apperrors.HTTPError(err); return c.JSON(status, body)`. Framework errors (404/405/413) go through the same mapper. The envelope is always `{"error": code, "message": msg}`.
 - **Config.** Loaded from `config.yaml` + unprefixed env vars (viper + validator); every leaf is explicitly bound in `internal/infrastructure/config`. `CONFIG_FILE` overrides the path. `app.Build` calls `cfg.Validate()`, so bad values fail startup. `CATALOG_ENABLED` / `MACHINES_ENABLED` / `SALES_ENABLED` gate each demo feature's providers and routes entirely.
 - **Persistence.** The SQL schema is owned by golang-migrate files under `repository/postgres/migrations/` (embedded via `//go:embed`). GORM model tags only map to existing columns — **`AutoMigrate` is never used**.
 - **Generated code — regenerate, never hand-edit.** `//go:generate go tool mockgen` directives on `usecase/service.go` and `repository/repository.go` write into `*/mock/`. Tests won't compile after an interface change until `go generate ./...`. `*/mock/` is excluded from lint.
@@ -87,10 +89,10 @@ The Taskfile's `dotenv` is deliberately **per-task** (`run`/`test-integration`/`
 
 - `cmd/server/main.go` — process entry point (config, ldflags vars, signals, `app.Run`).
 - `internal/app/app.go` — composition root: DI wiring order, `Build`, `Run`.
-- `internal/architecture_test.go` — the 9 dependency gates (source of truth for layering).
+- `internal/archguard/layering_test.go` — the dependency-direction gates (source of truth for layering); `imports_test.go` holds the import-surface gates.
 - `internal/features/catalog/di/di.go` — the canonical feature wiring: flag gate, sentinel registration, providers, route mount.
 - `internal/infrastructure/config/config.go` — config struct, per-leaf env binding, `Validate`.
-- `internal/infrastructure/errors/` — `app_error.go`, `sentinel.go`, `mapper.go`, `status.go` (error→HTTP mapping).
+- `internal/shared/errors/` — `app_error.go`, `sentinel.go`, `mapper.go`, `status.go` (error→HTTP mapping).
 - `internal/infrastructure/server/` — `http.go` (echo bootstrap, error handler) and `shutdown.go` (graceful shutdown).
 - `internal/infrastructure/valkey/` — `client.go` (`NewClient`, `NewCacheAside`), `health.go`.
 - `cmd/migrate/fsmerge.go` — merges per-feature embedded migrations.
@@ -109,7 +111,7 @@ The Taskfile's `dotenv` is deliberately **per-task** (`run`/`test-integration`/`
 
 - **Frameworks.** testify (`require` for preconditions, `assert` for final checks; integration suites use `suite.Suite`); `go.uber.org/mock` generated mocks; `go-sqlmock` for GORM repository unit tests; `httptest` + `e.ServeHTTP` for handler tests. Most unit tests call `t.Parallel()`. Test names follow `Test<Type>_<Method>_<Case>`.
 - **Tags.** `unit` (hermetic, mocked — 30+ files), `integration` (live postgres + Valkey, under `repository/postgres/`), `e2e` (`test/e2e/server_e2e_test.go`, boots the server, skips when infra is unreachable). **No tag = no test compiled.**
-- **Architecture gate.** `go test -tags=unit ./internal/ -run TestArchitecture` — run this after any refactor that moves imports or packages.
+- **Architecture gate.** `go test -tags=unit ./internal/archguard/...` — run this after any refactor that moves imports or packages.
 - **Coverage.** 60% total gate, enforced in CI (`ci.yml` unit job) — not in the Taskfile. Measure locally with `task test-unit` then `go tool cover -func=coverage.out | grep total`.
 - **Integration setup.** No testcontainers: tests read `config.Load()` (env-bound), apply migrations in-suite via the embedded `iofs` FS, and `TRUNCATE` between cases; they hard-fail (not skip) when infra is missing, with a production guard.
 - **CI.** `.github/workflows/ci.yml`: `lint` → `unit` (60% gate, codecov, coverage artifact) → `integration` (postgres + Valkey service containers) → `build`; **lint fails on `gofmt -s` diffs and go.mod/go.sum drift**. `security.yml` runs a weekly Trivy + govulncheck scan; `cd.yml` publishes a multi-arch image on a `v*` tag.

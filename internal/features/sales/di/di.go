@@ -14,7 +14,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/sales/repository/postgres"
 	"github.com/zercle/zercle-go-template/internal/features/sales/usecase"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
 // Register wires the sales feature into the composition root. When

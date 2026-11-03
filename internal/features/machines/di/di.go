@@ -14,7 +14,7 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/machines/repository/postgres"
 	"github.com/zercle/zercle-go-template/internal/features/machines/usecase"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	apperrors "github.com/zercle/zercle-go-template/internal/infrastructure/errors"
+	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
 // Register wires the machines feature into the composition root. When
