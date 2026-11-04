@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: docker.io/library/postgres:18-alpine
+    image: mirror.gcr.io/postgres:18-alpine
     container_name: zercle-template-postgres
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -21,7 +21,7 @@ services:
       - zercle-template
 
   valkey:
-    image: docker.io/valkey/valkey:9-alpine
+    image: mirror.gcr.io/valkey/valkey:9-alpine
     container_name: zercle-template-valkey
     command: valkey-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     environment:
