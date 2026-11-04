@@ -69,14 +69,17 @@ zercle-go-template/
 │       └── v1/                 # published inbound contract (alias facade)
 ├── test/
 │   └── e2e/                    # end-to-end tests (task test-e2e)
+├── deployments/
+│   └── observability/          # otel-collector-config.yaml, prometheus.yml
 ├── .editorconfig
 ├── .env.example
 ├── .gitattributes
 ├── .gitignore
 ├── .golangci.yml
-├── compose.yml                 # postgres + valkey + server
+├── compose.yml                 # postgres + valkey + migrate + server
 ├── config.yaml
 ├── Containerfile
+├── Containerfile.migrate
 ├── LICENSE
 ├── README.md
 └── Taskfile.yml
@@ -166,6 +169,8 @@ To replace the demo features (catalog, machines, sales, reporting):
 ## Deployment
 
 - `Containerfile` builds a multi-stage distroless/non-root server image.
-- `compose.yml` runs postgres, valkey, and server locally.
+- `compose.yml` runs postgres, valkey, migrate, and server locally; the `observability` profile adds OTel Collector, Prometheus, and Grafana (`docker compose --profile observability up`).
+- `Containerfile.migrate` builds the migration image; the `migrate` service runs before `server` starts.
+- Observability config lives under `deployments/observability/` (`otel-collector-config.yaml`, `prometheus.yml`).
 - `.github/workflows/cd.yml` publishes a multi-arch server image to ghcr.io on a `v*` tag.
 - Kubernetes manifests and release automation are intentionally omitted; add them per project.

@@ -23,9 +23,11 @@ services:
   valkey:
     image: mirror.gcr.io/valkey/valkey:9-alpine
     container_name: zercle-template-valkey
-    command: valkey-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: >
+      sh -c "valkey-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru $${VALKEY_PASSWORD:+--requirepass \"$$VALKEY_PASSWORD\"}"
     environment:
       VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
+      VALKEYCLI_AUTH: ${VALKEY_PASSWORD:-}
     volumes:
       - valkey_data:/data
     ports:
@@ -38,6 +40,26 @@ services:
     networks:
       - zercle-template
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Containerfile.migrate
+    environment:
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-app}
+      DB_SSL_MODE: disable
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - zercle-template
 
   server:
     build:
@@ -57,6 +79,9 @@ services:
       VALKEY_PORT: 6379
       VALKEY_PASSWORD: ${VALKEY_PASSWORD:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      OTEL_EXPORTER: ${OTEL_EXPORTER:-none}
+      # Container-local endpoint: the collector is a compose service, not localhost.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-zercle-go-template}
     ports:
       - "8080:8080"
@@ -65,13 +90,67 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - zercle-template
 
+  otel-collector:
+    image: mirror.gcr.io/otel/opentelemetry-collector-contrib:0.114.0
+    container_name: zercle-template-otel-collector
+    profiles:
+      - observability
+    command:
+      - --config=/etc/otelcol/config.yaml
+    volumes:
+      - ./deployments/observability/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8888:8888"
+      - "8889:8889"
+    networks:
+      - zercle-template
+
+  prometheus:
+    image: mirror.gcr.io/prom/prometheus:v3.0.1
+    container_name: zercle-template-prometheus
+    profiles:
+      - observability
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+    volumes:
+      - ./deployments/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - zercle-template
+
+  grafana:
+    image: mirror.gcr.io/grafana/grafana:11.4.0
+    container_name: zercle-template-grafana
+    profiles:
+      - observability
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - zercle-template
 
 volumes:
   postgres_data:
   valkey_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   zercle-template:
