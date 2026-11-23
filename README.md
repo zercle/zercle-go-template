@@ -58,7 +58,7 @@ zercle-go-template/
 │   │   ├── lifecycle/          # shared resource-close adapter for DI shutdown
 │   │   ├── telemetry/          # zerolog, tracer, meter, health
 │   │   └── transport/          # router + server lifecycle
-│   │       └── middleware/     # recover, request-id, access-log, cors, otel
+│   │       └── middleware/     # request-id, request-logger, secure, cors, otel
 │   ├── shared/
 │   │   └── errors/             # typed boundary errors + HTTP mapper (feature-agnostic)
 │   └── testutil/               # shared test helpers + fixtures
@@ -118,7 +118,17 @@ The feature list in `internal/app/features.go` is the **single enumeration point
 
 **Migrations are service-owned**: all SQL lives in the root `migrations/` directory as one versioned namespace, embedded by `cmd/migrate` via `go:embed`. `task migrate-up` / `migrate-down` run the self-contained `go run ./cmd/migrate ...` runner; `task migrate-create NAME=<name>` writes into `migrations/` via the golang-migrate CLI. Migration version numbers are a **single namespace across the whole service**: the next migration added takes the next free version.
 
-Configuration is loaded from `config.yaml` and the environment (no prefix) into a typed, validated struct via spf13/viper and go-playground/validator. `CATALOG_ENABLED`, `MACHINES_ENABLED`, `SALES_ENABLED`, and `REPORTING_ENABLED` gate each feature: when false its providers and routes are not registered at all. Name/label and page-size limits (`CATALOG_MAX_NAME_LENGTH`, `CATALOG_MAX_PAGE_SIZE`, `MACHINES_MAX_LABEL_LENGTH`, `MACHINES_MAX_PAGE_SIZE`) are enforced in the usecase layer, so a deployment can raise them without touching request validation. The reporting top-machines bounds (`REPORTING_DEFAULT_TOP_MACHINES`, `REPORTING_MAX_TOP_MACHINES`) are enforced the same way.
+Configuration is loaded from `config.yaml` and the environment (no prefix) into a typed, validated struct via spf13/viper and go-playground/validator. `CATALOG_ENABLED`, `MACHINES_ENABLED`, `SALES_ENABLED`, and `REPORTING_ENABLED` gate each feature: when false its providers and routes are not registered at all. Name/label and page-size limits (`CATALOG_MAX_NAME_LENGTH`, `CATALOG_MAX_PAGE_SIZE`, `MACHINES_MAX_LABEL_LENGTH`, `MACHINES_MAX_PAGE_SIZE`) are enforced in the usecase layer, so a deployment can raise them without touching request validation. The reporting top-machines bounds (`REPORTING_DEFAULT_TOP_MACHINES`, `REPORTING_MAX_TOP_MACHINES`) are enforced the same way. `HTTP_HSTS_MAX_AGE` (duration, default `0s`) controls the `Strict-Transport-Security` header; `0s` disables it.
+
+### HTTP middleware
+
+The middleware stack is built on echo's built-ins (`middleware.RecoverWithConfig`, `middleware.RequestIDWithConfig`, `middleware.RequestLoggerWithConfig`, `middleware.SecureWithConfig`, `middleware.CORSWithConfig`) plus the official `github.com/labstack/echo-otel/v5` module. Registration order (outermost first) in `http.go`: `RequestID`, `Secure`, `OTel`, `RequestLogger`, `Recover`, `CORS`. RequestID is outermost so the id reaches every log line and the response header; OTel is outside Recover so a recovered panic is recorded on the span; RequestLogger is outside Recover so a panicking request still produces exactly one log line (status 500).
+
+- **RequestID** generates a UUID v7 via the standard library `uuid` package. A client-supplied `X-Request-ID` that is empty, longer than 128 characters, or contains a character outside `[A-Za-z0-9_-]` is replaced by a fresh UUID v7; a valid id is propagated unchanged.
+- **Secure** sets `X-XSS-Protection: 1; mode=block`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`. The `Strict-Transport-Security` header is sent only when `HTTP_HSTS_MAX_AGE` is non-zero.
+- **OTel** uses `echootel.NewMiddlewareWithConfig` with explicitly passed tracer provider, meter provider, and propagator (no OTel globals). It records the standard OTel HTTP server metrics, so `/metrics` also carries those series.
+- **RequestLogger** emits one zerolog line per request: `request_id`, `method`, `path`, `status`, `latency`, message `http request`. `HandleError` is false, so the centralized error handler writes the response exactly once.
+- **Recover** wraps echo's default `PanicStackError`; the error handler logs the inner error and the stack as a separate `stack` field while returning the shared `{"error", "message"}` envelope.
 
 ### Routes
 
