@@ -21,7 +21,6 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/machines/usecase/mock"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 	"github.com/zercle/zercle-go-template/internal/testutil"
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // registerSentinelsOnce registers the machines feature's domain sentinels
@@ -68,8 +67,8 @@ func TestHandler_Create(t *testing.T) {
 	e, svc := setupTest(t)
 	id := uuid.New()
 
-	svc.EXPECT().Create(ctx, &apiv1.CreateMachineRequest{Label: "m1", InitialCoins: []int32{25, 25}}).
-		Return(&apiv1.MachineResponse{ID: id.String(), Label: "m1", CoinBank: map[int32]int32{25: 2}}, nil)
+	svc.EXPECT().Create(ctx, "m1", []int32{25, 25}).
+		Return(&domain.Machine{ID: id, Label: "m1", CoinBank: domain.CoinBank{25: 2}}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodPost, "/api/v1/machines",
 		map[string]any{"label": "m1", "initial_coins": []int32{25, 25}})
@@ -120,7 +119,7 @@ func TestHandler_Get(t *testing.T) {
 	id := uuid.New()
 
 	svc.EXPECT().Get(ctx, id.String()).
-		Return(&apiv1.MachineResponse{ID: id.String(), Label: "found"}, nil)
+		Return(&domain.Machine{ID: id, Label: "found", CoinBank: domain.CoinBank{}}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodGet, "/api/v1/machines/"+id.String(), nil)
 
@@ -151,8 +150,8 @@ func TestHandler_List(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().List(ctx, &apiv1.ListMachinesRequest{Limit: 10}).
-		Return(&apiv1.ListMachinesResponse{Machines: []apiv1.MachineResponse{{ID: uuid.New().String(), Label: "listed"}}}, nil)
+	svc.EXPECT().List(ctx, int32(10), int32(0)).
+		Return([]domain.Machine{{ID: uuid.New(), Label: "listed", CoinBank: domain.CoinBank{}}}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodGet, "/api/v1/machines?limit=10", nil)
 
@@ -167,8 +166,8 @@ func TestHandler_RestockBank(t *testing.T) {
 	e, svc := setupTest(t)
 	id := uuid.New()
 
-	svc.EXPECT().RestockBank(ctx, id.String(), &apiv1.RestockBankRequest{Coins: []int32{25, 25}}).
-		Return(&apiv1.MachineResponse{ID: id.String(), Label: "m1", CoinBank: map[int32]int32{25: 2}}, nil)
+	svc.EXPECT().RestockBank(ctx, id.String(), []int32{25, 25}).
+		Return(&domain.Machine{ID: id, Label: "m1", CoinBank: domain.CoinBank{25: 2}}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodPost, "/api/v1/machines/"+id.String()+"/bank",
 		map[string]any{"coins": []int32{25, 25}})
@@ -183,7 +182,7 @@ func TestHandler_RestockBank_UnsupportedCoin(t *testing.T) {
 	e, svc := setupTest(t)
 	id := uuid.New()
 
-	svc.EXPECT().RestockBank(ctx, id.String(), &apiv1.RestockBankRequest{Coins: []int32{7}}).
+	svc.EXPECT().RestockBank(ctx, id.String(), []int32{7}).
 		Return(nil, domain.ErrUnsupportedCoin)
 
 	rec := testutil.DoJSON(t, e, http.MethodPost, "/api/v1/machines/"+id.String()+"/bank",
@@ -203,7 +202,7 @@ func TestHandler_RestockBank_NotFound(t *testing.T) {
 	e, svc := setupTest(t)
 	id := uuid.New()
 
-	svc.EXPECT().RestockBank(ctx, id.String(), &apiv1.RestockBankRequest{Coins: []int32{25}}).
+	svc.EXPECT().RestockBank(ctx, id.String(), []int32{25}).
 		Return(nil, domain.ErrMachineNotFound)
 
 	rec := testutil.DoJSON(t, e, http.MethodPost, "/api/v1/machines/"+id.String()+"/bank",

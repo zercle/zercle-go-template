@@ -7,7 +7,6 @@ import (
 	"uuid"
 
 	"github.com/zercle/zercle-go-template/internal/features/machines/domain"
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // RestockBank validates the coins, applies them to the machine's bank through
@@ -19,14 +18,10 @@ import (
 // this fresh read keeps the response consistent with what a later read returns
 // rather than echoing a locally composed map that a concurrent writer may have
 // already superseded.
-func (u *Usecase) RestockBank(ctx context.Context, id string, req *apiv1.RestockBankRequest) (*apiv1.MachineResponse, error) {
+func (u *Usecase) RestockBank(ctx context.Context, id string, coins []int32) (*domain.Machine, error) {
 	parsed, err := uuid.Parse(id)
 	if err != nil {
 		return nil, domain.ErrInvalidID
-	}
-	var coins []int32
-	if req != nil {
-		coins = req.Coins
 	}
 	if err := domain.ValidateCoins(coins); err != nil {
 		return nil, fmt.Errorf("validate coins: %w", err)
@@ -47,6 +42,5 @@ func (u *Usecase) RestockBank(ctx context.Context, id string, req *apiv1.Restock
 		return nil, fmt.Errorf("get machine after restock: %w", err)
 	}
 
-	resp := newMachineResponse(machine)
-	return &resp, nil
+	return machine, nil
 }
