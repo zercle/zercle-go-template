@@ -2,13 +2,17 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v5"
 
+	"github.com/zercle/zercle-go-template/internal/features/sales/domain"
 	"github.com/zercle/zercle-go-template/internal/features/sales/usecase"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
+
+const timeFormat = time.RFC3339
 
 // Handler exposes the sales usecase service over HTTP.
 type Handler struct {
@@ -42,11 +46,25 @@ func (h *Handler) Purchase(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	resp, err := h.service.Purchase(c.Request().Context(), &req)
+	record, err := h.service.Purchase(c.Request().Context(), req.MachineID, req.ProductID, req.Coins)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusCreated, resp)
+	return c.JSON(http.StatusCreated, newPurchaseResponse(record))
+}
+
+// newPurchaseResponse maps a domain purchase record to its wire form.
+func newPurchaseResponse(record *domain.PurchaseRecord) apiv1.PurchaseResponse {
+	return apiv1.PurchaseResponse{
+		ID:                 record.ID.String(),
+		MachineID:          record.MachineID.String(),
+		ProductID:          record.ProductID.String(),
+		PriceCents:         record.PriceCents,
+		TotalInsertedCents: record.TotalInsertedCents,
+		ChangeCents:        record.ChangeCents,
+		ChangeCoins:        record.ChangeCoins,
+		PurchasedAt:        record.PurchasedAt.Format(timeFormat),
+	}
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/sales/domain"
 	"github.com/zercle/zercle-go-template/internal/features/sales/port/mock"
 	"github.com/zercle/zercle-go-template/internal/features/sales/usecase"
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 func TestService_Purchase_HappyWithChange(t *testing.T) {
@@ -42,11 +41,7 @@ func TestService_Purchase_HappyWithChange(t *testing.T) {
 		})
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
-		MachineID: machineID.String(),
-		ProductID: productID.String(),
-		Coins:     []int32{100},
-	})
+	record, err := svc.Purchase(ctx, machineID.String(), productID.String(), []int32{100})
 
 	require.NoError(t, err)
 	require.NotNil(t, gotRecord)
@@ -56,12 +51,12 @@ func TestService_Purchase_HappyWithChange(t *testing.T) {
 	require.Equal(t, wantChange, gotRecord.ChangeCoins)
 	require.Equal(t, wantRemaining, gotBank, "bankAfter must be the domain-remaining bank")
 
-	require.Equal(t, machineID.String(), resp.MachineID)
-	require.Equal(t, productID.String(), resp.ProductID)
-	require.Equal(t, int32(75), resp.PriceCents)
-	require.Equal(t, int32(25), resp.ChangeCents)
-	require.Equal(t, []int32{25}, resp.ChangeCoins)
-	require.NotEmpty(t, resp.PurchasedAt)
+	require.Equal(t, machineID, record.MachineID)
+	require.Equal(t, productID, record.ProductID)
+	require.Equal(t, int32(75), record.PriceCents)
+	require.Equal(t, int32(25), record.ChangeCents)
+	require.Equal(t, []int32{25}, record.ChangeCoins)
+	require.False(t, record.PurchasedAt.IsZero())
 }
 
 func TestService_Purchase_ExactPayment(t *testing.T) {
@@ -85,16 +80,12 @@ func TestService_Purchase_ExactPayment(t *testing.T) {
 		})
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
-		MachineID: machineID.String(),
-		ProductID: productID.String(),
-		Coins:     []int32{50},
-	})
+	record, err := svc.Purchase(ctx, machineID.String(), productID.String(), []int32{50})
 
 	require.NoError(t, err)
-	require.Equal(t, int32(0), resp.ChangeCents)
-	require.NotNil(t, resp.ChangeCoins)
-	require.Empty(t, resp.ChangeCoins)
+	require.Equal(t, int32(0), record.ChangeCents)
+	require.NotNil(t, record.ChangeCoins)
+	require.Empty(t, record.ChangeCoins)
 	require.Equal(t, bank, gotBank, "no change means the bank is unchanged")
 }
 
@@ -110,14 +101,10 @@ func TestService_Purchase_InsufficientPayment(t *testing.T) {
 	repo.EXPECT().GetMachineBank(ctx, machineID).Return(knownBank(), nil)
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
-		MachineID: machineID.String(),
-		ProductID: productID.String(),
-		Coins:     []int32{25},
-	})
+	record, err := svc.Purchase(ctx, machineID.String(), productID.String(), []int32{25})
 
 	require.ErrorIs(t, err, domain.ErrInsufficientPayment)
-	require.Nil(t, resp)
+	require.Nil(t, record)
 }
 
 func TestService_Purchase_UnsupportedCoinRejected(t *testing.T) {
@@ -127,14 +114,10 @@ func TestService_Purchase_UnsupportedCoinRejected(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo)
 
-	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
-		MachineID: uuid.New().String(),
-		ProductID: uuid.New().String(),
-		Coins:     []int32{7},
-	})
+	record, err := svc.Purchase(ctx, uuid.New().String(), uuid.New().String(), []int32{7})
 
 	require.ErrorIs(t, err, domain.ErrUnsupportedCoin)
-	require.Nil(t, resp)
+	require.Nil(t, record)
 }
 
 func TestService_Purchase_ProductMissing(t *testing.T) {
@@ -147,14 +130,10 @@ func TestService_Purchase_ProductMissing(t *testing.T) {
 	repo.EXPECT().GetProduct(ctx, productID).Return(domain.SaleProduct{}, domain.ErrProductNotFound)
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
-		MachineID: machineID.String(),
-		ProductID: productID.String(),
-		Coins:     []int32{50},
-	})
+	record, err := svc.Purchase(ctx, machineID.String(), productID.String(), []int32{50})
 
 	require.ErrorIs(t, err, domain.ErrProductNotFound)
-	require.Nil(t, resp)
+	require.Nil(t, record)
 }
 
 func TestService_Purchase_MachineMissing(t *testing.T) {
@@ -169,14 +148,10 @@ func TestService_Purchase_MachineMissing(t *testing.T) {
 	repo.EXPECT().GetMachineBank(ctx, machineID).Return(nil, domain.ErrMachineNotFound)
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
-		MachineID: machineID.String(),
-		ProductID: productID.String(),
-		Coins:     []int32{50},
-	})
+	record, err := svc.Purchase(ctx, machineID.String(), productID.String(), []int32{50})
 
 	require.ErrorIs(t, err, domain.ErrMachineNotFound)
-	require.Nil(t, resp)
+	require.Nil(t, record)
 }
 
 func TestService_Purchase_OutOfStock(t *testing.T) {
@@ -191,14 +166,10 @@ func TestService_Purchase_OutOfStock(t *testing.T) {
 	repo.EXPECT().GetMachineBank(ctx, machineID).Return(knownBank(), nil)
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
-		MachineID: machineID.String(),
-		ProductID: productID.String(),
-		Coins:     []int32{50},
-	})
+	record, err := svc.Purchase(ctx, machineID.String(), productID.String(), []int32{50})
 
 	require.ErrorIs(t, err, domain.ErrOutOfStock)
-	require.Nil(t, resp)
+	require.Nil(t, record)
 }
 
 func TestService_Purchase_CommitOutOfStockRacePropagates(t *testing.T) {
@@ -214,14 +185,10 @@ func TestService_Purchase_CommitOutOfStockRacePropagates(t *testing.T) {
 	repo.EXPECT().CommitPurchase(ctx, machineID, productID, gomock.Any(), gomock.Any()).Return(domain.ErrOutOfStock)
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
-		MachineID: machineID.String(),
-		ProductID: productID.String(),
-		Coins:     []int32{50},
-	})
+	record, err := svc.Purchase(ctx, machineID.String(), productID.String(), []int32{50})
 
 	require.ErrorIs(t, err, domain.ErrOutOfStock)
-	require.Nil(t, resp)
+	require.Nil(t, record)
 }
 
 func TestService_Purchase_InvalidMachineID(t *testing.T) {
@@ -231,14 +198,10 @@ func TestService_Purchase_InvalidMachineID(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo)
 
-	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
-		MachineID: "not-a-uuid",
-		ProductID: uuid.New().String(),
-		Coins:     []int32{50},
-	})
+	record, err := svc.Purchase(ctx, "not-a-uuid", uuid.New().String(), []int32{50})
 
 	require.ErrorIs(t, err, domain.ErrInvalidID)
-	require.Nil(t, resp)
+	require.Nil(t, record)
 }
 
 func TestService_Purchase_InvalidProductID(t *testing.T) {
@@ -248,14 +211,10 @@ func TestService_Purchase_InvalidProductID(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo)
 
-	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
-		MachineID: uuid.New().String(),
-		ProductID: "not-a-uuid",
-		Coins:     []int32{50},
-	})
+	record, err := svc.Purchase(ctx, uuid.New().String(), "not-a-uuid", []int32{50})
 
 	require.ErrorIs(t, err, domain.ErrInvalidID)
-	require.Nil(t, resp)
+	require.Nil(t, record)
 }
 
 func knownBank() domain.CoinBank {

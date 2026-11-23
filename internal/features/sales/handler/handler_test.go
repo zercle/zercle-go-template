@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 	"uuid"
 
 	"github.com/go-playground/validator/v10"
@@ -77,10 +78,11 @@ func TestHandler_Purchase(t *testing.T) {
 	machineID := uuid.New().String()
 	productID := uuid.New().String()
 
-	svc.EXPECT().Purchase(ctx, &apiv1.PurchaseRequest{MachineID: machineID, ProductID: productID, Coins: []int32{50, 25}}).
-		Return(&apiv1.PurchaseResponse{
-			ID: uuid.New().String(), MachineID: machineID, ProductID: productID,
+	svc.EXPECT().Purchase(ctx, machineID, productID, []int32{50, 25}).
+		Return(&domain.PurchaseRecord{
+			ID: uuid.New(), MachineID: uuid.MustParse(machineID), ProductID: uuid.MustParse(productID),
 			PriceCents: 50, TotalInsertedCents: 75, ChangeCents: 25, ChangeCoins: []int32{25},
+			PurchasedAt: time.Now().UTC(),
 		}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodPost, "/api/v1/purchases", purchaseBody(machineID, productID, []int32{50, 25}))
@@ -134,7 +136,7 @@ func TestHandler_Purchase_InsufficientPayment(t *testing.T) {
 	machineID := uuid.New().String()
 	productID := uuid.New().String()
 
-	svc.EXPECT().Purchase(ctx, &apiv1.PurchaseRequest{MachineID: machineID, ProductID: productID, Coins: []int32{5}}).
+	svc.EXPECT().Purchase(ctx, machineID, productID, []int32{5}).
 		Return(nil, domain.ErrInsufficientPayment)
 
 	rec := testutil.DoJSON(t, e, http.MethodPost, "/api/v1/purchases", purchaseBody(machineID, productID, []int32{5}))
@@ -154,7 +156,7 @@ func TestHandler_Purchase_OutOfStock(t *testing.T) {
 	machineID := uuid.New().String()
 	productID := uuid.New().String()
 
-	svc.EXPECT().Purchase(ctx, &apiv1.PurchaseRequest{MachineID: machineID, ProductID: productID, Coins: []int32{50}}).
+	svc.EXPECT().Purchase(ctx, machineID, productID, []int32{50}).
 		Return(nil, domain.ErrOutOfStock)
 
 	rec := testutil.DoJSON(t, e, http.MethodPost, "/api/v1/purchases", purchaseBody(machineID, productID, []int32{50}))
@@ -174,7 +176,7 @@ func TestHandler_Purchase_ProductNotFound(t *testing.T) {
 	machineID := uuid.New().String()
 	productID := uuid.New().String()
 
-	svc.EXPECT().Purchase(ctx, &apiv1.PurchaseRequest{MachineID: machineID, ProductID: productID, Coins: []int32{50}}).
+	svc.EXPECT().Purchase(ctx, machineID, productID, []int32{50}).
 		Return(nil, domain.ErrProductNotFound)
 
 	rec := testutil.DoJSON(t, e, http.MethodPost, "/api/v1/purchases", purchaseBody(machineID, productID, []int32{50}))
