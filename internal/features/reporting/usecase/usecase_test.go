@@ -15,7 +15,6 @@ import (
 	"github.com/zercle/zercle-go-template/internal/features/reporting/domain"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/port/mock"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/usecase"
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 const (
@@ -33,13 +32,12 @@ func TestService_Summary_NilRequestUsesDefault(t *testing.T) {
 	repo.EXPECT().GetTopMachines(ctx, testDefaultTop).Return([]domain.MachineSales{}, nil)
 
 	svc := usecase.NewUsecase(repo, testDefaultTop, testMaxTop)
-	resp, err := svc.Summary(ctx, nil)
+	summary, err := svc.Summary(ctx, 0)
 
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.EqualValues(t, 1, resp.Catalog.ProductCount)
-	require.NotNil(t, resp.TopMachines)
-	assert.Empty(t, resp.TopMachines)
+	require.NotNil(t, summary)
+	assert.EqualValues(t, 1, summary.Overview.ProductCount)
+	assert.Empty(t, summary.TopMachines)
 }
 
 func TestService_Summary_NonPositiveTopUsesDefault(t *testing.T) {
@@ -55,10 +53,10 @@ func TestService_Summary_NonPositiveTopUsesDefault(t *testing.T) {
 			repo.EXPECT().GetTopMachines(ctx, testDefaultTop).Return([]domain.MachineSales{}, nil)
 
 			svc := usecase.NewUsecase(repo, testDefaultTop, testMaxTop)
-			resp, err := svc.Summary(ctx, &apiv1.SummaryRequest{TopMachines: top})
+			summary, err := svc.Summary(ctx, top)
 
 			require.NoError(t, err)
-			require.NotNil(t, resp)
+			require.NotNil(t, summary)
 		})
 	}
 }
@@ -70,10 +68,10 @@ func TestService_Summary_TopAboveMaxRejected(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 
 	svc := usecase.NewUsecase(repo, testDefaultTop, testMaxTop)
-	resp, err := svc.Summary(ctx, &apiv1.SummaryRequest{TopMachines: testMaxTop + 1})
+	summary, err := svc.Summary(ctx, testMaxTop+1)
 
 	require.ErrorIs(t, err, domain.ErrInvalidTopMachines)
-	assert.Nil(t, resp)
+	assert.Nil(t, summary)
 }
 
 func TestService_Summary_RepositoryErrorPropagates(t *testing.T) {
@@ -86,13 +84,13 @@ func TestService_Summary_RepositoryErrorPropagates(t *testing.T) {
 	repo.EXPECT().GetOverview(ctx).Return(domain.Overview{}, sentinel)
 
 	svc := usecase.NewUsecase(repo, testDefaultTop, testMaxTop)
-	resp, err := svc.Summary(ctx, &apiv1.SummaryRequest{})
+	summary, err := svc.Summary(ctx, 0)
 
 	require.ErrorIs(t, err, sentinel)
-	assert.Nil(t, resp)
+	assert.Nil(t, summary)
 }
 
-func TestService_Summary_MapsDomainToContract(t *testing.T) {
+func TestService_Summary_MapsDomainToResult(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -115,23 +113,23 @@ func TestService_Summary_MapsDomainToContract(t *testing.T) {
 	}, nil)
 
 	svc := usecase.NewUsecase(repo, testDefaultTop, testMaxTop)
-	resp, err := svc.Summary(ctx, &apiv1.SummaryRequest{TopMachines: 3})
+	summary, err := svc.Summary(ctx, 3)
 
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.EqualValues(t, 4, resp.Catalog.ProductCount)
-	assert.EqualValues(t, 12, resp.Catalog.TotalStock)
-	assert.EqualValues(t, 2, resp.Machines.MachineCount)
-	assert.EqualValues(t, 350, resp.Machines.TotalCoinBankCents)
-	assert.EqualValues(t, 7, resp.Sales.PurchaseCount)
-	assert.EqualValues(t, 900, resp.Sales.RevenueCents)
+	require.NotNil(t, summary)
+	assert.EqualValues(t, 4, summary.Overview.ProductCount)
+	assert.EqualValues(t, 12, summary.Overview.TotalStock)
+	assert.EqualValues(t, 2, summary.Overview.MachineCount)
+	assert.EqualValues(t, 350, summary.Overview.TotalBankCents)
+	assert.EqualValues(t, 7, summary.Overview.PurchaseCount)
+	assert.EqualValues(t, 900, summary.Overview.RevenueCents)
 
-	require.Len(t, resp.TopMachines, 2)
-	assert.Equal(t, firstID.String(), resp.TopMachines[0].MachineID)
-	assert.Equal(t, "lobby", resp.TopMachines[0].Label)
-	assert.EqualValues(t, 5, resp.TopMachines[0].PurchaseCount)
-	assert.EqualValues(t, 700, resp.TopMachines[0].RevenueCents)
-	assert.Equal(t, secondID.String(), resp.TopMachines[1].MachineID)
+	require.Len(t, summary.TopMachines, 2)
+	assert.Equal(t, firstID, summary.TopMachines[0].MachineID)
+	assert.Equal(t, "lobby", summary.TopMachines[0].Label)
+	assert.EqualValues(t, 5, summary.TopMachines[0].PurchaseCount)
+	assert.EqualValues(t, 700, summary.TopMachines[0].RevenueCents)
+	assert.Equal(t, secondID, summary.TopMachines[1].MachineID)
 }
 
 func TestService_Summary_ZeroValueUsecaseUsesFallbackDefaults(t *testing.T) {
@@ -145,8 +143,8 @@ func TestService_Summary_ZeroValueUsecaseUsesFallbackDefaults(t *testing.T) {
 	repo.EXPECT().GetTopMachines(ctx, int32(5)).Return([]domain.MachineSales{}, nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0)
-	resp, err := svc.Summary(ctx, &apiv1.SummaryRequest{})
+	summary, err := svc.Summary(ctx, 0)
 
 	require.NoError(t, err)
-	require.NotNil(t, resp)
+	require.NotNil(t, summary)
 }
