@@ -1,5 +1,4 @@
-// Package di wires the catalog feature into the composition root.
-package di
+package app
 
 import (
 	"errors"
@@ -19,10 +18,10 @@ import (
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
-// Register wires the catalog feature into the composition root. When
+// registerCatalog wires the catalog feature into the composition root. When
 // cfg.Catalog.Enabled is false the feature is not registered at all: no
 // providers, no HTTP routes, no sentinel mappings.
-func Register(c do.Injector) error {
+func registerCatalog(c do.Injector) error {
 	cfg, err := do.Invoke[*config.Config](c)
 	if err != nil {
 		return fmt.Errorf("resolve config: %w", err)
