@@ -10,10 +10,10 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/machines/domain"
 	"github.com/zercle/zercle-go-template/internal/features/machines/handler"
-	"github.com/zercle/zercle-go-template/internal/features/machines/repository"
-	"github.com/zercle/zercle-go-template/internal/features/machines/repository/postgres"
+	"github.com/zercle/zercle-go-template/internal/features/machines/port"
 	"github.com/zercle/zercle-go-template/internal/features/machines/usecase"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/postgres/machines"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
@@ -34,16 +34,16 @@ func Register(c do.Injector) error {
 	apperrors.RegisterSentinel(domain.ErrInvalidMachineLabel, apperrors.ErrInvalidInput)
 	apperrors.RegisterSentinel(domain.ErrUnsupportedCoin, apperrors.ErrInvalidInput)
 
-	do.Provide(c, func(i do.Injector) (repository.Repository, error) {
+	do.Provide(c, func(i do.Injector) (port.Repository, error) {
 		gormDB, err := do.Invoke[*gorm.DB](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve gorm db: %w", err)
 		}
-		return postgres.NewRepository(gormDB), nil
+		return machines.NewRepository(gormDB), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (usecase.Service, error) {
-		repo, err := do.Invoke[repository.Repository](i)
+		repo, err := do.Invoke[port.Repository](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve machines repository: %w", err)
 		}

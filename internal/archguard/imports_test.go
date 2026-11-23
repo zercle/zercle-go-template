@@ -34,11 +34,11 @@ var importRules = []rule{
 		},
 	},
 	{
-		name: "repository-interface-depends-only-on-domain",
-		why:  "the outbound repository interface may reference only its own feature's domain",
+		name: "port-depends-only-on-domain",
+		why:  "the outbound port interface may reference only its own feature's domain",
 		applies: func(rel string) bool {
 			segs := segments(rel)
-			return len(segs) == 3 && segs[0] == "features" && segs[2] == "repository"
+			return len(segs) == 3 && segs[0] == "features" && segs[2] == "port"
 		},
 		denied: func(rel, imp string) bool {
 			if isStdlib(imp) {

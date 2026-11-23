@@ -23,8 +23,8 @@ var layeringRules = []rule{
 		},
 	},
 	{
-		name: "usecase-depends-on-domain-repository-contract",
-		why:  "use cases orchestrate their own feature's domain, repository interface, and wire contract, nothing else",
+		name: "usecase-depends-on-domain-port-contract",
+		why:  "use cases orchestrate their own feature's domain, port interface, and wire contract, nothing else",
 		applies: func(rel string) bool {
 			segs := segments(rel)
 			return len(segs) == 3 && segs[0] == "features" && segs[2] == "usecase"
@@ -38,19 +38,19 @@ var layeringRules = []rule{
 			}
 			f := feature(rel)
 			allowed := map[string]bool{
-				"features/" + f + "/domain":     true,
-				"features/" + f + "/repository": true,
-				"features/" + f + "/contract":   true,
+				"features/" + f + "/domain":   true,
+				"features/" + f + "/port":     true,
+				"features/" + f + "/contract": true,
 			}
 			return !allowed[internalRel(imp)]
 		},
 	},
 	{
-		name: "repository-impl-ignores-usecase-and-handler",
-		why:  "the repository implementation satisfies the repository interface structurally and must not know about the use-case or handler layers",
+		name: "driven-adapter-ignores-usecase-and-handler",
+		why:  "the postgres driven adapter satisfies the port interface structurally and must not know about any feature's use-case or handler layers",
 		applies: func(rel string) bool {
 			segs := segments(rel)
-			return len(segs) >= 4 && segs[0] == "features" && segs[2] == "repository"
+			return len(segs) >= 3 && segs[0] == "infrastructure" && segs[1] == "postgres"
 		},
 		denied: func(_, imp string) bool {
 			rel := internalRel(imp)
@@ -62,24 +62,27 @@ var layeringRules = []rule{
 		},
 	},
 	{
-		name: "handler-ignores-repository",
-		why:  "the driving handler talks to the use-case service only, never to the outbound repository interface or its implementation",
+		name: "handler-ignores-port",
+		why:  "the driving handler talks to the use-case service only, never to the outbound port interface or any infrastructure package",
 		applies: func(rel string) bool {
 			segs := segments(rel)
 			return len(segs) == 3 && segs[0] == "features" && segs[2] == "handler"
 		},
-		denied: func(_, imp string) bool {
-			rel := internalRel(imp)
-			if rel == "" {
+		denied: func(rel, imp string) bool {
+			target := internalRel(imp)
+			if target == "" {
 				return false
 			}
-			segs := segments(rel)
-			return len(segs) >= 3 && segs[0] == "features" && segs[2] == "repository"
+			if strings.HasPrefix(target, "infrastructure/") {
+				return true
+			}
+			segs := segments(target)
+			return len(segs) >= 3 && segs[0] == "features" && segs[1] == feature(rel) && segs[2] == "port"
 		},
 	},
 	{
 		name: "features-registry-imports-only-own-features",
-		why:  "the feature registry enumerates features; it must not depend on infrastructure or anything outside the features tree (samber/do excepted)",
+		why:  "the feature registry enumerates features; it must not depend on anything outside the features tree or the embedded postgres migrations (stdlib and samber/do excepted)",
 		applies: func(rel string) bool {
 			return rel == "features"
 		},
@@ -91,17 +94,27 @@ var layeringRules = []rule{
 			if rel == "" {
 				return true
 			}
-			return !strings.HasPrefix(rel, "features/")
+			return !strings.HasPrefix(rel, "features/") && !strings.HasPrefix(rel, "infrastructure/postgres/")
 		},
 	},
 	{
 		name: "infrastructure-ignores-features",
-		why:  "cross-cutting infrastructure must stay feature-agnostic; features depend on infrastructure, never the reverse",
+		why:  "cross-cutting infrastructure must stay feature-agnostic; only the postgres feature adapters may import their own feature's domain and port",
 		applies: func(rel string) bool {
 			return strings.HasPrefix(rel, "infrastructure/")
 		},
-		denied: func(_, imp string) bool {
-			return strings.HasPrefix(internalRel(imp), "features/")
+		denied: func(rel, imp string) bool {
+			target := internalRel(imp)
+			if !strings.HasPrefix(target, "features/") {
+				return false
+			}
+			segs := segments(rel)
+			if len(segs) >= 3 && segs[0] == "infrastructure" && segs[1] == "postgres" {
+				f := segs[2]
+				tsegs := segments(target)
+				return !(len(tsegs) == 3 && tsegs[1] == f && (tsegs[2] == "domain" || tsegs[2] == "port"))
+			}
+			return true
 		},
 	},
 	{

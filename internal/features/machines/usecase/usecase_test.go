@@ -15,7 +15,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/machines/contract"
 	"github.com/zercle/zercle-go-template/internal/features/machines/domain"
-	"github.com/zercle/zercle-go-template/internal/features/machines/repository/mock"
+	"github.com/zercle/zercle-go-template/internal/features/machines/port/mock"
 	"github.com/zercle/zercle-go-template/internal/features/machines/usecase"
 )
 

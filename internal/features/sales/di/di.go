@@ -10,10 +10,10 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/sales/domain"
 	"github.com/zercle/zercle-go-template/internal/features/sales/handler"
-	"github.com/zercle/zercle-go-template/internal/features/sales/repository"
-	"github.com/zercle/zercle-go-template/internal/features/sales/repository/postgres"
+	"github.com/zercle/zercle-go-template/internal/features/sales/port"
 	"github.com/zercle/zercle-go-template/internal/features/sales/usecase"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/postgres/sales"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
@@ -37,16 +37,16 @@ func Register(c do.Injector) error {
 	apperrors.RegisterSentinel(domain.ErrInsufficientPayment, apperrors.ErrInvalidInput)
 	apperrors.RegisterSentinel(domain.ErrExactChangeRequired, apperrors.ErrInvalidInput)
 
-	do.Provide(c, func(i do.Injector) (repository.Repository, error) {
+	do.Provide(c, func(i do.Injector) (port.Repository, error) {
 		gormDB, err := do.Invoke[*gorm.DB](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve gorm db: %w", err)
 		}
-		return postgres.NewRepository(gormDB), nil
+		return sales.NewRepository(gormDB), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (usecase.Service, error) {
-		repo, err := do.Invoke[repository.Repository](i)
+		repo, err := do.Invoke[port.Repository](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve sales repository: %w", err)
 		}

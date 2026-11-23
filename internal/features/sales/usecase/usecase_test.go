@@ -12,7 +12,7 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/sales/contract"
 	"github.com/zercle/zercle-go-template/internal/features/sales/domain"
-	"github.com/zercle/zercle-go-template/internal/features/sales/repository/mock"
+	"github.com/zercle/zercle-go-template/internal/features/sales/port/mock"
 	"github.com/zercle/zercle-go-template/internal/features/sales/usecase"
 )
 

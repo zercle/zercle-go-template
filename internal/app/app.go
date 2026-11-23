@@ -1,5 +1,5 @@
 // Package app is the reusable composition root. It wires the DI container and
-// constructs a runnable server.Application for tests, CLIs, and the main entry
+// constructs a runnable transport.Application for tests, CLIs, and the main entry
 // point.
 package app
 
@@ -13,9 +13,9 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/db"
-	"github.com/zercle/zercle-go-template/internal/infrastructure/server"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/postgres"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/telemetry"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/transport"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/valkey"
 )
 
@@ -34,7 +34,7 @@ var (
 // the feature registry. On error the partially-wired injector is returned; the
 // caller is responsible for calling injector.Shutdown() to release any
 // providers that were successfully constructed.
-func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Injector, error) {
+func Build(ctx context.Context, cfg *config.Config) (*transport.Application, do.Injector, error) {
 	if cfg == nil {
 		return nil, nil, fmt.Errorf("config is nil")
 	}
@@ -61,7 +61,7 @@ func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Inj
 		Str("env", cfg.App.Environment).
 		Msg("starting server")
 
-	if err := db.Register(ctx, injector); err != nil {
+	if err := postgres.Register(ctx, injector); err != nil {
 		return nil, injector, fmt.Errorf("register database: %w", err)
 	}
 
@@ -69,7 +69,7 @@ func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Inj
 		return nil, injector, fmt.Errorf("register valkey: %w", err)
 	}
 
-	if err := server.Register(injector); err != nil {
+	if err := transport.Register(injector); err != nil {
 		return nil, injector, fmt.Errorf("register shared servers: %w", err)
 	}
 
@@ -77,7 +77,7 @@ func Build(ctx context.Context, cfg *config.Config) (*server.Application, do.Inj
 		return nil, injector, fmt.Errorf("register features: %w", err)
 	}
 
-	application := server.NewApplication(injector, cfg, logger)
+	application := transport.NewApplication(injector, cfg, logger)
 	return application, injector, nil
 }
 

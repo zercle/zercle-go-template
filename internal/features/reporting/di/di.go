@@ -10,10 +10,10 @@ import (
 
 	"github.com/zercle/zercle-go-template/internal/features/reporting/domain"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/handler"
-	"github.com/zercle/zercle-go-template/internal/features/reporting/repository"
-	"github.com/zercle/zercle-go-template/internal/features/reporting/repository/postgres"
+	"github.com/zercle/zercle-go-template/internal/features/reporting/port"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/usecase"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
+	"github.com/zercle/zercle-go-template/internal/infrastructure/postgres/reporting"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
@@ -32,16 +32,16 @@ func Register(c do.Injector) error {
 
 	apperrors.RegisterSentinel(domain.ErrInvalidTopMachines, apperrors.ErrInvalidInput)
 
-	do.Provide(c, func(i do.Injector) (repository.Repository, error) {
+	do.Provide(c, func(i do.Injector) (port.Repository, error) {
 		gormDB, err := do.Invoke[*gorm.DB](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve gorm db: %w", err)
 		}
-		return postgres.NewRepository(gormDB), nil
+		return reporting.NewRepository(gormDB), nil
 	})
 
 	do.Provide(c, func(i do.Injector) (usecase.Service, error) {
-		reportingRepo, err := do.Invoke[repository.Repository](i)
+		reportingRepo, err := do.Invoke[port.Repository](i)
 		if err != nil {
 			return nil, fmt.Errorf("resolve reporting repository: %w", err)
 		}

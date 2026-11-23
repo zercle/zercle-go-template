@@ -11,12 +11,12 @@ import (
 	"github.com/samber/do/v2"
 
 	catalogdi "github.com/zercle/zercle-go-template/internal/features/catalog/di"
-	catalogmigrations "github.com/zercle/zercle-go-template/internal/features/catalog/repository/postgres/migrations"
 	machinesdi "github.com/zercle/zercle-go-template/internal/features/machines/di"
-	machinesmigrations "github.com/zercle/zercle-go-template/internal/features/machines/repository/postgres/migrations"
 	reportingdi "github.com/zercle/zercle-go-template/internal/features/reporting/di"
 	salesdi "github.com/zercle/zercle-go-template/internal/features/sales/di"
-	salesmigrations "github.com/zercle/zercle-go-template/internal/features/sales/repository/postgres/migrations"
+	catalogmigrations "github.com/zercle/zercle-go-template/internal/infrastructure/postgres/catalog/migrations"
+	machinesmigrations "github.com/zercle/zercle-go-template/internal/infrastructure/postgres/machines/migrations"
+	salesmigrations "github.com/zercle/zercle-go-template/internal/infrastructure/postgres/sales/migrations"
 )
 
 // Feature describes one feature's wiring and persistence contributions.
