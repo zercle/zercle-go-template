@@ -9,8 +9,8 @@ import (
 
 // Summary aggregates the cross-feature totals and the top machines into one
 // report. A non-positive top-machines value uses the configured default; a
-// value above the configured maximum is rejected before any repository call
-// so an unbounded leaderboard never reaches the database.
+// value above the configured maximum is rejected before any port call so an
+// unbounded leaderboard never reaches the database.
 func (u *Usecase) Summary(ctx context.Context, topMachines int32) (*domain.Summary, error) {
 	top := topMachines
 	if top <= 0 {

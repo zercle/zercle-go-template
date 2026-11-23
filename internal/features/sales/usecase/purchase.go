@@ -13,7 +13,7 @@ import (
 // records the sale atomically, and returns the durable purchase record.
 //
 // Steps run cheapest-first and fail fast: the two ids are parsed before any
-// repository call, and the coins are validated against the domain before a
+// port call, and the coins are validated against the domain before a
 // read, so a malformed request never reaches the database. domain.Purchase
 // then decides insufficiency, stock, and exact-change against the prices and
 // bank actually read, and CommitPurchase re-checks stock under a lock so a

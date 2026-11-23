@@ -1,6 +1,6 @@
 // Package usecase holds the machines feature's inbound use-case service and
 // its implementation. The HTTP handler consumes the Service interface; the
-// implementation orchestrates the domain and the outbound repository.
+// implementation orchestrates the domain and the outbound port.
 package usecase
 
 import (

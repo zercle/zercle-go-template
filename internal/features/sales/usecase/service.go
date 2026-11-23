@@ -1,7 +1,7 @@
 // Package usecase holds the sales feature's inbound use-case service and its
 // implementation. The HTTP handler consumes the Service interface; the
 // implementation orchestrates the pure purchase domain rules and the outbound
-// repository that commits the sale.
+// port that commits the sale.
 package usecase
 
 import (
