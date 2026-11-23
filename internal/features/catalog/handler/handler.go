@@ -44,25 +44,25 @@ func (h *Handler) Create(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	resp, err := h.service.Create(c.Request().Context(), &req)
+	product, err := h.service.Create(c.Request().Context(), req.Name, req.PriceCents, req.Stock)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusCreated, resp)
+	return c.JSON(http.StatusCreated, toProductResponse(product))
 }
 
 // Get handles GET /products/:id.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Get(c *echo.Context) error {
-	resp, err := h.service.Get(c.Request().Context(), c.Param("id"))
+	product, err := h.service.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, toProductResponse(product))
 }
 
 // List handles GET /products.
@@ -78,11 +78,11 @@ func (h *Handler) List(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	resp, err := h.service.List(c.Request().Context(), &req)
+	products, err := h.service.List(c.Request().Context(), req.Limit, req.Offset)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, toProductResponseList(products))
 }

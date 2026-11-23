@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
+	domain "github.com/zercle/zercle-go-template/internal/features/catalog/domain"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,25 +42,25 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockService) Create(ctx context.Context, req *apiv1.CreateProductRequest) (*apiv1.ProductResponse, error) {
+func (m *MockService) Create(ctx context.Context, name string, priceCents, stock int32) (*domain.Product, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, req)
-	ret0, _ := ret[0].(*apiv1.ProductResponse)
+	ret := m.ctrl.Call(m, "Create", ctx, name, priceCents, stock)
+	ret0, _ := ret[0].(*domain.Product)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockServiceMockRecorder) Create(ctx, req any) *gomock.Call {
+func (mr *MockServiceMockRecorder) Create(ctx, name, priceCents, stock any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockService)(nil).Create), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockService)(nil).Create), ctx, name, priceCents, stock)
 }
 
 // Get mocks base method.
-func (m *MockService) Get(ctx context.Context, id string) (*apiv1.ProductResponse, error) {
+func (m *MockService) Get(ctx context.Context, id string) (*domain.Product, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, id)
-	ret0, _ := ret[0].(*apiv1.ProductResponse)
+	ret0, _ := ret[0].(*domain.Product)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -72,16 +72,16 @@ func (mr *MockServiceMockRecorder) Get(ctx, id any) *gomock.Call {
 }
 
 // List mocks base method.
-func (m *MockService) List(ctx context.Context, req *apiv1.ListProductsRequest) (*apiv1.ListProductsResponse, error) {
+func (m *MockService) List(ctx context.Context, limit, offset int32) ([]domain.Product, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", ctx, req)
-	ret0, _ := ret[0].(*apiv1.ListProductsResponse)
+	ret := m.ctrl.Call(m, "List", ctx, limit, offset)
+	ret0, _ := ret[0].([]domain.Product)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockServiceMockRecorder) List(ctx, req any) *gomock.Call {
+func (mr *MockServiceMockRecorder) List(ctx, limit, offset any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockService)(nil).List), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockService)(nil).List), ctx, limit, offset)
 }
