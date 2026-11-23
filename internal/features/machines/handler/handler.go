@@ -5,9 +5,9 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/zercle/zercle-go-template/internal/features/machines/contract"
 	"github.com/zercle/zercle-go-template/internal/features/machines/usecase"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // Handler exposes the machines usecase service over HTTP.
@@ -35,7 +35,7 @@ func (h *Handler) Register(g *echo.Group) {
 // Create handles POST /machines.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Create(c *echo.Context) error {
-	var req contract.CreateMachineRequest
+	var req apiv1.CreateMachineRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
@@ -69,7 +69,7 @@ func (h *Handler) Get(c *echo.Context) error {
 // List handles GET /machines.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) List(c *echo.Context) error {
-	var req contract.ListMachinesRequest
+	var req apiv1.ListMachinesRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
@@ -91,7 +91,7 @@ func (h *Handler) List(c *echo.Context) error {
 // RestockBank handles POST /machines/:id/bank.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) RestockBank(c *echo.Context) error {
-	var req contract.RestockBankRequest
+	var req apiv1.RestockBankRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)

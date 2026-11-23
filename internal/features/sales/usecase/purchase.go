@@ -6,8 +6,8 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/zercle/zercle-go-template/internal/features/sales/contract"
 	"github.com/zercle/zercle-go-template/internal/features/sales/domain"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 const timeFormat = time.RFC3339
@@ -21,7 +21,7 @@ const timeFormat = time.RFC3339
 // then decides insufficiency, stock, and exact-change against the prices and
 // bank actually read, and CommitPurchase re-checks stock under a lock so a
 // concurrent sale that drained the stock loses the race with ErrOutOfStock.
-func (u *Usecase) Purchase(ctx context.Context, req *contract.PurchaseRequest) (*contract.PurchaseResponse, error) {
+func (u *Usecase) Purchase(ctx context.Context, req *apiv1.PurchaseRequest) (*apiv1.PurchaseResponse, error) {
 	if req == nil {
 		return nil, domain.ErrInvalidID
 	}
@@ -71,11 +71,11 @@ func (u *Usecase) Purchase(ctx context.Context, req *contract.PurchaseRequest) (
 	return &resp, nil
 }
 
-func newPurchaseResponse(record *domain.PurchaseRecord) contract.PurchaseResponse {
+func newPurchaseResponse(record *domain.PurchaseRecord) apiv1.PurchaseResponse {
 	if record == nil {
-		return contract.PurchaseResponse{}
+		return apiv1.PurchaseResponse{}
 	}
-	return contract.PurchaseResponse{
+	return apiv1.PurchaseResponse{
 		ID:                 record.ID.String(),
 		MachineID:          record.MachineID.String(),
 		ProductID:          record.ProductID.String(),

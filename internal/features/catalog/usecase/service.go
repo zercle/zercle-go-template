@@ -6,7 +6,7 @@ package usecase
 import (
 	"context"
 
-	"github.com/zercle/zercle-go-template/internal/features/catalog/contract"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // Service is the inbound use-case interface for products. It speaks the
@@ -15,7 +15,7 @@ import (
 //
 //go:generate go tool mockgen -source=service.go -destination=mock/service_mock.go -package=mock
 type Service interface {
-	Create(ctx context.Context, req *contract.CreateProductRequest) (*contract.ProductResponse, error)
-	Get(ctx context.Context, id string) (*contract.ProductResponse, error)
-	List(ctx context.Context, req *contract.ListProductsRequest) (*contract.ListProductsResponse, error)
+	Create(ctx context.Context, req *apiv1.CreateProductRequest) (*apiv1.ProductResponse, error)
+	Get(ctx context.Context, id string) (*apiv1.ProductResponse, error)
+	List(ctx context.Context, req *apiv1.ListProductsRequest) (*apiv1.ListProductsResponse, error)
 }

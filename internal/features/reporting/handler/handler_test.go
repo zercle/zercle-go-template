@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/zercle/zercle-go-template/internal/features/reporting/contract"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/domain"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/handler"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/usecase/mock"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 	"github.com/zercle/zercle-go-template/internal/testutil"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // registerSentinelsOnce registers the reporting feature's domain sentinels
@@ -56,12 +56,12 @@ func TestHandler_Summary(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().Summary(ctx, &contract.SummaryRequest{TopMachines: 3}).
-		Return(&contract.SummaryResponse{
-			Catalog:  contract.CatalogStats{ProductCount: 2, TotalStock: 8},
-			Machines: contract.MachineStats{MachineCount: 1, TotalCoinBankCents: 350},
-			Sales:    contract.SalesStats{PurchaseCount: 3, RevenueCents: 450},
-			TopMachines: []contract.MachineSales{
+	svc.EXPECT().Summary(ctx, &apiv1.SummaryRequest{TopMachines: 3}).
+		Return(&apiv1.SummaryResponse{
+			Catalog:  apiv1.CatalogStats{ProductCount: 2, TotalStock: 8},
+			Machines: apiv1.MachineStats{MachineCount: 1, TotalCoinBankCents: 350},
+			Sales:    apiv1.SalesStats{PurchaseCount: 3, RevenueCents: 450},
+			TopMachines: []apiv1.MachineSales{
 				{MachineID: "m1", Label: "lobby", PurchaseCount: 3, RevenueCents: 450},
 			},
 		}, nil)
@@ -70,7 +70,7 @@ func TestHandler_Summary(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var body contract.SummaryResponse
+	var body apiv1.SummaryResponse
 	testutil.DecodeJSON(t, rec, &body)
 	require.EqualValues(t, 2, body.Catalog.ProductCount)
 	require.Len(t, body.TopMachines, 1)
@@ -83,8 +83,8 @@ func TestHandler_Summary_DefaultTop(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().Summary(ctx, &contract.SummaryRequest{}).
-		Return(&contract.SummaryResponse{TopMachines: []contract.MachineSales{}}, nil)
+	svc.EXPECT().Summary(ctx, &apiv1.SummaryRequest{}).
+		Return(&apiv1.SummaryResponse{TopMachines: []apiv1.MachineSales{}}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodGet, "/api/v1/reports/summary", nil)
 
@@ -111,7 +111,7 @@ func TestHandler_Summary_ServiceError(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().Summary(ctx, &contract.SummaryRequest{TopMachines: 99}).
+	svc.EXPECT().Summary(ctx, &apiv1.SummaryRequest{TopMachines: 99}).
 		Return(nil, domain.ErrInvalidTopMachines)
 
 	rec := testutil.DoJSON(t, e, http.MethodGet, "/api/v1/reports/summary?top=99", nil)

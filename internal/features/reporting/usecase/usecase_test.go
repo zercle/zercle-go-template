@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/zercle/zercle-go-template/internal/features/reporting/contract"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/domain"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/port/mock"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/usecase"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 const (
@@ -55,7 +55,7 @@ func TestService_Summary_NonPositiveTopUsesDefault(t *testing.T) {
 			repo.EXPECT().GetTopMachines(ctx, testDefaultTop).Return([]domain.MachineSales{}, nil)
 
 			svc := usecase.NewUsecase(repo, testDefaultTop, testMaxTop)
-			resp, err := svc.Summary(ctx, &contract.SummaryRequest{TopMachines: top})
+			resp, err := svc.Summary(ctx, &apiv1.SummaryRequest{TopMachines: top})
 
 			require.NoError(t, err)
 			require.NotNil(t, resp)
@@ -70,7 +70,7 @@ func TestService_Summary_TopAboveMaxRejected(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 
 	svc := usecase.NewUsecase(repo, testDefaultTop, testMaxTop)
-	resp, err := svc.Summary(ctx, &contract.SummaryRequest{TopMachines: testMaxTop + 1})
+	resp, err := svc.Summary(ctx, &apiv1.SummaryRequest{TopMachines: testMaxTop + 1})
 
 	require.ErrorIs(t, err, domain.ErrInvalidTopMachines)
 	assert.Nil(t, resp)
@@ -86,7 +86,7 @@ func TestService_Summary_RepositoryErrorPropagates(t *testing.T) {
 	repo.EXPECT().GetOverview(ctx).Return(domain.Overview{}, sentinel)
 
 	svc := usecase.NewUsecase(repo, testDefaultTop, testMaxTop)
-	resp, err := svc.Summary(ctx, &contract.SummaryRequest{})
+	resp, err := svc.Summary(ctx, &apiv1.SummaryRequest{})
 
 	require.ErrorIs(t, err, sentinel)
 	assert.Nil(t, resp)
@@ -115,7 +115,7 @@ func TestService_Summary_MapsDomainToContract(t *testing.T) {
 	}, nil)
 
 	svc := usecase.NewUsecase(repo, testDefaultTop, testMaxTop)
-	resp, err := svc.Summary(ctx, &contract.SummaryRequest{TopMachines: 3})
+	resp, err := svc.Summary(ctx, &apiv1.SummaryRequest{TopMachines: 3})
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -145,7 +145,7 @@ func TestService_Summary_ZeroValueUsecaseUsesFallbackDefaults(t *testing.T) {
 	repo.EXPECT().GetTopMachines(ctx, int32(5)).Return([]domain.MachineSales{}, nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0)
-	resp, err := svc.Summary(ctx, &contract.SummaryRequest{})
+	resp, err := svc.Summary(ctx, &apiv1.SummaryRequest{})
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)

@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/zercle/zercle-go-template/internal/features/sales/contract"
 	"github.com/zercle/zercle-go-template/internal/features/sales/domain"
 	"github.com/zercle/zercle-go-template/internal/features/sales/port/mock"
 	"github.com/zercle/zercle-go-template/internal/features/sales/usecase"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 func TestService_Purchase_HappyWithChange(t *testing.T) {
@@ -42,7 +42,7 @@ func TestService_Purchase_HappyWithChange(t *testing.T) {
 		})
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &contract.PurchaseRequest{
+	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
 		MachineID: machineID.String(),
 		ProductID: productID.String(),
 		Coins:     []int32{100},
@@ -85,7 +85,7 @@ func TestService_Purchase_ExactPayment(t *testing.T) {
 		})
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &contract.PurchaseRequest{
+	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
 		MachineID: machineID.String(),
 		ProductID: productID.String(),
 		Coins:     []int32{50},
@@ -110,7 +110,7 @@ func TestService_Purchase_InsufficientPayment(t *testing.T) {
 	repo.EXPECT().GetMachineBank(ctx, machineID).Return(knownBank(), nil)
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &contract.PurchaseRequest{
+	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
 		MachineID: machineID.String(),
 		ProductID: productID.String(),
 		Coins:     []int32{25},
@@ -127,7 +127,7 @@ func TestService_Purchase_UnsupportedCoinRejected(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo)
 
-	resp, err := svc.Purchase(ctx, &contract.PurchaseRequest{
+	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
 		MachineID: uuid.New().String(),
 		ProductID: uuid.New().String(),
 		Coins:     []int32{7},
@@ -147,7 +147,7 @@ func TestService_Purchase_ProductMissing(t *testing.T) {
 	repo.EXPECT().GetProduct(ctx, productID).Return(domain.SaleProduct{}, domain.ErrProductNotFound)
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &contract.PurchaseRequest{
+	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
 		MachineID: machineID.String(),
 		ProductID: productID.String(),
 		Coins:     []int32{50},
@@ -169,7 +169,7 @@ func TestService_Purchase_MachineMissing(t *testing.T) {
 	repo.EXPECT().GetMachineBank(ctx, machineID).Return(nil, domain.ErrMachineNotFound)
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &contract.PurchaseRequest{
+	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
 		MachineID: machineID.String(),
 		ProductID: productID.String(),
 		Coins:     []int32{50},
@@ -191,7 +191,7 @@ func TestService_Purchase_OutOfStock(t *testing.T) {
 	repo.EXPECT().GetMachineBank(ctx, machineID).Return(knownBank(), nil)
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &contract.PurchaseRequest{
+	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
 		MachineID: machineID.String(),
 		ProductID: productID.String(),
 		Coins:     []int32{50},
@@ -214,7 +214,7 @@ func TestService_Purchase_CommitOutOfStockRacePropagates(t *testing.T) {
 	repo.EXPECT().CommitPurchase(ctx, machineID, productID, gomock.Any(), gomock.Any()).Return(domain.ErrOutOfStock)
 
 	svc := usecase.NewUsecase(repo)
-	resp, err := svc.Purchase(ctx, &contract.PurchaseRequest{
+	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
 		MachineID: machineID.String(),
 		ProductID: productID.String(),
 		Coins:     []int32{50},
@@ -231,7 +231,7 @@ func TestService_Purchase_InvalidMachineID(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo)
 
-	resp, err := svc.Purchase(ctx, &contract.PurchaseRequest{
+	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
 		MachineID: "not-a-uuid",
 		ProductID: uuid.New().String(),
 		Coins:     []int32{50},
@@ -248,7 +248,7 @@ func TestService_Purchase_InvalidProductID(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo)
 
-	resp, err := svc.Purchase(ctx, &contract.PurchaseRequest{
+	resp, err := svc.Purchase(ctx, &apiv1.PurchaseRequest{
 		MachineID: uuid.New().String(),
 		ProductID: "not-a-uuid",
 		Coins:     []int32{50},

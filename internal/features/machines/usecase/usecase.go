@@ -11,9 +11,9 @@ package usecase
 import (
 	"time"
 
-	"github.com/zercle/zercle-go-template/internal/features/machines/contract"
 	"github.com/zercle/zercle-go-template/internal/features/machines/domain"
 	"github.com/zercle/zercle-go-template/internal/features/machines/port"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 const (
@@ -53,15 +53,15 @@ func NewUsecase(repo port.Repository, defaultPageSize, maxPageSize, maxLabelLeng
 	}
 }
 
-func newMachineResponse(machine *domain.Machine) contract.MachineResponse {
+func newMachineResponse(machine *domain.Machine) apiv1.MachineResponse {
 	if machine == nil {
-		return contract.MachineResponse{}
+		return apiv1.MachineResponse{}
 	}
 	bank := machine.CoinBank
 	if bank == nil {
 		bank = domain.CoinBank{}
 	}
-	return contract.MachineResponse{
+	return apiv1.MachineResponse{
 		ID:        machine.ID.String(),
 		Label:     machine.Label,
 		CoinBank:  bank,

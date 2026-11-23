@@ -24,7 +24,7 @@ var layeringRules = []rule{
 	},
 	{
 		name: "usecase-depends-on-domain-port-contract",
-		why:  "use cases orchestrate their own feature's domain, port interface, and wire contract, nothing else",
+		why:  "use cases orchestrate their own feature's domain, port interface, and the published wire contract (pkg/api/v1), nothing else",
 		applies: func(rel string) bool {
 			segs := segments(rel)
 			return len(segs) == 3 && segs[0] == "features" && segs[2] == "usecase"
@@ -33,14 +33,16 @@ var layeringRules = []rule{
 			if isStdlib(imp) {
 				return false
 			}
+			if imp == modulePath+"/pkg/api/v1" {
+				return false
+			}
 			if isThirdParty(imp) {
 				return true
 			}
 			f := feature(rel)
 			allowed := map[string]bool{
-				"features/" + f + "/domain":   true,
-				"features/" + f + "/port":     true,
-				"features/" + f + "/contract": true,
+				"features/" + f + "/domain": true,
+				"features/" + f + "/port":   true,
 			}
 			return !allowed[internalRel(imp)]
 		},

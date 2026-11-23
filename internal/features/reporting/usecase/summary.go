@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zercle/zercle-go-template/internal/features/reporting/contract"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/domain"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // Summary aggregates the cross-feature totals and the top machines into one
 // report. A nil request or a non-positive top-machines value uses the
 // configured default; a value above the configured maximum is rejected before
 // any repository call so an unbounded leaderboard never reaches the database.
-func (u *Usecase) Summary(ctx context.Context, req *contract.SummaryRequest) (*contract.SummaryResponse, error) {
+func (u *Usecase) Summary(ctx context.Context, req *apiv1.SummaryRequest) (*apiv1.SummaryResponse, error) {
 	var top int32
 	if req != nil {
 		top = req.TopMachines
@@ -37,24 +37,24 @@ func (u *Usecase) Summary(ctx context.Context, req *contract.SummaryRequest) (*c
 	return newSummaryResponse(overview, machines), nil
 }
 
-func newSummaryResponse(overview domain.Overview, machines []domain.MachineSales) *contract.SummaryResponse {
-	resp := &contract.SummaryResponse{
-		Catalog: contract.CatalogStats{
+func newSummaryResponse(overview domain.Overview, machines []domain.MachineSales) *apiv1.SummaryResponse {
+	resp := &apiv1.SummaryResponse{
+		Catalog: apiv1.CatalogStats{
 			ProductCount: overview.ProductCount,
 			TotalStock:   overview.TotalStock,
 		},
-		Machines: contract.MachineStats{
+		Machines: apiv1.MachineStats{
 			MachineCount:       overview.MachineCount,
 			TotalCoinBankCents: overview.TotalBankCents,
 		},
-		Sales: contract.SalesStats{
+		Sales: apiv1.SalesStats{
 			PurchaseCount: overview.PurchaseCount,
 			RevenueCents:  overview.RevenueCents,
 		},
-		TopMachines: make([]contract.MachineSales, len(machines)),
+		TopMachines: make([]apiv1.MachineSales, len(machines)),
 	}
 	for i := range machines {
-		resp.TopMachines[i] = contract.MachineSales{
+		resp.TopMachines[i] = apiv1.MachineSales{
 			MachineID:     machines[i].MachineID.String(),
 			Label:         machines[i].Label,
 			PurchaseCount: machines[i].PurchaseCount,

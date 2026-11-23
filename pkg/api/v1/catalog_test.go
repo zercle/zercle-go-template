@@ -1,6 +1,6 @@
 //go:build unit
 
-package contract_test
+package apiv1_test
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/zercle/zercle-go-template/internal/features/catalog/contract"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // TestCreateProductRequest_StructuralValidation pins that the wire type only
@@ -23,13 +23,13 @@ func TestCreateProductRequest_StructuralValidation(t *testing.T) {
 
 	v := validator.New()
 
-	assert.NoError(t, v.Struct(contract.CreateProductRequest{Name: "Cola", PriceCents: 150, Stock: 3}))
-	assert.NoError(t, v.Struct(contract.CreateProductRequest{Name: strings.Repeat("a", 5000), PriceCents: 150, Stock: 0}))
+	assert.NoError(t, v.Struct(apiv1.CreateProductRequest{Name: "Cola", PriceCents: 150, Stock: 3}))
+	assert.NoError(t, v.Struct(apiv1.CreateProductRequest{Name: strings.Repeat("a", 5000), PriceCents: 150, Stock: 0}))
 
-	assert.Error(t, v.Struct(contract.CreateProductRequest{Name: "", PriceCents: 150, Stock: 3}))
-	assert.Error(t, v.Struct(contract.CreateProductRequest{Name: "Cola", PriceCents: 0, Stock: 3}))
-	assert.Error(t, v.Struct(contract.CreateProductRequest{Name: "Cola", PriceCents: -1, Stock: 3}))
-	assert.Error(t, v.Struct(contract.CreateProductRequest{Name: "Cola", PriceCents: 150, Stock: -1}))
+	assert.Error(t, v.Struct(apiv1.CreateProductRequest{Name: "", PriceCents: 150, Stock: 3}))
+	assert.Error(t, v.Struct(apiv1.CreateProductRequest{Name: "Cola", PriceCents: 0, Stock: 3}))
+	assert.Error(t, v.Struct(apiv1.CreateProductRequest{Name: "Cola", PriceCents: -1, Stock: 3}))
+	assert.Error(t, v.Struct(apiv1.CreateProductRequest{Name: "Cola", PriceCents: 150, Stock: -1}))
 }
 
 // TestListProductsRequest_StructuralValidation pins that pagination bounds are
@@ -40,24 +40,24 @@ func TestListProductsRequest_StructuralValidation(t *testing.T) {
 
 	v := validator.New()
 
-	assert.NoError(t, v.Struct(contract.ListProductsRequest{Limit: 10, Offset: 0}))
-	assert.NoError(t, v.Struct(contract.ListProductsRequest{}))
-	assert.NoError(t, v.Struct(contract.ListProductsRequest{Limit: 100_000, Offset: 0}))
+	assert.NoError(t, v.Struct(apiv1.ListProductsRequest{Limit: 10, Offset: 0}))
+	assert.NoError(t, v.Struct(apiv1.ListProductsRequest{}))
+	assert.NoError(t, v.Struct(apiv1.ListProductsRequest{Limit: 100_000, Offset: 0}))
 
-	assert.Error(t, v.Struct(contract.ListProductsRequest{Limit: -1}))
-	assert.Error(t, v.Struct(contract.ListProductsRequest{Offset: -1}))
+	assert.Error(t, v.Struct(apiv1.ListProductsRequest{Limit: -1}))
+	assert.Error(t, v.Struct(apiv1.ListProductsRequest{Offset: -1}))
 }
 
 func TestResponseJSONFieldNames(t *testing.T) {
 	t.Parallel()
 
-	raw, err := json.Marshal(contract.ProductResponse{ID: "p1"})
+	raw, err := json.Marshal(apiv1.ProductResponse{ID: "p1"})
 	require.NoError(t, err)
 	assert.Contains(t, string(raw), `"price_cents"`)
 	assert.Contains(t, string(raw), `"created_at"`)
 	assert.Contains(t, string(raw), `"updated_at"`)
 
-	raw, err = json.Marshal(contract.ListProductsResponse{})
+	raw, err = json.Marshal(apiv1.ListProductsResponse{})
 	require.NoError(t, err)
 	assert.Contains(t, string(raw), `"products"`)
 }

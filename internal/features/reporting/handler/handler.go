@@ -5,9 +5,9 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/zercle/zercle-go-template/internal/features/reporting/contract"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/usecase"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // Handler exposes the reporting usecase service over HTTP.
@@ -32,7 +32,7 @@ func (h *Handler) Register(g *echo.Group) {
 // Summary handles GET /reports/summary.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Summary(c *echo.Context) error {
-	var req contract.SummaryRequest
+	var req apiv1.SummaryRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)

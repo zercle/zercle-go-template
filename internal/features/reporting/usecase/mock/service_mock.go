@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	contract "github.com/zercle/zercle-go-template/internal/features/reporting/contract"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,10 +42,10 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 }
 
 // Summary mocks base method.
-func (m *MockService) Summary(ctx context.Context, req *contract.SummaryRequest) (*contract.SummaryResponse, error) {
+func (m *MockService) Summary(ctx context.Context, req *apiv1.SummaryRequest) (*apiv1.SummaryResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Summary", ctx, req)
-	ret0, _ := ret[0].(*contract.SummaryResponse)
+	ret0, _ := ret[0].(*apiv1.SummaryResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

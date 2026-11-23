@@ -1,6 +1,6 @@
 //go:build unit
 
-package contract_test
+package apiv1_test
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/zercle/zercle-go-template/internal/features/reporting/contract"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 func TestSummaryRequest_Validation(t *testing.T) {
@@ -20,22 +20,22 @@ func TestSummaryRequest_Validation(t *testing.T) {
 
 	// Absent (zero) falls through to the configured default; an explicit value
 	// must be at least one.
-	assert.NoError(t, v.Struct(contract.SummaryRequest{}))
-	assert.NoError(t, v.Struct(contract.SummaryRequest{TopMachines: 1}))
-	assert.NoError(t, v.Struct(contract.SummaryRequest{TopMachines: 5}))
+	assert.NoError(t, v.Struct(apiv1.SummaryRequest{}))
+	assert.NoError(t, v.Struct(apiv1.SummaryRequest{TopMachines: 1}))
+	assert.NoError(t, v.Struct(apiv1.SummaryRequest{TopMachines: 5}))
 
-	assert.Error(t, v.Struct(contract.SummaryRequest{TopMachines: -1}))
-	assert.Error(t, v.Struct(contract.SummaryRequest{TopMachines: -20}))
+	assert.Error(t, v.Struct(apiv1.SummaryRequest{TopMachines: -1}))
+	assert.Error(t, v.Struct(apiv1.SummaryRequest{TopMachines: -20}))
 }
 
-func TestResponseJSONFieldNames(t *testing.T) {
+func TestReportingResponseJSONFieldNames(t *testing.T) {
 	t.Parallel()
 
-	raw, err := json.Marshal(contract.SummaryResponse{
-		Catalog:  contract.CatalogStats{ProductCount: 2, TotalStock: 8},
-		Machines: contract.MachineStats{MachineCount: 1, TotalCoinBankCents: 350},
-		Sales:    contract.SalesStats{PurchaseCount: 4, RevenueCents: 600},
-		TopMachines: []contract.MachineSales{
+	raw, err := json.Marshal(apiv1.SummaryResponse{
+		Catalog:  apiv1.CatalogStats{ProductCount: 2, TotalStock: 8},
+		Machines: apiv1.MachineStats{MachineCount: 1, TotalCoinBankCents: 350},
+		Sales:    apiv1.SalesStats{PurchaseCount: 4, RevenueCents: 600},
+		TopMachines: []apiv1.MachineSales{
 			{MachineID: "m1", Label: "lobby", PurchaseCount: 4, RevenueCents: 600},
 		},
 	})

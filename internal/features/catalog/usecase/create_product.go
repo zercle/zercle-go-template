@@ -8,14 +8,14 @@ import (
 	"unicode/utf8"
 	"uuid"
 
-	"github.com/zercle/zercle-go-template/internal/features/catalog/contract"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/domain"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // Create validates the name and price, persists a new product, and returns its
 // wire form. The name is trimmed first so surrounding whitespace never counts
 // toward the configured length limit.
-func (u *Usecase) Create(ctx context.Context, req *contract.CreateProductRequest) (*contract.ProductResponse, error) {
+func (u *Usecase) Create(ctx context.Context, req *apiv1.CreateProductRequest) (*apiv1.ProductResponse, error) {
 	var name string
 	var priceCents, stock int32
 	if req != nil {

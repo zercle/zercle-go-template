@@ -10,9 +10,9 @@ package usecase
 import (
 	"time"
 
-	"github.com/zercle/zercle-go-template/internal/features/catalog/contract"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/domain"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/port"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 const (
@@ -52,11 +52,11 @@ func NewUsecase(repo port.Repository, defaultPageSize, maxPageSize, maxNameLengt
 	}
 }
 
-func newProductResponse(product *domain.Product) contract.ProductResponse {
+func newProductResponse(product *domain.Product) apiv1.ProductResponse {
 	if product == nil {
-		return contract.ProductResponse{}
+		return apiv1.ProductResponse{}
 	}
-	return contract.ProductResponse{
+	return apiv1.ProductResponse{
 		ID:         product.ID.String(),
 		Name:       product.Name,
 		PriceCents: product.PriceCents,

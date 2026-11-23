@@ -1,4 +1,4 @@
-package contract
+package apiv1
 
 // PurchaseRequest is the payload for buying a product: the machine, the
 // product, and the coins inserted. Coins are validated structurally (at least

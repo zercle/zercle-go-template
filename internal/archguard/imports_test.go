@@ -8,29 +8,23 @@ import (
 )
 
 // importRules constrain what a package may import at all, independently of
-// the layer-to-layer direction: the wire contract stays a leaf, the outbound
-// port references only its own domain, and the published facade stays
-// outward-only.
+// the layer-to-layer direction: the published contract stays a leaf and the
+// outbound port references only its own domain.
 var importRules = []rule{
 	{
-		name: "published-contract-is-outward-only",
-		why:  "internal code must not import the pkg/api/v1 facade; depend on the feature contract packages directly",
-		applies: func(string) bool {
-			return true
-		},
-		denied: func(_, imp string) bool {
-			return imp == pkgAPIV1 || strings.HasPrefix(imp, pkgAPIV1+"/")
-		},
-	},
-	{
-		name: "contract-is-leaf",
-		why:  "the wire contract must stay dependency-free so the published facade drags in nothing",
+		name: "published-contract-is-leaf",
+		why:  "the published pkg/api contract is the single source of the wire shapes; it may import stdlib and pkg/api/errcodes only, so a consumer never drags the server in",
 		applies: func(rel string) bool {
-			segs := segments(rel)
-			return len(segs) == 3 && segs[0] == "features" && segs[2] == "contract"
+			return strings.HasPrefix(rel, "api/")
 		},
 		denied: func(_, imp string) bool {
-			return !isStdlib(imp)
+			if isStdlib(imp) {
+				return false
+			}
+			if imp == modulePath+"/pkg/api/errcodes" {
+				return false
+			}
+			return true
 		},
 	},
 	{

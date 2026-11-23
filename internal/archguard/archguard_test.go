@@ -14,8 +14,6 @@ import (
 
 const modulePath = "github.com/zercle/zercle-go-template"
 
-const pkgAPIV1 = modulePath + "/pkg/api/v1"
-
 // internalRoot is the internal/ directory the gates scan.
 func internalRoot(t *testing.T) string {
 	t.Helper()
@@ -84,48 +82,56 @@ type rule struct {
 	denied func(rel string, imp string) bool
 }
 
-// checkRules walks the internal tree and reports every rule violation.
+// checkRules walks the internal tree and the published pkg/api tree and reports
+// every rule violation. rel is computed relative to the walked root, so an
+// internal package reads "features/catalog/usecase" while a published one reads
+// "api/v1".
 func checkRules(t *testing.T, rules []rule) {
 	t.Helper()
 
-	root := internalRoot(t)
+	internal := internalRoot(t)
+	// archguard lives at internal/archguard; internalRoot returns the
+	// internal/ directory, so the repo root (and pkg/) is one up.
+	pkgRoot := filepath.Dir(internal) + string(filepath.Separator) + "pkg"
 
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			if d.Name() == "mock" {
-				return filepath.SkipDir // generated mocks re-export everything
+	for _, root := range []string{internal, pkgRoot} {
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
 			}
-			return nil
-		}
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
+			if d.IsDir() {
+				if d.Name() == "mock" {
+					return filepath.SkipDir // generated mocks re-export everything
+				}
+				return nil
+			}
+			if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
 
-		rel := filepath.ToSlash(strings.TrimPrefix(filepath.Dir(path), root+string(filepath.Separator)))
-		if rel == filepath.Dir(path) || filepath.Dir(path) == root {
-			rel = "."
-		}
+			rel := filepath.ToSlash(strings.TrimPrefix(filepath.Dir(path), root+string(filepath.Separator)))
+			if rel == filepath.Dir(path) || filepath.Dir(path) == root {
+				rel = "."
+			}
 
-		fset := token.NewFileSet()
-		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if err != nil {
-			return err
-		}
-		for _, spec := range file.Imports {
-			imp := strings.Trim(spec.Path.Value, `"`)
-			for _, r := range rules {
-				if r.applies(rel) && r.denied(rel, imp) {
-					t.Errorf("%s: package %q violates %s: imports %q (%s)",
-						path, rel, r.name, imp, r.why)
+			fset := token.NewFileSet()
+			file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
+			if err != nil {
+				return err
+			}
+			for _, spec := range file.Imports {
+				imp := strings.Trim(spec.Path.Value, `"`)
+				for _, r := range rules {
+					if r.applies(rel) && r.denied(rel, imp) {
+						t.Errorf("%s: package %q violates %s: imports %q (%s)",
+							path, rel, r.name, imp, r.why)
+					}
 				}
 			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("walk %s tree: %v", root, err)
 		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk internal tree: %v", err)
 	}
 }

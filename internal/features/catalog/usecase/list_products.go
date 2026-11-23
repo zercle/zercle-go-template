@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/zercle/zercle-go-template/internal/features/catalog/contract"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // List returns a paginated list of products. It enforces safe defaults so a
@@ -15,7 +15,7 @@ import (
 // can shift rows across a page boundary (a page may repeat or skip a product).
 // Keyset/cursor pagination on (created_at, id) would be stable but changes the
 // published request contract, so it is left as a documented limitation here.
-func (u *Usecase) List(ctx context.Context, req *contract.ListProductsRequest) (*contract.ListProductsResponse, error) {
+func (u *Usecase) List(ctx context.Context, req *apiv1.ListProductsRequest) (*apiv1.ListProductsResponse, error) {
 	var limit, offset int32
 	if req != nil {
 		limit, offset = req.Limit, req.Offset
@@ -35,7 +35,7 @@ func (u *Usecase) List(ctx context.Context, req *contract.ListProductsRequest) (
 		return nil, fmt.Errorf("list products: %w", err)
 	}
 
-	resp := &contract.ListProductsResponse{Products: make([]contract.ProductResponse, len(products))}
+	resp := &apiv1.ListProductsResponse{Products: make([]apiv1.ProductResponse, len(products))}
 	for i := range products {
 		resp.Products[i] = newProductResponse(&products[i])
 	}

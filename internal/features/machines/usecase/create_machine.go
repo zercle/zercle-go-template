@@ -8,14 +8,14 @@ import (
 	"unicode/utf8"
 	"uuid"
 
-	"github.com/zercle/zercle-go-template/internal/features/machines/contract"
 	"github.com/zercle/zercle-go-template/internal/features/machines/domain"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // Create validates the label and the initial coins, persists a new machine,
 // and returns its wire form. The label is trimmed first so surrounding
 // whitespace never counts toward the configured length limit.
-func (u *Usecase) Create(ctx context.Context, req *contract.CreateMachineRequest) (*contract.MachineResponse, error) {
+func (u *Usecase) Create(ctx context.Context, req *apiv1.CreateMachineRequest) (*apiv1.MachineResponse, error) {
 	var label string
 	var initialCoins []int32
 	if req != nil {

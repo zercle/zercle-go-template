@@ -1,15 +1,12 @@
-// Package contract holds the reporting feature's inbound wire types. They are
-// dependency-free so the published pkg/api/v1 facade can alias them without
-// dragging in server internals.
-package contract
+package apiv1
 
 // SummaryRequest carries the top-machines parameter for GET /reports/summary.
 // It is bound from the GET query string (the query tag); the json tag exists so
-// the type still marshals to the published shape as part of pkg/api/v1, not
-// because the handler reads a JSON body. omitempty lets an absent parameter
-// fall through to the configured default, while an explicit value must be at
-// least one. The upper bound is deployment-configurable and enforced in the
-// usecase layer, so a hardcoded max= tag would drift.
+// the type still marshals to the published shape, not because the handler reads
+// a JSON body. omitempty lets an absent parameter fall through to the configured
+// default, while an explicit value must be at least one. The upper bound is
+// deployment-configurable and enforced in the usecase layer, so a hardcoded max=
+// tag would drift.
 type SummaryRequest struct {
 	TopMachines int32 `json:"top" query:"top" validate:"omitempty,min=1"`
 }

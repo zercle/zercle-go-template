@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/zercle/zercle-go-template/internal/features/catalog/contract"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/domain"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/port/mock"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/usecase"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 func TestService_Create_Happy(t *testing.T) {
@@ -27,7 +27,7 @@ func TestService_Create_Happy(t *testing.T) {
 	repo.EXPECT().Create(ctx, matchProductName("widget")).Return(nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.Create(ctx, &contract.CreateProductRequest{Name: "  widget  ", PriceCents: 250, Stock: 3})
+	resp, err := svc.Create(ctx, &apiv1.CreateProductRequest{Name: "  widget  ", PriceCents: 250, Stock: 3})
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -48,7 +48,7 @@ func TestService_Create_EmptyName(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
 
-	resp, err := svc.Create(ctx, &contract.CreateProductRequest{Name: "   ", PriceCents: 100})
+	resp, err := svc.Create(ctx, &apiv1.CreateProductRequest{Name: "   ", PriceCents: 100})
 
 	require.ErrorIs(t, err, domain.ErrInvalidProductName)
 	require.Nil(t, resp)
@@ -61,7 +61,7 @@ func TestService_Create_OverLengthName(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo, 0, 0, 5)
 
-	resp, err := svc.Create(ctx, &contract.CreateProductRequest{Name: "abcdef", PriceCents: 100})
+	resp, err := svc.Create(ctx, &apiv1.CreateProductRequest{Name: "abcdef", PriceCents: 100})
 
 	require.ErrorIs(t, err, domain.ErrInvalidProductName)
 	require.Nil(t, resp)
@@ -74,7 +74,7 @@ func TestService_Create_NonPositivePrice(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
 
-	resp, err := svc.Create(ctx, &contract.CreateProductRequest{Name: "widget", PriceCents: 0})
+	resp, err := svc.Create(ctx, &apiv1.CreateProductRequest{Name: "widget", PriceCents: 0})
 
 	require.ErrorIs(t, err, domain.ErrInvalidPrice)
 	require.Nil(t, resp)
@@ -89,7 +89,7 @@ func TestService_Create_RepositoryError(t *testing.T) {
 	repo.EXPECT().Create(ctx, matchProductName("widget")).Return(errors.New("boom"))
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.Create(ctx, &contract.CreateProductRequest{Name: "widget", PriceCents: 100})
+	resp, err := svc.Create(ctx, &apiv1.CreateProductRequest{Name: "widget", PriceCents: 100})
 
 	require.Error(t, err)
 	require.Nil(t, resp)
@@ -110,7 +110,7 @@ func TestService_Get_Happy(t *testing.T) {
 	resp, err := svc.Get(ctx, id.String())
 
 	require.NoError(t, err)
-	require.Equal(t, &contract.ProductResponse{
+	require.Equal(t, &apiv1.ProductResponse{
 		ID:         id.String(),
 		Name:       "found",
 		PriceCents: 125,
@@ -160,7 +160,7 @@ func TestService_List_Happy(t *testing.T) {
 	repo.EXPECT().List(ctx, int32(10), int32(5)).Return(expected, nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.List(ctx, &contract.ListProductsRequest{Limit: 10, Offset: 5})
+	resp, err := svc.List(ctx, &apiv1.ListProductsRequest{Limit: 10, Offset: 5})
 
 	require.NoError(t, err)
 	require.Len(t, resp.Products, 1)
@@ -178,7 +178,7 @@ func TestService_List_AppliesDefaultLimit(t *testing.T) {
 	repo.EXPECT().List(ctx, int32(20), int32(0)).Return(nil, nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.List(ctx, &contract.ListProductsRequest{Limit: 0, Offset: 0})
+	resp, err := svc.List(ctx, &apiv1.ListProductsRequest{Limit: 0, Offset: 0})
 
 	require.NoError(t, err)
 	require.NotNil(t, resp.Products)
@@ -194,7 +194,7 @@ func TestService_List_ClampsOverMaxLimit(t *testing.T) {
 	repo.EXPECT().List(ctx, int32(50), int32(0)).Return(nil, nil)
 
 	svc := usecase.NewUsecase(repo, 10, 50, 255)
-	resp, err := svc.List(ctx, &contract.ListProductsRequest{Limit: 999})
+	resp, err := svc.List(ctx, &apiv1.ListProductsRequest{Limit: 999})
 
 	require.NoError(t, err)
 	require.Empty(t, resp.Products)
@@ -209,7 +209,7 @@ func TestService_List_ClampsNegativeOffset(t *testing.T) {
 	repo.EXPECT().List(ctx, int32(10), int32(0)).Return(nil, nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.List(ctx, &contract.ListProductsRequest{Limit: 10, Offset: -3})
+	resp, err := svc.List(ctx, &apiv1.ListProductsRequest{Limit: 10, Offset: -3})
 
 	require.NoError(t, err)
 	require.Empty(t, resp.Products)

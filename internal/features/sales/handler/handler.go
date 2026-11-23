@@ -5,9 +5,9 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/zercle/zercle-go-template/internal/features/sales/contract"
 	"github.com/zercle/zercle-go-template/internal/features/sales/usecase"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // Handler exposes the sales usecase service over HTTP.
@@ -32,7 +32,7 @@ func (h *Handler) Register(g *echo.Group) {
 // Purchase handles POST /purchases.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Purchase(c *echo.Context) error {
-	var req contract.PurchaseRequest
+	var req apiv1.PurchaseRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)

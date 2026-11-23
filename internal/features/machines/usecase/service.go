@@ -6,7 +6,7 @@ package usecase
 import (
 	"context"
 
-	"github.com/zercle/zercle-go-template/internal/features/machines/contract"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // Service is the inbound use-case interface for machines. It speaks the
@@ -15,8 +15,8 @@ import (
 //
 //go:generate go tool mockgen -source=service.go -destination=mock/service_mock.go -package=mock
 type Service interface {
-	Create(ctx context.Context, req *contract.CreateMachineRequest) (*contract.MachineResponse, error)
-	Get(ctx context.Context, id string) (*contract.MachineResponse, error)
-	List(ctx context.Context, req *contract.ListMachinesRequest) (*contract.ListMachinesResponse, error)
-	RestockBank(ctx context.Context, id string, req *contract.RestockBankRequest) (*contract.MachineResponse, error)
+	Create(ctx context.Context, req *apiv1.CreateMachineRequest) (*apiv1.MachineResponse, error)
+	Get(ctx context.Context, id string) (*apiv1.MachineResponse, error)
+	List(ctx context.Context, req *apiv1.ListMachinesRequest) (*apiv1.ListMachinesResponse, error)
+	RestockBank(ctx context.Context, id string, req *apiv1.RestockBankRequest) (*apiv1.MachineResponse, error)
 }

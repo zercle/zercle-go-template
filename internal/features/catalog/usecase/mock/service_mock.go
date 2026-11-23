@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	contract "github.com/zercle/zercle-go-template/internal/features/catalog/contract"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,10 +42,10 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockService) Create(ctx context.Context, req *contract.CreateProductRequest) (*contract.ProductResponse, error) {
+func (m *MockService) Create(ctx context.Context, req *apiv1.CreateProductRequest) (*apiv1.ProductResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, req)
-	ret0, _ := ret[0].(*contract.ProductResponse)
+	ret0, _ := ret[0].(*apiv1.ProductResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -57,10 +57,10 @@ func (mr *MockServiceMockRecorder) Create(ctx, req any) *gomock.Call {
 }
 
 // Get mocks base method.
-func (m *MockService) Get(ctx context.Context, id string) (*contract.ProductResponse, error) {
+func (m *MockService) Get(ctx context.Context, id string) (*apiv1.ProductResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, id)
-	ret0, _ := ret[0].(*contract.ProductResponse)
+	ret0, _ := ret[0].(*apiv1.ProductResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -72,10 +72,10 @@ func (mr *MockServiceMockRecorder) Get(ctx, id any) *gomock.Call {
 }
 
 // List mocks base method.
-func (m *MockService) List(ctx context.Context, req *contract.ListProductsRequest) (*contract.ListProductsResponse, error) {
+func (m *MockService) List(ctx context.Context, req *apiv1.ListProductsRequest) (*apiv1.ListProductsResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx, req)
-	ret0, _ := ret[0].(*contract.ListProductsResponse)
+	ret0, _ := ret[0].(*apiv1.ListProductsResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

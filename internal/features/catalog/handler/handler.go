@@ -5,9 +5,9 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/zercle/zercle-go-template/internal/features/catalog/contract"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/usecase"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // Handler exposes the catalog usecase service over HTTP.
@@ -34,7 +34,7 @@ func (h *Handler) Register(g *echo.Group) {
 // Create handles POST /products.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Create(c *echo.Context) error {
-	var req contract.CreateProductRequest
+	var req apiv1.CreateProductRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
@@ -68,7 +68,7 @@ func (h *Handler) Get(c *echo.Context) error {
 // List handles GET /products.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) List(c *echo.Context) error {
-	var req contract.ListProductsRequest
+	var req apiv1.ListProductsRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
