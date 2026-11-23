@@ -1,4 +1,4 @@
-// Package migrations embeds SQL migration files into the binary for use by
+// Package migrations embeds the SQL migration files into the binary for use by
 // cmd/migrate via the golang-migrate iofs driver.
 package migrations
 

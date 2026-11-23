@@ -61,8 +61,8 @@ tasks:
   fmt:
     desc: Format Go source
     cmds:
-      - gofumpt -w cmd internal pkg test
-      - goimports -w cmd internal pkg test
+      - gofumpt -w cmd internal pkg test migrations
+      - goimports -w cmd internal pkg test migrations
 
   tidy:
     desc: Tidy go.mod and verify
@@ -83,22 +83,22 @@ tasks:
 
 
   migrate-up:
-    desc: Run database migrations (self-contained runner; merges every registered feature's embedded migrations via the registry)
+    desc: Run database migrations (self-contained runner; applies the root migrations/ directory)
     dotenv: [".env"]
     cmds:
       - go run ./cmd/migrate up
 
   migrate-down:
-    desc: Rollback N database migrations with the self-contained runner (default 1)
+    desc: Rollback N database migrations from the root migrations/ directory with the self-contained runner (default 1)
     dotenv: [".env"]
     cmds:
       - go run ./cmd/migrate down {{.N | default 1}}
 
   migrate-create:
-    desc: "Create a new migration in a feature: task migrate-create FEATURE=catalog NAME=add_users (FEATURE = internal/features/<FEATURE>/repository/postgres/migrations)"
+    desc: "Create a new migration in the root migrations/ directory: task migrate-create NAME=add_users"
     dotenv: [".env"]
     cmds:
-      - migrate create -ext sql -dir internal/features/{{.FEATURE}}/repository/postgres/migrations {{.NAME}}
+      - migrate create -ext sql -dir migrations {{.NAME}}
 
   docker-build:
     desc: Build server container image

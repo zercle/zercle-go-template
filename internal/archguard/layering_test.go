@@ -84,7 +84,7 @@ var layeringRules = []rule{
 	},
 	{
 		name: "features-registry-imports-only-own-features",
-		why:  "the feature registry enumerates features; it must not depend on anything outside the features tree or the embedded postgres migrations (stdlib and samber/do excepted)",
+		why:  "the feature registry enumerates features; it must not depend on anything outside the features tree (stdlib and samber/do excepted)",
 		applies: func(rel string) bool {
 			return rel == "features"
 		},
@@ -96,7 +96,7 @@ var layeringRules = []rule{
 			if rel == "" {
 				return true
 			}
-			return !strings.HasPrefix(rel, "features/") && !strings.HasPrefix(rel, "infrastructure/postgres/")
+			return !strings.HasPrefix(rel, "features/")
 		},
 	},
 	{
