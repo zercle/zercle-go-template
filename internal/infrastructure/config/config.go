@@ -62,9 +62,12 @@ type HTTPConfig struct {
 	IdleTimeout        time.Duration `mapstructure:"idle_timeout" validate:"required,min=1s"`
 	BodyLimit          string        `mapstructure:"body_limit" validate:"required"`
 	HealthProbeTimeout time.Duration `mapstructure:"health_probe_timeout" validate:"required,min=1s"`
-	CORSAllowOrigins   []string      `mapstructure:"cors_allow_origins"`
-	CORSAllowMethods   []string      `mapstructure:"cors_allow_methods"`
-	CORSAllowHeaders   []string      `mapstructure:"cors_allow_headers"`
+	// HSTSMaxAge is the Strict-Transport-Security max age. Zero disables the
+	// header (the default); a positive duration is sent as seconds.
+	HSTSMaxAge       time.Duration `mapstructure:"hsts_max_age" validate:"omitempty,min=1s"`
+	CORSAllowOrigins []string      `mapstructure:"cors_allow_origins"`
+	CORSAllowMethods []string      `mapstructure:"cors_allow_methods"`
+	CORSAllowHeaders []string      `mapstructure:"cors_allow_headers"`
 }
 
 // DBConfig holds the PostgreSQL connection and pool settings.
@@ -429,6 +432,7 @@ func leafBindings() []leafBinding {
 		{"http.idle_timeout", "HTTP_IDLE_TIMEOUT"},
 		{"http.body_limit", "HTTP_BODY_LIMIT"},
 		{"http.health_probe_timeout", "HTTP_HEALTH_PROBE_TIMEOUT"},
+		{"http.hsts_max_age", "HTTP_HSTS_MAX_AGE"},
 		{"http.cors_allow_origins", "HTTP_CORS_ALLOW_ORIGINS"},
 		{"http.cors_allow_methods", "HTTP_CORS_ALLOW_METHODS"},
 		{"http.cors_allow_headers", "HTTP_CORS_ALLOW_HEADERS"},
