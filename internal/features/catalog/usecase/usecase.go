@@ -3,24 +3,18 @@
 // implementation orchestrates the domain and the outbound port.
 //
 // Each operation lives in its own file: create_product.go, get_product.go,
-// list_products.go. This file holds the shared implementation type, its
-// constructor, and the domain-to-wire mapping used by every operation.
+// list_products.go. This file holds the shared implementation type and its
+// constructor.
 package usecase
 
 import (
-	"time"
-
-	"github.com/zercle/zercle-go-template/internal/features/catalog/domain"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/port"
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 const (
 	defaultPageSizeFallback int32 = 20
 	maxPageSizeFallback     int32 = 100
 	maxNameLengthFallback   int32 = 255
-
-	timeFormat = time.RFC3339
 )
 
 // Usecase implements the Service inbound use-case interface.
@@ -49,19 +43,5 @@ func NewUsecase(repo port.Repository, defaultPageSize, maxPageSize, maxNameLengt
 		defaultPageSize: defaultPageSize,
 		maxPageSize:     maxPageSize,
 		maxNameLength:   maxNameLength,
-	}
-}
-
-func newProductResponse(product *domain.Product) apiv1.ProductResponse {
-	if product == nil {
-		return apiv1.ProductResponse{}
-	}
-	return apiv1.ProductResponse{
-		ID:         product.ID.String(),
-		Name:       product.Name,
-		PriceCents: product.PriceCents,
-		Stock:      product.Stock,
-		CreatedAt:  product.CreatedAt.Format(timeFormat),
-		UpdatedAt:  product.UpdatedAt.Format(timeFormat),
 	}
 }
