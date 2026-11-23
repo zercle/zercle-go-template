@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
+	domain "github.com/zercle/zercle-go-template/internal/features/machines/domain"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,25 +42,25 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockService) Create(ctx context.Context, req *apiv1.CreateMachineRequest) (*apiv1.MachineResponse, error) {
+func (m *MockService) Create(ctx context.Context, label string, initialCoins []int32) (*domain.Machine, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, req)
-	ret0, _ := ret[0].(*apiv1.MachineResponse)
+	ret := m.ctrl.Call(m, "Create", ctx, label, initialCoins)
+	ret0, _ := ret[0].(*domain.Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockServiceMockRecorder) Create(ctx, req any) *gomock.Call {
+func (mr *MockServiceMockRecorder) Create(ctx, label, initialCoins any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockService)(nil).Create), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockService)(nil).Create), ctx, label, initialCoins)
 }
 
 // Get mocks base method.
-func (m *MockService) Get(ctx context.Context, id string) (*apiv1.MachineResponse, error) {
+func (m *MockService) Get(ctx context.Context, id string) (*domain.Machine, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, id)
-	ret0, _ := ret[0].(*apiv1.MachineResponse)
+	ret0, _ := ret[0].(*domain.Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -72,31 +72,31 @@ func (mr *MockServiceMockRecorder) Get(ctx, id any) *gomock.Call {
 }
 
 // List mocks base method.
-func (m *MockService) List(ctx context.Context, req *apiv1.ListMachinesRequest) (*apiv1.ListMachinesResponse, error) {
+func (m *MockService) List(ctx context.Context, limit, offset int32) ([]domain.Machine, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", ctx, req)
-	ret0, _ := ret[0].(*apiv1.ListMachinesResponse)
+	ret := m.ctrl.Call(m, "List", ctx, limit, offset)
+	ret0, _ := ret[0].([]domain.Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockServiceMockRecorder) List(ctx, req any) *gomock.Call {
+func (mr *MockServiceMockRecorder) List(ctx, limit, offset any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockService)(nil).List), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockService)(nil).List), ctx, limit, offset)
 }
 
 // RestockBank mocks base method.
-func (m *MockService) RestockBank(ctx context.Context, id string, req *apiv1.RestockBankRequest) (*apiv1.MachineResponse, error) {
+func (m *MockService) RestockBank(ctx context.Context, id string, coins []int32) (*domain.Machine, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RestockBank", ctx, id, req)
-	ret0, _ := ret[0].(*apiv1.MachineResponse)
+	ret := m.ctrl.Call(m, "RestockBank", ctx, id, coins)
+	ret0, _ := ret[0].(*domain.Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RestockBank indicates an expected call of RestockBank.
-func (mr *MockServiceMockRecorder) RestockBank(ctx, id, req any) *gomock.Call {
+func (mr *MockServiceMockRecorder) RestockBank(ctx, id, coins any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestockBank", reflect.TypeOf((*MockService)(nil).RestockBank), ctx, id, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RestockBank", reflect.TypeOf((*MockService)(nil).RestockBank), ctx, id, coins)
 }

@@ -4,17 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
+	"github.com/zercle/zercle-go-template/internal/features/machines/domain"
 )
 
 // List returns a paginated list of machines. It enforces safe defaults so a
 // zero-value limit (e.g. no query parameter) never produces LIMIT 0 and a
 // negative offset never reaches the query.
-func (u *Usecase) List(ctx context.Context, req *apiv1.ListMachinesRequest) (*apiv1.ListMachinesResponse, error) {
-	var limit, offset int32
-	if req != nil {
-		limit, offset = req.Limit, req.Offset
-	}
+func (u *Usecase) List(ctx context.Context, limit, offset int32) ([]domain.Machine, error) {
 	if limit <= 0 {
 		limit = u.defaultPageSize
 	}
@@ -30,9 +26,5 @@ func (u *Usecase) List(ctx context.Context, req *apiv1.ListMachinesRequest) (*ap
 		return nil, fmt.Errorf("list machines: %w", err)
 	}
 
-	resp := &apiv1.ListMachinesResponse{Machines: make([]apiv1.MachineResponse, len(machines))}
-	for i := range machines {
-		resp.Machines[i] = newMachineResponse(&machines[i])
-	}
-	return resp, nil
+	return machines, nil
 }

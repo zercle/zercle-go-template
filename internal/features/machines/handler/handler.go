@@ -2,13 +2,17 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v5"
 
+	"github.com/zercle/zercle-go-template/internal/features/machines/domain"
 	"github.com/zercle/zercle-go-template/internal/features/machines/usecase"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
+
+const timeFormat = time.RFC3339
 
 // Handler exposes the machines usecase service over HTTP.
 type Handler struct {
@@ -45,25 +49,25 @@ func (h *Handler) Create(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	resp, err := h.service.Create(c.Request().Context(), &req)
+	machine, err := h.service.Create(c.Request().Context(), req.Label, req.InitialCoins)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusCreated, resp)
+	return c.JSON(http.StatusCreated, toMachineResponse(machine))
 }
 
 // Get handles GET /machines/:id.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Get(c *echo.Context) error {
-	resp, err := h.service.Get(c.Request().Context(), c.Param("id"))
+	machine, err := h.service.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, toMachineResponse(machine))
 }
 
 // List handles GET /machines.
@@ -79,12 +83,16 @@ func (h *Handler) List(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	resp, err := h.service.List(c.Request().Context(), &req)
+	machines, err := h.service.List(c.Request().Context(), req.Limit, req.Offset)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
+	resp := &apiv1.ListMachinesResponse{Machines: make([]apiv1.MachineResponse, len(machines))}
+	for i := range machines {
+		resp.Machines[i] = toMachineResponse(&machines[i])
+	}
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -101,11 +109,28 @@ func (h *Handler) RestockBank(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	resp, err := h.service.RestockBank(c.Request().Context(), c.Param("id"), &req)
+	machine, err := h.service.RestockBank(c.Request().Context(), c.Param("id"), req.Coins)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, toMachineResponse(machine))
+}
+
+func toMachineResponse(m *domain.Machine) apiv1.MachineResponse {
+	if m == nil {
+		return apiv1.MachineResponse{}
+	}
+	bank := m.CoinBank
+	if bank == nil {
+		bank = domain.CoinBank{}
+	}
+	return apiv1.MachineResponse{
+		ID:        m.ID.String(),
+		Label:     m.Label,
+		CoinBank:  bank,
+		CreatedAt: m.CreatedAt.Format(timeFormat),
+		UpdatedAt: m.UpdatedAt.Format(timeFormat),
+	}
 }

@@ -4,24 +4,17 @@
 //
 // Each operation lives in its own file: create_machine.go, get_machine.go,
 // list_machines.go, restock_bank.go. This file holds the shared implementation
-// type, its constructor, and the domain-to-wire mapping used by every
-// operation.
+// type and its constructor.
 package usecase
 
 import (
-	"time"
-
-	"github.com/zercle/zercle-go-template/internal/features/machines/domain"
 	"github.com/zercle/zercle-go-template/internal/features/machines/port"
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 const (
 	defaultPageSizeFallback int32 = 20
 	maxPageSizeFallback     int32 = 100
 	maxLabelLengthFallback  int32 = 255
-
-	timeFormat = time.RFC3339
 )
 
 // Usecase implements the Service inbound use-case interface.
@@ -50,22 +43,5 @@ func NewUsecase(repo port.Repository, defaultPageSize, maxPageSize, maxLabelLeng
 		defaultPageSize: defaultPageSize,
 		maxPageSize:     maxPageSize,
 		maxLabelLength:  maxLabelLength,
-	}
-}
-
-func newMachineResponse(machine *domain.Machine) apiv1.MachineResponse {
-	if machine == nil {
-		return apiv1.MachineResponse{}
-	}
-	bank := machine.CoinBank
-	if bank == nil {
-		bank = domain.CoinBank{}
-	}
-	return apiv1.MachineResponse{
-		ID:        machine.ID.String(),
-		Label:     machine.Label,
-		CoinBank:  bank,
-		CreatedAt: machine.CreatedAt.Format(timeFormat),
-		UpdatedAt: machine.UpdatedAt.Format(timeFormat),
 	}
 }
