@@ -27,8 +27,8 @@ import (
 type CachedRepositoryIntegrationSuite struct {
 	suite.Suite
 	db    *gorm.DB
-	repo  *postgres.Repository
-	cache *postgres.CachedRepository
+	repo  *catalog.Repository
+	cache *catalog.CachedRepository
 	aside valkeyaside.CacheAsideClient
 }
 
@@ -54,8 +54,8 @@ func (s *CachedRepositoryIntegrationSuite) SetupSuite() {
 	s.aside, err = infravalkey.NewCacheAside(ctx, cfg)
 	require.NoError(t, err, "valkey must be reachable: docker compose up -d valkey")
 
-	s.repo = postgres.NewRepository(s.db)
-	s.cache = postgres.NewCachedRepository(s.repo, s.aside, cfg.Valkey.TTL)
+	s.repo = catalog.NewRepository(s.db)
+	s.cache = catalog.NewCachedRepository(s.repo, s.aside, cfg.Valkey.TTL)
 }
 
 func (s *CachedRepositoryIntegrationSuite) TearDownSuite() {

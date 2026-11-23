@@ -18,19 +18,16 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 
-	"github.com/zercle/zercle-go-template/internal/fsmerge"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/postgres"
-	catalogmigrations "github.com/zercle/zercle-go-template/internal/infrastructure/postgres/catalog/migrations"
-	machinesmigrations "github.com/zercle/zercle-go-template/internal/infrastructure/postgres/machines/migrations"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/postgres/reporting"
-	salesmigrations "github.com/zercle/zercle-go-template/internal/infrastructure/postgres/sales/migrations"
+	"github.com/zercle/zercle-go-template/migrations"
 )
 
 type RepositoryIntegrationSuite struct {
 	suite.Suite
 	db   *gorm.DB
-	repo *postgres.Repository
+	repo *reporting.Repository
 }
 
 func (s *RepositoryIntegrationSuite) SetupSuite() {
@@ -50,7 +47,7 @@ func (s *RepositoryIntegrationSuite) SetupSuite() {
 
 	runMigrations(t, cfg)
 
-	s.repo = postgres.NewRepository(s.db)
+	s.repo = reporting.NewRepository(s.db)
 }
 
 func (s *RepositoryIntegrationSuite) TearDownSuite() {
@@ -185,17 +182,16 @@ func (s *RepositoryIntegrationSuite) TestGetTopMachines_RespectsLimit() {
 	assert.Len(t, got, 2)
 }
 
-// runMigrations applies every feature's embedded migrations against cfg's
-// database from ONE merged source in version order (catalog, machines, sales).
-// Reporting owns no schema; it only reads the tables the other features create.
+// runMigrations applies the root migrations/ directory against cfg's database
+// from ONE source, in version order (catalog, machines, sales). A single source
+// matters: golang-migrate reads the next schema_migrations version from its own
+// file set, so per-feature sources against one shared database fail once the
+// first source advances the shared version. Reporting owns no schema; it only
+// reads the tables the other features create.
 func runMigrations(t *testing.T, cfg *config.Config) {
 	t.Helper()
 
-	src, err := iofs.New(fsmerge.Merge(
-		catalogmigrations.FS,
-		machinesmigrations.FS,
-		salesmigrations.FS,
-	), ".")
+	src, err := iofs.New(migrations.FS, ".")
 	require.NoError(t, err)
 
 	m, err := migrate.NewWithSourceInstance("iofs", src, cfg.DBConnString())

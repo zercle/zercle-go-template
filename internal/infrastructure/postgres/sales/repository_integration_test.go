@@ -19,19 +19,16 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/zercle/zercle-go-template/internal/features/sales/domain"
-	"github.com/zercle/zercle-go-template/internal/fsmerge"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/postgres"
-	catalogmigrations "github.com/zercle/zercle-go-template/internal/infrastructure/postgres/catalog/migrations"
-	machinesmigrations "github.com/zercle/zercle-go-template/internal/infrastructure/postgres/machines/migrations"
 	"github.com/zercle/zercle-go-template/internal/infrastructure/postgres/sales"
-	salesmigrations "github.com/zercle/zercle-go-template/internal/infrastructure/postgres/sales/migrations"
+	"github.com/zercle/zercle-go-template/migrations"
 )
 
 type RepositoryIntegrationSuite struct {
 	suite.Suite
 	db   *gorm.DB
-	repo *postgres.Repository
+	repo *sales.Repository
 }
 
 func (s *RepositoryIntegrationSuite) SetupSuite() {
@@ -51,7 +48,7 @@ func (s *RepositoryIntegrationSuite) SetupSuite() {
 
 	runMigrations(t, cfg)
 
-	s.repo = postgres.NewRepository(s.db)
+	s.repo = sales.NewRepository(s.db)
 }
 
 func (s *RepositoryIntegrationSuite) TearDownSuite() {
@@ -207,21 +204,17 @@ func (s *RepositoryIntegrationSuite) TestCommitPurchase_MachineNotFound() {
 	require.EqualValues(t, 1, gotProduct.Stock, "the rollback must restore the stock decrement")
 }
 
-// runMigrations applies every feature's embedded migrations against cfg's
-// database from ONE merged source in version order (catalog, machines, sales).
-// A single source matters: golang-migrate reads the next schema_migrations
-// version from its own file set, so per-feature sources against one shared
-// database fail once the first source advances the shared version. The sales
-// tables reference rows written by catalog and machines, so the sales suite
-// needs all three schemas present.
+// runMigrations applies the root migrations/ directory against cfg's database
+// from ONE source, in version order (catalog, machines, sales). A single source
+// matters: golang-migrate reads the next schema_migrations version from its own
+// file set, so per-feature sources against one shared database fail once the
+// first source advances the shared version. The sales tables reference rows
+// written by catalog and machines, so the sales suite needs all three schemas
+// present.
 func runMigrations(t *testing.T, cfg *config.Config) {
 	t.Helper()
 
-	src, err := iofs.New(fsmerge.Merge(
-		catalogmigrations.FS,
-		machinesmigrations.FS,
-		salesmigrations.FS,
-	), ".")
+	src, err := iofs.New(migrations.FS, ".")
 	require.NoError(t, err)
 
 	m, err := migrate.NewWithSourceInstance("iofs", src, cfg.DBConnString())
