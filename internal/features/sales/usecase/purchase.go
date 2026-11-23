@@ -7,13 +7,10 @@ import (
 	"uuid"
 
 	"github.com/zercle/zercle-go-template/internal/features/sales/domain"
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
-const timeFormat = time.RFC3339
-
 // Purchase validates a coin payment, composes change from the machine bank,
-// records the sale atomically, and returns its wire form.
+// records the sale atomically, and returns the durable purchase record.
 //
 // Steps run cheapest-first and fail fast: the two ids are parsed before any
 // repository call, and the coins are validated against the domain before a
@@ -21,68 +18,47 @@ const timeFormat = time.RFC3339
 // then decides insufficiency, stock, and exact-change against the prices and
 // bank actually read, and CommitPurchase re-checks stock under a lock so a
 // concurrent sale that drained the stock loses the race with ErrOutOfStock.
-func (u *Usecase) Purchase(ctx context.Context, req *apiv1.PurchaseRequest) (*apiv1.PurchaseResponse, error) {
-	if req == nil {
-		return nil, domain.ErrInvalidID
-	}
-	machineID, err := uuid.Parse(req.MachineID)
+func (u *Usecase) Purchase(ctx context.Context, machineID, productID string, coins []int32) (*domain.PurchaseRecord, error) {
+	machine, err := uuid.Parse(machineID)
 	if err != nil {
 		return nil, domain.ErrInvalidID
 	}
-	productID, err := uuid.Parse(req.ProductID)
+	product, err := uuid.Parse(productID)
 	if err != nil {
 		return nil, domain.ErrInvalidID
 	}
-	if err := domain.ValidateCoins(req.Coins); err != nil {
+	if err := domain.ValidateCoins(coins); err != nil {
 		return nil, fmt.Errorf("validate coins: %w", err)
 	}
 
-	product, err := u.repo.GetProduct(ctx, productID)
+	saleProduct, err := u.repo.GetProduct(ctx, product)
 	if err != nil {
 		return nil, fmt.Errorf("get product: %w", err)
 	}
-	bank, err := u.repo.GetMachineBank(ctx, machineID)
+	bank, err := u.repo.GetMachineBank(ctx, machine)
 	if err != nil {
 		return nil, fmt.Errorf("get machine bank: %w", err)
 	}
 
-	change, remaining, err := domain.Purchase(product.PriceCents, product.Stock, bank, req.Coins)
+	change, remaining, err := domain.Purchase(saleProduct.PriceCents, saleProduct.Stock, bank, coins)
 	if err != nil {
 		return nil, fmt.Errorf("purchase: %w", err)
 	}
 
-	totalInserted := domain.SumCoins(req.Coins)
 	record := &domain.PurchaseRecord{
 		ID:                 uuid.New(),
-		MachineID:          machineID,
-		ProductID:          productID,
-		PriceCents:         product.PriceCents,
-		TotalInsertedCents: totalInserted,
+		MachineID:          machine,
+		ProductID:          product,
+		PriceCents:         saleProduct.PriceCents,
+		TotalInsertedCents: domain.SumCoins(coins),
 		ChangeCents:        domain.SumCoins(change),
 		ChangeCoins:        change,
 		PurchasedAt:        time.Now().UTC(),
 	}
 
-	if err := u.repo.CommitPurchase(ctx, machineID, productID, record, remaining); err != nil {
+	if err := u.repo.CommitPurchase(ctx, machine, product, record, remaining); err != nil {
 		return nil, fmt.Errorf("commit purchase: %w", err)
 	}
 
-	resp := newPurchaseResponse(record)
-	return &resp, nil
-}
-
-func newPurchaseResponse(record *domain.PurchaseRecord) apiv1.PurchaseResponse {
-	if record == nil {
-		return apiv1.PurchaseResponse{}
-	}
-	return apiv1.PurchaseResponse{
-		ID:                 record.ID.String(),
-		MachineID:          record.MachineID.String(),
-		ProductID:          record.ProductID.String(),
-		PriceCents:         record.PriceCents,
-		TotalInsertedCents: record.TotalInsertedCents,
-		ChangeCents:        record.ChangeCents,
-		ChangeCoins:        record.ChangeCoins,
-		PurchasedAt:        record.PurchasedAt.Format(timeFormat),
-	}
+	return record, nil
 }
