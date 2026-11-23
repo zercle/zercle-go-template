@@ -13,7 +13,6 @@ import (
 	echomw "github.com/labstack/echo/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
@@ -42,12 +41,12 @@ func (cv *echoValidator) Validate(i any) error {
 const defaultProbeTimeout = 5 * time.Second
 
 // NewHTTP builds and returns an *echo.Echo with the standard middleware stack
-// and shared routes (/healthz, /readyz, /metrics). The tracer provider, meter
-// provider, propagator, and Prometheus gatherer are injected so request spans
-// and metrics are recorded, inbound trace context is honored, and /metrics
-// serves the same registry the meter provider exports into — without
-// depending on process-global OTel or Prometheus state.
-func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Registry, tp trace.TracerProvider, mp metric.MeterProvider, propagator propagation.TextMapPropagator, gatherer prometheus.Gatherer) (*echo.Echo, error) {
+// and shared routes (/healthz, /readyz, /metrics). The tracer provider,
+// propagator, and Prometheus gatherer are injected so request spans are
+// recorded, inbound trace context is honored, and /metrics serves the same
+// registry the Prometheus middleware records into — without depending on
+// process-global OTel or Prometheus state.
+func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Registry, tp trace.TracerProvider, propagator propagation.TextMapPropagator, reg *prometheus.Registry) (*echo.Echo, error) {
 	e := echo.New()
 	e.Validator = &echoValidator{v: validator.New()}
 	e.HTTPErrorHandler = errorHandler(logger)
@@ -55,11 +54,14 @@ func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Reg
 	// first to be the outermost: the id reaches every later log line and the
 	// response header. OTel is registered outside Recover so a recovered panic
 	// is recorded on the span; RequestLogger is registered outside Recover so
-	// a panicking request still produces exactly one log line (status 500).
+	// a panicking request still produces exactly one log line (status 500);
+	// Prometheus is registered after RequestLogger and before Recover so a
+	// recovered panic is counted with status 500.
 	e.Use(middleware.RequestID())
 	e.Use(middleware.Secure(cfg))
-	e.Use(middleware.OTel(tp, mp, propagator))
+	e.Use(middleware.OTel(tp, propagator))
 	e.Use(middleware.RequestLogger(logger))
+	e.Use(middleware.Prometheus(reg))
 	e.Use(echomw.RecoverWithConfig(echomw.DefaultRecoverConfig))
 	e.Use(middleware.CORS(cfg))
 
@@ -81,7 +83,7 @@ func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Reg
 
 	e.GET("/healthz", healthzHandler(registry, logger, probeTimeout))
 	e.GET("/readyz", readyzHandler(registry, logger, probeTimeout))
-	e.GET("/metrics", echo.WrapHandler(telemetry.MetricsHandler(gatherer)))
+	e.GET("/metrics", middleware.MetricsHandler(reg))
 
 	return e, nil
 }

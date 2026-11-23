@@ -17,7 +17,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/propagation"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
@@ -32,9 +31,7 @@ import (
 // exercise routing, health, and binding, not span or metric export.
 func newTestHTTP(t *testing.T, cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Registry) *echo.Echo {
 	t.Helper()
-	mp := sdkmetric.NewMeterProvider()
-	t.Cleanup(func() { _ = mp.Shutdown(context.Background()) })
-	e, err := transport.NewHTTP(cfg, logger, registry, trace.NewTracerProvider(), mp, propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
+	e, err := transport.NewHTTP(cfg, logger, registry, trace.NewTracerProvider(), propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
 	require.NoError(t, err)
 	return e
 }
@@ -91,13 +88,49 @@ func TestNewHTTP_Metrics(t *testing.T) {
 
 	e := newTestHTTP(t, cfg, &logger, registry)
 
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	// Route a request through the middleware first so its collectors are
+	// registered into the registry before /metrics is gathered.
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
 
+	req = httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Contains(t, rec.Body.String(), "go_info")
+	require.Contains(t, rec.Body.String(), "go_info", "the Go collector of our registry must be present")
+	require.Contains(t, rec.Body.String(), "echo_requests_total", "the Prometheus middleware must register its HTTP metrics")
+}
+
+// TestNewHTTP_MetricsUsesRouteTemplateAsURLLabel pins that a request to a route
+// with a path parameter is counted with the route template (c.Path()) as the
+// url label, not the raw path, so one product id stays one series.
+func TestNewHTTP_MetricsUsesRouteTemplateAsURLLabel(t *testing.T) {
+	cfg := newTestConfig(t)
+	logger := zerolog.New(nil)
+	registry := telemetry.NewRegistry()
+
+	e := newTestHTTP(t, cfg, &logger, registry)
+	e.GET("/api/v1/products/:id", func(c *echo.Context) error {
+		return c.NoContent(http.StatusOK)
+	})
+
+	raw := "/api/v1/products/00000000-0000-0000-0000-000000000000"
+	req := httptest.NewRequest(http.MethodGet, raw, nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	req2 := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rec2 := httptest.NewRecorder()
+	e.ServeHTTP(rec2, req2)
+	require.Equal(t, http.StatusOK, rec2.Code)
+
+	body := rec2.Body.String()
+	require.Contains(t, body, `url="/api/v1/products/:id"`, "the url label must be the route template")
+	require.NotContains(t, body, raw, "the raw path must not appear as its own series")
 }
 
 // TestNewHTTP_SecurityHeadersAndRequestID pins that every response carries the
@@ -176,10 +209,8 @@ func TestNewHTTP_RecordsSpanAndLinksParent(t *testing.T) {
 	exporter := tracetest.NewInMemoryExporter()
 	tp := trace.NewTracerProvider(trace.WithSyncer(exporter), trace.WithSampler(trace.AlwaysSample()))
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
-	mp := sdkmetric.NewMeterProvider()
-	t.Cleanup(func() { _ = mp.Shutdown(context.Background()) })
 
-	e, err := transport.NewHTTP(cfg, &logger, registry, tp, mp, propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
+	e, err := transport.NewHTTP(cfg, &logger, registry, tp, propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
 	require.NoError(t, err)
 	e.GET("/items/:id", func(c *echo.Context) error { return c.NoContent(http.StatusNoContent) })
 

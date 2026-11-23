@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
@@ -32,11 +31,8 @@ func newOTelTestEcho(t *testing.T) (*echo.Echo, *tracetest.InMemoryExporter, *tr
 	)
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
 
-	mp := sdkmetric.NewMeterProvider()
-	t.Cleanup(func() { _ = mp.Shutdown(context.Background()) })
-
 	e := echo.New()
-	e.Use(middleware.OTel(tp, mp, propagation.TraceContext{}))
+	e.Use(middleware.OTel(tp, propagation.TraceContext{}))
 	return e, exporter, tp
 }
 
