@@ -56,9 +56,9 @@ zercle-go-template/
 │   │   │   └── <f>/           # the driven adapter of feature <f> (GORM repository + models/)
 │   │   ├── valkey/             # valkey client + cache-aside facade
 │   │   ├── lifecycle/          # shared resource-close adapter for DI shutdown
-│   │   ├── telemetry/          # zerolog, tracer, meter, health
+│   │   ├── telemetry/          # zerolog, tracer, propagator, Prometheus registry, health
 │   │   └── transport/          # router + server lifecycle
-│   │       └── middleware/     # request-id, request-logger, secure, cors, otel
+│   │       └── middleware/     # request-id, request-logger, secure, prometheus, cors, otel
 │   ├── shared/
 │   │   └── errors/             # typed boundary errors + HTTP mapper (feature-agnostic)
 │   └── testutil/               # shared test helpers + fixtures
@@ -122,11 +122,12 @@ Configuration is loaded from `config.yaml` and the environment (no prefix) into 
 
 ### HTTP middleware
 
-The middleware stack is built on echo's built-ins (`middleware.RecoverWithConfig`, `middleware.RequestIDWithConfig`, `middleware.RequestLoggerWithConfig`, `middleware.SecureWithConfig`, `middleware.CORSWithConfig`) plus the official `github.com/labstack/echo-otel/v5` module. Registration order (outermost first) in `http.go`: `RequestID`, `Secure`, `OTel`, `RequestLogger`, `Recover`, `CORS`. RequestID is outermost so the id reaches every log line and the response header; OTel is outside Recover so a recovered panic is recorded on the span; RequestLogger is outside Recover so a panicking request still produces exactly one log line (status 500).
+The middleware stack is built on echo's built-ins (`middleware.RecoverWithConfig`, `middleware.RequestIDWithConfig`, `middleware.RequestLoggerWithConfig`, `middleware.SecureWithConfig`, `middleware.CORSWithConfig`) plus the official `github.com/labstack/echo-otel/v5` module (tracing) and `github.com/labstack/echo-prometheus` (metrics). Registration order (outermost first) in `http.go`: `RequestID`, `Secure`, `OTel`, `RequestLogger`, `Prometheus`, `Recover`, `CORS`. RequestID is outermost so the id reaches every log line and the response header; OTel is outside Recover so a recovered panic is recorded on the span; RequestLogger is outside Recover so a panicking request still produces exactly one log line (status 500); Prometheus sits after RequestLogger and before Recover so a recovered panic is counted with status 500.
 
 - **RequestID** generates a UUID v7 via the standard library `uuid` package. A client-supplied `X-Request-ID` that is empty, longer than 128 characters, or contains a character outside `[A-Za-z0-9_-]` is replaced by a fresh UUID v7; a valid id is propagated unchanged.
 - **Secure** sets `X-XSS-Protection: 1; mode=block`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`. The `Strict-Transport-Security` header is sent only when `HTTP_HSTS_MAX_AGE` is non-zero.
-- **OTel** uses `echootel.NewMiddlewareWithConfig` with explicitly passed tracer provider, meter provider, and propagator (no OTel globals). It records the standard OTel HTTP server metrics, so `/metrics` also carries those series.
+- **OTel** uses `echootel.NewMiddlewareWithConfig` with an explicitly passed tracer provider and propagator (no OTel globals). It instruments tracing only: a no-op metrics recorder keeps it from emitting a second family of HTTP series, because the Prometheus middleware owns the HTTP metrics now.
+- **Prometheus** uses `echoprometheus.NewMiddlewareWithConfig` with the repository's own registry, recording `echo_requests_total`, `echo_request_duration_seconds`, `echo_request_size_bytes`, and `echo_response_size_bytes`, labelled with `code`, `method`, `host`, and `url`. The `url` label is the route template (`c.Path()`, e.g. `/api/v1/products/:id`), so the API does not create one series per id; unmatched routes share one empty `url` label (`DoNotUseRequestPathFor404`). `MetricsHandler` serves this registry from `/metrics`, alongside the Go and process collectors it carries. The metric names can be namespaced with `Namespace`/`Subsystem` when several services share one Prometheus.
 - **RequestLogger** emits one zerolog line per request: `request_id`, `method`, `path`, `status`, `latency`, message `http request`. `HandleError` is false, so the centralized error handler writes the response exactly once.
 - **Recover** wraps echo's default `PanicStackError`; the error handler logs the inner error and the stack as a separate `stack` field while returning the shared `{"error", "message"}` envelope.
 

@@ -19,8 +19,8 @@ type noMetricsRecorder struct{}
 func (noMetricsRecorder) Record(*echo.Context, echootel.RecordValues) {}
 
 // OTel returns echo middleware that creates an OpenTelemetry server span for
-// each request. The providers are passed explicitly so the middleware records
-// spans regardless of whether the OTel globals have been installed. Metrics
+// each request. The tracer provider is passed explicitly so the middleware
+// records spans regardless of whether the OTel globals have been installed. Metrics
 // recording is disabled: the Prometheus middleware owns the HTTP metrics, and
 // recording both would expose two families of HTTP series for the same
 // requests. ServerName is left empty: the server does not know its canonical
