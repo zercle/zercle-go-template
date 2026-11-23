@@ -1,5 +1,5 @@
 // Package di wires the machines feature into the composition root.
-package di
+package app
 
 import (
 	"fmt"
@@ -17,10 +17,10 @@ import (
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
-// Register wires the machines feature into the composition root. When
+// registerMachines wires the machines feature into the composition root. When
 // cfg.Machines.Enabled is false the feature is not registered at all: no
 // providers, no HTTP routes, no sentinel mappings.
-func Register(c do.Injector) error {
+func registerMachines(c do.Injector) error {
 	cfg, err := do.Invoke[*config.Config](c)
 	if err != nil {
 		return fmt.Errorf("resolve config: %w", err)

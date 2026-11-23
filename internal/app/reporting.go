@@ -1,5 +1,5 @@
 // Package di wires the reporting feature into the composition root.
-package di
+package app
 
 import (
 	"fmt"
@@ -17,11 +17,11 @@ import (
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 )
 
-// Register wires the reporting feature into the composition root. When
+// registerReporting wires the reporting feature into the composition root. When
 // cfg.Reporting.Enabled is false the feature is not registered at all: no
 // providers, no HTTP routes, no sentinel mappings. The feature owns no schema,
 // so it contributes no migrations.
-func Register(c do.Injector) error {
+func registerReporting(c do.Injector) error {
 	cfg, err := do.Invoke[*config.Config](c)
 	if err != nil {
 		return fmt.Errorf("resolve config: %w", err)
