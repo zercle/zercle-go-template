@@ -12,7 +12,7 @@ import (
 // Get retrieves a machine by ID, passing through domain.ErrMachineNotFound. The
 // wire id string is parsed here so both driving adapters share one validation
 // path. A syntactically valid but absent id (including the nil UUID) is a
-// not-found, which the repository decides.
+// not-found, which the port decides.
 func (u *Usecase) Get(ctx context.Context, id string) (*domain.Machine, error) {
 	parsed, err := uuid.Parse(id)
 	if err != nil {
