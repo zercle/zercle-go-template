@@ -30,43 +30,43 @@ zercle-go-template/
 │   └── workflows/              # ci.yml (lint/unit/integration/build), cd.yml, security.yml
 ├── bin/                        # build output (ignored)
 ├── cmd/
-│   ├── migrate/main.go         # self-contained migration runner
-│   └── server/main.go          # entry point: loads config, delegates to internal/app
+│   ├── migrate/                # self-contained migration runner (embeds migrations/)
+│   └── server/                 # entry point: loads config, delegates to internal/app
 ├── internal/
-│   ├── app/                    # reusable composition root (DI wiring, app.Run)
+│   ├── app/                    # THE composition root: Build/Run + one wiring file per feature + the feature list
+│   │   ├── features.go         # the ordered feature list
+│   │   └── <f>.go              # per-feature wiring (catalog.go, machines.go, sales.go, reporting.go)
 │   ├── archguard/              # executable dependency gates (runs in task test)
 │   │   ├── layering_test.go    # dependency direction between the layers
-│   │   └── imports_test.go    # what a package may import at all
+│   │   └── imports_test.go     # what a package may import at all
 │   ├── features/
-│   │   ├── features.go         # feature registry: the single enumeration point
 │   │   ├── catalog/            # global product pool (price + stock)
 │   │   ├── machines/           # vending machines + their coin banks
 │   │   ├── sales/              # purchases: price a sale, compose change, commit
 │   │   └── reporting/          # read-only cross-feature GET /api/v1/reports/summary (no migrations)
 │   │       # catalog, machines, sales, and reporting each repeat the same
-│   │       # layer layout below (reporting owns no migrations):
+│   │       # layer layout below (reporting owns no schema):
 │   │       ├── domain/         # entities + sentinel errors (standard library only)
-│   │       ├── contract/       # canonical inbound wire types
-│   │       ├── usecase/        # use-case service + one file per operation + mocks
-│   │       ├── repository/     # outbound interface + mocks
-│   │       │   └── postgres/  # GORM repository + cache aside + models + migrations
-│   │       ├── handler/        # echo v5 HTTP handler
-│   │       └── di/             # feature wiring
+│   │       ├── port/           # outbound interface + port/mock/ generated doubles
+│   │       ├── usecase/        # business logic, one operation per file + usecase/mock/
+│   │       └── handler/        # driving adapter: binds the wire contract, maps the response
 │   ├── infrastructure/         # cross-cutting infrastructure
 │   │   ├── config/             # validated viper config
-│   │   ├── db/                 # gorm pool + zerolog GORM logger
+│   │   ├── postgres/           # the postgres client (connection, logger, health, shutdowner)
+│   │   │   └── <f>/           # the driven adapter of feature <f> (GORM repository + models/)
 │   │   ├── valkey/             # valkey client + cache-aside facade
 │   │   ├── lifecycle/          # shared resource-close adapter for DI shutdown
-│   │   ├── middleware/         # recover, request-id, access-log, cors, otel
-│   │   ├── server/             # echo bootstrap + graceful shutdown
-│   │   └── telemetry/          # zerolog, tracer, meter, health
+│   │   ├── telemetry/          # zerolog, tracer, propagator, Prometheus registry, health
+│   │   └── transport/          # router + server lifecycle
+│   │       └── middleware/     # request-id, request-logger, secure, prometheus, cors, otel
 │   ├── shared/
 │   │   └── errors/             # typed boundary errors + HTTP mapper (feature-agnostic)
 │   └── testutil/               # shared test helpers + fixtures
 ├── pkg/
 │   └── api/
 │       ├── errcodes/           # published error-code constants
-│       └── v1/                 # published inbound contract (alias facade)
+│       └── v1/                 # the published wire contract (canonical request/response types)
+├── migrations/                 # versioned SQL (one directory for the whole service)
 ├── test/
 │   └── e2e/                    # end-to-end tests (task test-e2e)
 ├── deployments/
@@ -90,35 +90,46 @@ zercle-go-template/
 The template follows **clean (DDD) architecture** inside each feature, with all dependencies pointing inward:
 
 ```
-consumer services ──> pkg/api/v1 ──> features/*/contract    (published contract, outward-only)
-handler ──> usecase.Service ──> repository.Repository <── repository/postgres
+consumer services ──> pkg/api/v1    (published wire contract)
+handler ──> usecase.Service ──> port.Repository <── infrastructure/postgres/<f>
 all layers ──> domain (entities + sentinel errors)
-infrastructure/* ── cross-cutting, never imports features/**
+infrastructure/* and shared/* ── feature-agnostic, never import features/**
 ```
 
 - `domain` holds entities and sentinel errors (standard library only: `uuid` is stdlib in Go 1.27+).
-- `contract` holds the canonical inbound wire types (json/validate tags, zero dependencies) — the single source of the API shapes.
-- `usecase` declares the inbound use-case service (`Service`, speaking contract types) and its `Usecase` implementation, one file per operation (`create_product.go`, `get_product.go`, `list_products.go`, …).
-- `repository` declares the outbound (driven) interface; `repository/postgres` satisfies it structurally with GORM (over pgx) and owns the persistence models and SQL migrations.
-- `handler` is the driving adapter: the echo handler binds contract types directly.
-- `internal/infrastructure` consolidates cross-cutting technical plumbing: config, db pool, valkey, middleware, servers, telemetry.
+- `port` declares the outbound (driven) interface the feature calls, with its generated doubles in `port/mock/`.
+- `usecase` speaks **domain types only** — it takes and returns domain values, never wire types — with one file per operation (`purchase.go`, `create_product.go`, …) and its generated doubles in `usecase/mock/`.
+- `handler` is the driving adapter: the echo handler binds and validates the `pkg/api/v1` request, translates it into the usecase's domain inputs, and maps the domain result back to the `pkg/api/v1` response.
+- `internal/infrastructure/postgres/<f>` is the driven adapter of feature `<f>`: the GORM repository, its persistence models, and the cache-aside decorator. `internal/infrastructure/postgres` also holds the postgres client itself.
+- `internal/infrastructure` consolidates cross-cutting technical plumbing: config, postgres, valkey, lifecycle, telemetry, and transport (router + server lifecycle, with `transport/middleware/`).
 - `internal/shared` holds code every feature uses: the typed boundary errors and the HTTP mapper that turns them into the response envelope.
 
-**Published inbound contract.** `pkg/api/v1` is an alias facade over the feature's `contract` types plus the error codes in `pkg/api/errcodes`, so another Go service can construct payloads and interpret the `{"error": code, "message": msg}` envelope without importing server internals. Internal code never imports `pkg/api/v1`.
+**Published wire contract.** `pkg/api/v1` is the canonical source of the HTTP JSON shapes, plus the error codes in `pkg/api/errcodes`, so another Go service can construct payloads and interpret the `{"error": code, "message": msg}` envelope without importing server internals. It stays a leaf package; internal code imports it to speak the wire shapes.
 
-**Executable dependency gates.** `internal/archguard/` scans imports across `internal/` and fails when a layer reaches sideways or outward: facade imports, domain/contract purity, usecase's allowlist, repository/handler separation, and infrastructure's and shared's feature-agnosticism. `layering_test.go` holds the direction rules, `imports_test.go` the import-surface rules. It runs as part of `task test`.
+**Executable dependency gates.** `internal/archguard/` scans imports across `internal/` and `pkg/api/` and fails when a layer reaches sideways or outward: domain purity, usecase/port separation, handler separation, the driven adapters' independence, infrastructure's feature-agnosticism, shared's feature-agnosticism, and the published contract's leaf-ness. `layering_test.go` holds the direction rules, `imports_test.go` the import-surface rules. It runs as part of `task test`.
 
-Composition uses **samber/do/v2**: every layer exposes `Register(c *do.Injector) error`. `internal/app` is the reusable composition root that wires the DI container by iterating the feature registry in `internal/features/features.go`; `cmd/server/main.go` is a thin entry point that loads config, sets build-time vars (Version/CommitSHA/BuildTime), and calls `app.Run`, which bootstraps the container in dependency order:
+Composition uses **samber/do/v2**. `internal/app` is the **single composition root**: it holds `Build`/`Run`, one wiring file per feature (`catalog.go`, `machines.go`, `sales.go`, `reporting.go`), and the ordered feature list in `features.go`. `cmd/server/main.go` is a thin entry point that loads config, sets build-time vars (Version/CommitSHA/BuildTime), and calls `app.Run`, which bootstraps the container in dependency order:
 
 ```
-infrastructure (config → telemetry → db → valkey → server) → features
+infrastructure (config → telemetry → postgres → valkey → transport) → features
 ```
 
-The registry is the **single enumeration point**: `features.List` holds one `Feature` (`Name`, `Register`, `Migrations`) per feature, `features.RegisterAll` wires the DI container, and `features.MigrationSources` feeds the migration runner. Adding or deleting a feature is therefore one entry in that list plus the feature's own directory. That order is also the migration order: `catalog` owns schema version 1, `machines` version 2, `sales` version 3; `reporting` registers with no migrations because it owns no schema of its own.
+The feature list in `internal/app/features.go` is the **single enumeration point**: one entry per feature in registration order. Adding or deleting a feature is therefore one entry in that list plus the feature's own directory and its wiring file.
 
-**Migrations are feature-owned**: each feature's SQL lives in its `repository/postgres/migrations/` and is embedded per feature; `cmd/migrate` merges every registered feature's migrations via `migrationSources()` in `cmd/migrate/fsmerge.go`, which delegates to the registry, so deleting a feature deletes its schema with it. `task migrate-up` / `migrate-down` run the self-contained `go run ./cmd/migrate ...` runner; `migrate-create` still uses the golang-migrate CLI and takes the target directory from `FEATURE=<name>`. Migration version numbers are a **single namespace across all features**, not per feature: the next migration added to any feature takes the next free version.
+**Migrations are service-owned**: all SQL lives in the root `migrations/` directory as one versioned namespace, embedded by `cmd/migrate` via `go:embed`. `task migrate-up` / `migrate-down` run the self-contained `go run ./cmd/migrate ...` runner; `task migrate-create NAME=<name>` writes into `migrations/` via the golang-migrate CLI. Migration version numbers are a **single namespace across the whole service**: the next migration added takes the next free version.
 
-Configuration is loaded from `config.yaml` and the environment (no prefix) into a typed, validated struct via spf13/viper and go-playground/validator. `CATALOG_ENABLED`, `MACHINES_ENABLED`, `SALES_ENABLED`, and `REPORTING_ENABLED` gate each feature: when false its providers and routes are not registered at all. Name/label and page-size limits (`CATALOG_MAX_NAME_LENGTH`, `CATALOG_MAX_PAGE_SIZE`, `MACHINES_MAX_LABEL_LENGTH`, `MACHINES_MAX_PAGE_SIZE`) are enforced in the usecase layer, so a deployment can raise them without touching request validation. The reporting top-machines bounds (`REPORTING_DEFAULT_TOP_MACHINES`, `REPORTING_MAX_TOP_MACHINES`) are enforced the same way.
+Configuration is loaded from `config.yaml` and the environment (no prefix) into a typed, validated struct via spf13/viper and go-playground/validator. `CATALOG_ENABLED`, `MACHINES_ENABLED`, `SALES_ENABLED`, and `REPORTING_ENABLED` gate each feature: when false its providers and routes are not registered at all. Name/label and page-size limits (`CATALOG_MAX_NAME_LENGTH`, `CATALOG_MAX_PAGE_SIZE`, `MACHINES_MAX_LABEL_LENGTH`, `MACHINES_MAX_PAGE_SIZE`) are enforced in the usecase layer, so a deployment can raise them without touching request validation. The reporting top-machines bounds (`REPORTING_DEFAULT_TOP_MACHINES`, `REPORTING_MAX_TOP_MACHINES`) are enforced the same way. `HTTP_HSTS_MAX_AGE` (duration, default `0s`) controls the `Strict-Transport-Security` header; `0s` disables it.
+
+### HTTP middleware
+
+The middleware stack is built on echo's built-ins (`middleware.RecoverWithConfig`, `middleware.RequestIDWithConfig`, `middleware.RequestLoggerWithConfig`, `middleware.SecureWithConfig`, `middleware.CORSWithConfig`) plus the official `github.com/labstack/echo-otel/v5` module (tracing) and `github.com/labstack/echo-prometheus` (metrics). Registration order (outermost first) in `http.go`: `RequestID`, `Secure`, `OTel`, `RequestLogger`, `Prometheus`, `Recover`, `CORS`. RequestID is outermost so the id reaches every log line and the response header; OTel is outside Recover so a recovered panic is recorded on the span; RequestLogger is outside Recover so a panicking request still produces exactly one log line (status 500); Prometheus sits after RequestLogger and before Recover so a recovered panic is counted with status 500.
+
+- **RequestID** generates a UUID v7 via the standard library `uuid` package. A client-supplied `X-Request-ID` that is empty, longer than 128 characters, or contains a character outside `[A-Za-z0-9_-]` is replaced by a fresh UUID v7; a valid id is propagated unchanged.
+- **Secure** sets `X-XSS-Protection: 1; mode=block`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`. The `Strict-Transport-Security` header is sent only when `HTTP_HSTS_MAX_AGE` is non-zero.
+- **OTel** uses `echootel.NewMiddlewareWithConfig` with an explicitly passed tracer provider and propagator (no OTel globals). It instruments tracing only: a no-op metrics recorder keeps it from emitting a second family of HTTP series, because the Prometheus middleware owns the HTTP metrics now.
+- **Prometheus** uses `echoprometheus.NewMiddlewareWithConfig` with the repository's own registry, recording `echo_requests_total`, `echo_request_duration_seconds`, `echo_request_size_bytes`, and `echo_response_size_bytes`, labelled with `code`, `method`, `host`, and `url`. The `url` label is the route template (`c.Path()`, e.g. `/api/v1/products/:id`), so the API does not create one series per id; unmatched routes share one empty `url` label (`DoNotUseRequestPathFor404`). `MetricsHandler` serves this registry from `/metrics`, alongside the Go and process collectors it carries. The metric names can be namespaced with `Namespace`/`Subsystem` when several services share one Prometheus.
+- **RequestLogger** emits one zerolog line per request: `request_id`, `method`, `path`, `status`, `latency`, message `http request`. `HandleError` is false, so the centralized error handler writes the response exactly once.
+- **Recover** wraps echo's default `PanicStackError`; the error handler logs the inner error and the stack as a separate `stack` field while returning the shared `{"error", "message"}` envelope.
 
 ### Routes
 
@@ -134,9 +145,9 @@ Configuration is loaded from `config.yaml` and the environment (no prefix) into 
 | POST | `/api/v1/purchases` | sales | buy a product: price, compose change, commit |
 | GET | `/api/v1/reports/summary` | reporting | cross-feature totals + top machines by revenue |
 
-Health and observability endpoints (`/healthz`, `/readyz`, `/metrics`) are served by `internal/infrastructure/server`.
+Health and observability endpoints (`/healthz`, `/readyz`, `/metrics`) are served by `internal/infrastructure/transport`.
 
-**Cross-feature boundaries.** Features never import each other; each owns its domain, contract, and repository port. `sales` consumes catalog and machines data only through its own `repository.Repository` port, whose postgres implementation reads the `catalog_products` and `machines` tables directly and commits the sale in one transaction. This is a deliberate single-database compromise — the tables are shared, but the port is the seam: a future service split replaces that one implementation without touching the sales domain or usecase. Stock is a **global pool** (decrementing a product affects every machine), while per-machine product slots are the documented extension if the demo grows. `reporting` demonstrates the read-only side of the same seam: it aggregates totals across all three features' tables through its own port and owns no schema of its own.
+**Cross-feature boundaries.** Features never import each other; each owns its domain, port, usecase, and handler. `sales` consumes catalog and machines data only through its own `port.Repository` port, whose postgres implementation in `internal/infrastructure/postgres/sales` reads the `catalog_products` and `machines` tables directly and commits the sale in one transaction. This is a deliberate single-database compromise — the tables are shared, but the port is the seam: a future service split replaces that one implementation without touching the sales domain or usecase. Stock is a **global pool** (decrementing a product affects every machine), while per-machine product slots are the documented extension if the demo grows. `reporting` demonstrates the read-only side of the same seam: it aggregates totals across all three features' tables through its own port and owns no schema of its own.
 
 Every HTTP failure — handler errors and framework errors (404/405, body-limit 413) alike — is served in the `{"error": code, "message": msg}` envelope, with codes from `pkg/api/errcodes`.
 
@@ -148,23 +159,25 @@ Every HTTP failure — handler errors and framework errors (404/405, body-limit 
 
 To add a feature:
 
-1. Copy or author `internal/features/<name>/` (the layers described above).
-2. Add one entry to `features.List` in `internal/features/features.go` — `Name`, `Register`, and `Migrations` when it owns schema. Migrations are numbered in one global namespace, so take the next free version across all features.
-3. Register its config in `internal/infrastructure/config` and add its aliases in `pkg/api/v1` before publishing.
+1. Copy or author `internal/features/<name>/` (the layers described above: `domain`, `port`, `usecase`, `handler`).
+2. Add one entry to the feature list in `internal/app/features.go`.
+3. Add its wiring file `internal/app/<name>.go` (flag gate, sentinel registration, providers, route mount).
+4. If it owns schema: add SQL files in the root `migrations/` directory (versioned in one global namespace), its GORM adapter under `internal/infrastructure/postgres/<name>/`, and its wire types in `pkg/api/v1`.
+5. Register its config in `internal/infrastructure/config`.
 
 To replace the demo features (catalog, machines, sales, reporting):
 
 1. Remove the feature directories under `internal/features/` you are replacing.
-2. Remove their entries from `features.List` in `internal/features/features.go`.
-3. Replace their aliases in `pkg/api/v1/models.go` with your feature's contract types.
-4. Delete the `catalog:` / `machines:` / `sales:` / `reporting:` blocks from `config.yaml` and the matching `CATALOG_*` / `MACHINES_*` / `SALES_*` / `REPORTING_*` lines from `.env.example`.
+2. Remove their entries from the feature list in `internal/app/features.go` and their wiring files from `internal/app/`.
+3. Replace their types in `pkg/api/v1` with your feature's wire types.
+4. Delete their SQL files from `migrations/`, their adapters from `internal/infrastructure/postgres/<name>/`, and the `catalog:` / `machines:` / `sales:` / `reporting:` blocks from `config.yaml` plus the matching `CATALOG_*` / `MACHINES_*` / `SALES_*` / `REPORTING_*` lines from `.env.example`.
 
 ## Testing
 
 - Unit tests (hermetic, mocked): `task test` or `go test -race -tags=unit ./...`
 - Integration tests (requires postgres + valkey): `task test-integration`
 - End-to-end tests: `task test-e2e`
-- Regenerate mocks after changing the repository interface: `task generate`
+- Regenerate mocks after changing a port or usecase interface: `task generate`
 
 ## Deployment
 

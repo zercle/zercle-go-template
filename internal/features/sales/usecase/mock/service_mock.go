@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	contract "github.com/zercle/zercle-go-template/internal/features/sales/contract"
+	domain "github.com/zercle/zercle-go-template/internal/features/sales/domain"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,16 +42,16 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 }
 
 // Purchase mocks base method.
-func (m *MockService) Purchase(ctx context.Context, req *contract.PurchaseRequest) (*contract.PurchaseResponse, error) {
+func (m *MockService) Purchase(ctx context.Context, machineID, productID string, coins []int32) (*domain.PurchaseRecord, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Purchase", ctx, req)
-	ret0, _ := ret[0].(*contract.PurchaseResponse)
+	ret := m.ctrl.Call(m, "Purchase", ctx, machineID, productID, coins)
+	ret0, _ := ret[0].(*domain.PurchaseRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Purchase indicates an expected call of Purchase.
-func (mr *MockServiceMockRecorder) Purchase(ctx, req any) *gomock.Call {
+func (mr *MockServiceMockRecorder) Purchase(ctx, machineID, productID, coins any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Purchase", reflect.TypeOf((*MockService)(nil).Purchase), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Purchase", reflect.TypeOf((*MockService)(nil).Purchase), ctx, machineID, productID, coins)
 }

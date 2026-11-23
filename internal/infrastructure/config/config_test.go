@@ -173,6 +173,65 @@ otel:
 	require.Equal(t, []string{"X-Custom"}, cfg.HTTP.CORSAllowHeaders)
 }
 
+// TestLoad_HSTSMaxAgeFromEnv proves the hsts_max_age leaf is env-bound.
+func TestLoad_HSTSMaxAgeFromEnv(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+
+	content := `
+app:
+  environment: test
+http:
+  port: 8080
+db:
+  host: 127.0.0.1
+  port: 5432
+  name: db
+  user: u
+  password: p
+valkey:
+  host: 127.0.0.1
+  port: 6379
+log:
+  level: info
+  format: json
+otel:
+  exporter: none
+  service_name: svc
+  sampling: 1.0
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(content), 0o600))
+	t.Setenv("CONFIG_FILE", cfgPath)
+
+	t.Setenv("HTTP_HSTS_MAX_AGE", "24h")
+
+	cfg, err := config.Load()
+	require.NoError(t, err)
+	require.NoError(t, cfg.Validate())
+
+	require.Equal(t, 24*time.Hour, cfg.HTTP.HSTSMaxAge)
+}
+
+func TestValidate_HSTSMaxAgeZeroAccepted(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.HTTP.HSTSMaxAge = 0
+
+	require.NoError(t, cfg.Validate())
+}
+
+func TestValidate_HSTSMaxAgeNegativeRejected(t *testing.T) {
+	t.Parallel()
+
+	cfg := validConfig()
+	cfg.HTTP.HSTSMaxAge = -time.Hour
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "config validation failed")
+}
+
 func TestValidate_InvalidEnvironment(t *testing.T) {
 	cfg := validConfig()
 	cfg.App.Environment = "invalid"

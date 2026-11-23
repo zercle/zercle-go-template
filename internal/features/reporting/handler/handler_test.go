@@ -7,18 +7,19 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"uuid"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/zercle/zercle-go-template/internal/features/reporting/contract"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/domain"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/handler"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/usecase/mock"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 	"github.com/zercle/zercle-go-template/internal/testutil"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // registerSentinelsOnce registers the reporting feature's domain sentinels
@@ -56,13 +57,18 @@ func TestHandler_Summary(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().Summary(ctx, &contract.SummaryRequest{TopMachines: 3}).
-		Return(&contract.SummaryResponse{
-			Catalog:  contract.CatalogStats{ProductCount: 2, TotalStock: 8},
-			Machines: contract.MachineStats{MachineCount: 1, TotalCoinBankCents: 350},
-			Sales:    contract.SalesStats{PurchaseCount: 3, RevenueCents: 450},
-			TopMachines: []contract.MachineSales{
-				{MachineID: "m1", Label: "lobby", PurchaseCount: 3, RevenueCents: 450},
+	svc.EXPECT().Summary(ctx, int32(3)).
+		Return(&domain.Summary{
+			Overview: domain.Overview{
+				ProductCount:   2,
+				TotalStock:     8,
+				MachineCount:   1,
+				TotalBankCents: 350,
+				PurchaseCount:  3,
+				RevenueCents:   450,
+			},
+			TopMachines: []domain.MachineSales{
+				{MachineID: uuid.MustParse("12345678-1234-1234-1234-123456789abc"), Label: "lobby", PurchaseCount: 3, RevenueCents: 450},
 			},
 		}, nil)
 
@@ -70,7 +76,7 @@ func TestHandler_Summary(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var body contract.SummaryResponse
+	var body apiv1.SummaryResponse
 	testutil.DecodeJSON(t, rec, &body)
 	require.EqualValues(t, 2, body.Catalog.ProductCount)
 	require.Len(t, body.TopMachines, 1)
@@ -83,8 +89,8 @@ func TestHandler_Summary_DefaultTop(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().Summary(ctx, &contract.SummaryRequest{}).
-		Return(&contract.SummaryResponse{TopMachines: []contract.MachineSales{}}, nil)
+	svc.EXPECT().Summary(ctx, int32(0)).
+		Return(&domain.Summary{TopMachines: []domain.MachineSales{}}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodGet, "/api/v1/reports/summary", nil)
 
@@ -111,7 +117,7 @@ func TestHandler_Summary_ServiceError(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().Summary(ctx, &contract.SummaryRequest{TopMachines: 99}).
+	svc.EXPECT().Summary(ctx, int32(99)).
 		Return(nil, domain.ErrInvalidTopMachines)
 
 	rec := testutil.DoJSON(t, e, http.MethodGet, "/api/v1/reports/summary?top=99", nil)

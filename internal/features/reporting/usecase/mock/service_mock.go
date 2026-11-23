@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	contract "github.com/zercle/zercle-go-template/internal/features/reporting/contract"
+	domain "github.com/zercle/zercle-go-template/internal/features/reporting/domain"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,16 +42,16 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 }
 
 // Summary mocks base method.
-func (m *MockService) Summary(ctx context.Context, req *contract.SummaryRequest) (*contract.SummaryResponse, error) {
+func (m *MockService) Summary(ctx context.Context, topMachines int32) (*domain.Summary, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Summary", ctx, req)
-	ret0, _ := ret[0].(*contract.SummaryResponse)
+	ret := m.ctrl.Call(m, "Summary", ctx, topMachines)
+	ret0, _ := ret[0].(*domain.Summary)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Summary indicates an expected call of Summary.
-func (mr *MockServiceMockRecorder) Summary(ctx, req any) *gomock.Call {
+func (mr *MockServiceMockRecorder) Summary(ctx, topMachines any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Summary", reflect.TypeOf((*MockService)(nil).Summary), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Summary", reflect.TypeOf((*MockService)(nil).Summary), ctx, topMachines)
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/zercle/zercle-go-template/internal/features/catalog/contract"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/domain"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/handler"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/usecase/mock"
@@ -68,8 +67,8 @@ func TestHandler_Create(t *testing.T) {
 	e, svc := setupTest(t)
 	id := uuid.New()
 
-	svc.EXPECT().Create(ctx, &contract.CreateProductRequest{Name: "widget", PriceCents: 100, Stock: 5}).
-		Return(&contract.ProductResponse{ID: id.String(), Name: "widget", PriceCents: 100, Stock: 5}, nil)
+	svc.EXPECT().Create(ctx, "widget", int32(100), int32(5)).
+		Return(&domain.Product{ID: id, Name: "widget", PriceCents: 100, Stock: 5}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodPost, "/api/v1/products",
 		map[string]any{"name": "widget", "price_cents": 100, "stock": 5})
@@ -120,7 +119,7 @@ func TestHandler_Get(t *testing.T) {
 	id := uuid.New()
 
 	svc.EXPECT().Get(ctx, id.String()).
-		Return(&contract.ProductResponse{ID: id.String(), Name: "found"}, nil)
+		Return(&domain.Product{ID: id, Name: "found"}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodGet, "/api/v1/products/"+id.String(), nil)
 
@@ -151,8 +150,8 @@ func TestHandler_List(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().List(ctx, &contract.ListProductsRequest{Limit: 10}).
-		Return(&contract.ListProductsResponse{Products: []contract.ProductResponse{{ID: uuid.New().String(), Name: "listed"}}}, nil)
+	svc.EXPECT().List(ctx, int32(10), int32(0)).
+		Return([]domain.Product{{ID: uuid.New(), Name: "listed"}}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodGet, "/api/v1/products?limit=10", nil)
 

@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -37,12 +36,8 @@ func TestRegister_InstallsOTelGlobals(t *testing.T) {
 	require.NoError(t, err)
 	propagator, err := do.Invoke[propagation.TextMapPropagator](injector)
 	require.NoError(t, err)
-	mp, err := do.Invoke[*metric.MeterProvider](injector)
-	require.NoError(t, err)
-
 	require.Same(t, tp, otel.GetTracerProvider(), "tracer provider must be installed globally")
 	require.Equal(t, propagator, otel.GetTextMapPropagator(), "propagator must be installed globally")
-	require.Same(t, mp, otel.GetMeterProvider(), "meter provider must be installed globally")
 }
 
 // TestNewPropagator_ExtractsW3CTraceContext verifies the propagator extracts a

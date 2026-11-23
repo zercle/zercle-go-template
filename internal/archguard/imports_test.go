@@ -7,48 +7,73 @@ import (
 	"testing"
 )
 
-// importRules constrain what a package may import at all, independently of
-// the layer-to-layer direction: the wire contract stays a leaf, the outbound
-// port references only its own domain, and the published facade stays
-// outward-only.
+// importRules constrain what a package may import at all, independently of the
+// layer-to-layer direction: the published contract stays a leaf, features never
+// reach sideways into other features, shared and feature-agnostic infrastructure
+// stay out of the feature tree, and nothing under internal/ reaches the
+// composition root.
 var importRules = []rule{
 	{
-		name: "published-contract-is-outward-only",
-		why:  "internal code must not import the pkg/api/v1 facade; depend on the feature contract packages directly",
-		applies: func(string) bool {
-			return true
+		name: "published-contract-is-leaf",
+		why:  "the published pkg/api contract is the single source of the wire shapes; it may import stdlib and pkg/api/errcodes only, so a consumer never drags the server in",
+		applies: func(rel string) bool {
+			return strings.HasPrefix(rel, "api/")
 		},
 		denied: func(_, imp string) bool {
-			return imp == pkgAPIV1 || strings.HasPrefix(imp, pkgAPIV1+"/")
-		},
-	},
-	{
-		name: "contract-is-leaf",
-		why:  "the wire contract must stay dependency-free so the published facade drags in nothing",
-		applies: func(rel string) bool {
-			segs := segments(rel)
-			return len(segs) == 3 && segs[0] == "features" && segs[2] == "contract"
-		},
-		denied: func(_, imp string) bool {
-			return !isStdlib(imp)
-		},
-	},
-	{
-		name: "repository-interface-depends-only-on-domain",
-		why:  "the outbound repository interface may reference only its own feature's domain",
-		applies: func(rel string) bool {
-			segs := segments(rel)
-			return len(segs) == 3 && segs[0] == "features" && segs[2] == "repository"
-		},
-		denied: func(rel, imp string) bool {
 			if isStdlib(imp) {
 				return false
 			}
-			if isThirdParty(imp) {
-				return true
+			if imp == modulePath+"/pkg/api/errcodes" {
+				return false
 			}
-			allowed := "features/" + feature(rel) + "/domain"
-			return internalRel(imp) != allowed
+			return true
+		},
+	},
+	{
+		name: "features-do-not-import-other-features",
+		why:  "features are self-contained bounded contexts; one feature must never reach into another feature's packages",
+		applies: func(rel string) bool {
+			segs := segments(rel)
+			return len(segs) >= 2 && segs[0] == "features"
+		},
+		denied: func(rel, imp string) bool {
+			target := internalRel(imp)
+			tsegs := segments(target)
+			return len(tsegs) >= 2 && tsegs[0] == "features" && tsegs[1] != feature(rel)
+		},
+	},
+	{
+		name: "infrastructure-is-feature-agnostic",
+		why:  "cross-cutting infrastructure (config, valkey, telemetry, lifecycle, transport, the postgres client) stays feature-agnostic; only the postgres/<f> driven adapters may import a feature",
+		applies: func(rel string) bool {
+			segs := segments(rel)
+			if len(segs) < 2 || segs[0] != "infrastructure" {
+				return false
+			}
+			return !(len(segs) >= 3 && segs[1] == "postgres")
+		},
+		denied: func(_, imp string) bool {
+			return strings.HasPrefix(internalRel(imp), "features/")
+		},
+	},
+	{
+		name: "shared-ignores-features",
+		why:  "the shared error catalog is cross-feature; features depend on it, never the reverse",
+		applies: func(rel string) bool {
+			return strings.HasPrefix(rel, "shared/")
+		},
+		denied: func(_, imp string) bool {
+			return strings.HasPrefix(internalRel(imp), "features/")
+		},
+	},
+	{
+		name: "composition-root-is-top",
+		why:  "internal/app is the composition root and may only be imported by cmd/; nothing under internal/ reaches it",
+		applies: func(rel string) bool {
+			return !strings.HasPrefix(rel, "api/")
+		},
+		denied: func(_, imp string) bool {
+			return internalRel(imp) == "app"
 		},
 	},
 }

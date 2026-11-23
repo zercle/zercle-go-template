@@ -1,13 +1,13 @@
 // Package usecase holds the reporting feature's inbound use-case service and
 // its implementation. The HTTP handler consumes the Service interface; the
-// implementation orchestrates the domain and the outbound repository.
+// implementation orchestrates the domain and the outbound port.
 //
 // Each operation lives in its own file: summary.go. This file holds the shared
 // implementation type and its constructor.
 package usecase
 
 import (
-	"github.com/zercle/zercle-go-template/internal/features/reporting/repository"
+	"github.com/zercle/zercle-go-template/internal/features/reporting/port"
 )
 
 const (
@@ -17,15 +17,15 @@ const (
 
 // Usecase implements the Service inbound use-case interface.
 type Usecase struct {
-	repo               repository.Repository
+	repo               port.Repository
 	defaultTopMachines int32
 	maxTopMachines     int32
 }
 
-// NewUsecase returns a Usecase backed by the provided repository. The limit
+// NewUsecase returns a Usecase backed by the provided port. The limit
 // arguments override the package fallback defaults; pass <= 0 to use the
 // built-in defaults (5/20).
-func NewUsecase(repo repository.Repository, defaultTopMachines, maxTopMachines int32) *Usecase {
+func NewUsecase(repo port.Repository, defaultTopMachines, maxTopMachines int32) *Usecase {
 	if defaultTopMachines <= 0 {
 		defaultTopMachines = defaultTopMachinesFallback
 	}

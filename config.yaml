@@ -10,6 +10,7 @@ http:
   idle_timeout: 60s
   body_limit: 1M
   health_probe_timeout: 5s
+  hsts_max_age: 0s
   cors_allow_origins:
     - "*"
   cors_allow_methods:

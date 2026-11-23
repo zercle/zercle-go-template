@@ -7,9 +7,11 @@ import (
 	"testing"
 )
 
-// layeringRules constrain the dependency direction between the layers: the
-// domain is the sink, the use case reaches only its own feature's domain,
-// repository port, and contract, and the layers never reach sideways.
+// layeringRules constrain the dependency direction inside a feature and toward
+// the postgres driven adapter: the domain is the sink, the use case reaches
+// only its own feature's domain and port, the port only its own domain, the
+// handler never the port or any infrastructure, and the adapter never a
+// use-case or handler.
 var layeringRules = []rule{
 	{
 		name: "domain-is-innermost",
@@ -23,8 +25,8 @@ var layeringRules = []rule{
 		},
 	},
 	{
-		name: "usecase-depends-on-domain-repository-contract",
-		why:  "use cases orchestrate their own feature's domain, repository interface, and wire contract, nothing else",
+		name: "usecase-depends-on-domain-and-port",
+		why:  "use cases orchestrate only their own feature's domain and port; no wire types, adapters, or third-party",
 		applies: func(rel string) bool {
 			segs := segments(rel)
 			return len(segs) == 3 && segs[0] == "features" && segs[2] == "usecase"
@@ -33,24 +35,52 @@ var layeringRules = []rule{
 			if isStdlib(imp) {
 				return false
 			}
-			if isThirdParty(imp) {
-				return true
-			}
-			f := feature(rel)
 			allowed := map[string]bool{
-				"features/" + f + "/domain":     true,
-				"features/" + f + "/repository": true,
-				"features/" + f + "/contract":   true,
+				"features/" + feature(rel) + "/domain": true,
+				"features/" + feature(rel) + "/port":   true,
 			}
 			return !allowed[internalRel(imp)]
 		},
 	},
 	{
-		name: "repository-impl-ignores-usecase-and-handler",
-		why:  "the repository implementation satisfies the repository interface structurally and must not know about the use-case or handler layers",
+		name: "port-depends-only-on-domain",
+		why:  "the outbound port interface may reference only its own feature's domain",
 		applies: func(rel string) bool {
 			segs := segments(rel)
-			return len(segs) >= 4 && segs[0] == "features" && segs[2] == "repository"
+			return len(segs) == 3 && segs[0] == "features" && segs[2] == "port"
+		},
+		denied: func(rel, imp string) bool {
+			if isStdlib(imp) {
+				return false
+			}
+			return internalRel(imp) != "features/"+feature(rel)+"/domain"
+		},
+	},
+	{
+		name: "handler-ignores-port-and-adapters",
+		why:  "the driving handler talks to the use-case service only; it never reaches its own port interface or any infrastructure package",
+		applies: func(rel string) bool {
+			segs := segments(rel)
+			return len(segs) == 3 && segs[0] == "features" && segs[2] == "handler"
+		},
+		denied: func(rel, imp string) bool {
+			target := internalRel(imp)
+			if target == "" {
+				return false
+			}
+			if strings.HasPrefix(target, "infrastructure/") {
+				return true
+			}
+			segs := segments(target)
+			return len(segs) >= 3 && segs[0] == "features" && segs[1] == feature(rel) && segs[2] == "port"
+		},
+	},
+	{
+		name: "driven-adapter-ignores-usecase-and-handler",
+		why:  "the postgres driven adapter satisfies the port interface structurally and must not know about any feature's use-case or handler layers",
+		applies: func(rel string) bool {
+			segs := segments(rel)
+			return len(segs) >= 3 && segs[0] == "infrastructure" && segs[1] == "postgres"
 		},
 		denied: func(_, imp string) bool {
 			rel := internalRel(imp)
@@ -59,59 +89,6 @@ var layeringRules = []rule{
 			}
 			segs := segments(rel)
 			return len(segs) >= 3 && segs[0] == "features" && (segs[2] == "usecase" || segs[2] == "handler")
-		},
-	},
-	{
-		name: "handler-ignores-repository",
-		why:  "the driving handler talks to the use-case service only, never to the outbound repository interface or its implementation",
-		applies: func(rel string) bool {
-			segs := segments(rel)
-			return len(segs) == 3 && segs[0] == "features" && segs[2] == "handler"
-		},
-		denied: func(_, imp string) bool {
-			rel := internalRel(imp)
-			if rel == "" {
-				return false
-			}
-			segs := segments(rel)
-			return len(segs) >= 3 && segs[0] == "features" && segs[2] == "repository"
-		},
-	},
-	{
-		name: "features-registry-imports-only-own-features",
-		why:  "the feature registry enumerates features; it must not depend on infrastructure or anything outside the features tree (samber/do excepted)",
-		applies: func(rel string) bool {
-			return rel == "features"
-		},
-		denied: func(_, imp string) bool {
-			if isStdlib(imp) || imp == "github.com/samber/do/v2" {
-				return false
-			}
-			rel := internalRel(imp)
-			if rel == "" {
-				return true
-			}
-			return !strings.HasPrefix(rel, "features/")
-		},
-	},
-	{
-		name: "infrastructure-ignores-features",
-		why:  "cross-cutting infrastructure must stay feature-agnostic; features depend on infrastructure, never the reverse",
-		applies: func(rel string) bool {
-			return strings.HasPrefix(rel, "infrastructure/")
-		},
-		denied: func(_, imp string) bool {
-			return strings.HasPrefix(internalRel(imp), "features/")
-		},
-	},
-	{
-		name: "shared-ignores-features",
-		why:  "the shared error catalog is cross-feature; features depend on it, never the reverse",
-		applies: func(rel string) bool {
-			return strings.HasPrefix(rel, "shared/")
-		},
-		denied: func(_, imp string) bool {
-			return strings.HasPrefix(internalRel(imp), "features/")
 		},
 	},
 }

@@ -8,20 +8,14 @@ import (
 	"unicode/utf8"
 	"uuid"
 
-	"github.com/zercle/zercle-go-template/internal/features/machines/contract"
 	"github.com/zercle/zercle-go-template/internal/features/machines/domain"
 )
 
 // Create validates the label and the initial coins, persists a new machine,
-// and returns its wire form. The label is trimmed first so surrounding
-// whitespace never counts toward the configured length limit.
-func (u *Usecase) Create(ctx context.Context, req *contract.CreateMachineRequest) (*contract.MachineResponse, error) {
-	var label string
-	var initialCoins []int32
-	if req != nil {
-		label = strings.TrimSpace(req.Label)
-		initialCoins = req.InitialCoins
-	}
+// and returns it. The label is trimmed first so surrounding whitespace never
+// counts toward the configured length limit.
+func (u *Usecase) Create(ctx context.Context, label string, initialCoins []int32) (*domain.Machine, error) {
+	label = strings.TrimSpace(label)
 	if label == "" || utf8.RuneCountInString(label) > int(u.maxLabelLength) {
 		return nil, fmt.Errorf("%w: must be 1..%d characters", domain.ErrInvalidMachineLabel, u.maxLabelLength)
 	}
@@ -44,6 +38,5 @@ func (u *Usecase) Create(ctx context.Context, req *contract.CreateMachineRequest
 		return nil, fmt.Errorf("create machine: %w", err)
 	}
 
-	resp := newMachineResponse(machine)
-	return &resp, nil
+	return machine, nil
 }

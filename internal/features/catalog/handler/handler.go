@@ -5,9 +5,9 @@ import (
 
 	"github.com/labstack/echo/v5"
 
-	"github.com/zercle/zercle-go-template/internal/features/catalog/contract"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/usecase"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
+	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
 // Handler exposes the catalog usecase service over HTTP.
@@ -34,7 +34,7 @@ func (h *Handler) Register(g *echo.Group) {
 // Create handles POST /products.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Create(c *echo.Context) error {
-	var req contract.CreateProductRequest
+	var req apiv1.CreateProductRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
@@ -44,31 +44,31 @@ func (h *Handler) Create(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	resp, err := h.service.Create(c.Request().Context(), &req)
+	product, err := h.service.Create(c.Request().Context(), req.Name, req.PriceCents, req.Stock)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusCreated, resp)
+	return c.JSON(http.StatusCreated, toProductResponse(product))
 }
 
 // Get handles GET /products/:id.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) Get(c *echo.Context) error {
-	resp, err := h.service.Get(c.Request().Context(), c.Param("id"))
+	product, err := h.service.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, toProductResponse(product))
 }
 
 // List handles GET /products.
 // nolint:wrapcheck // echo handlers return the JSON write error directly.
 func (h *Handler) List(c *echo.Context) error {
-	var req contract.ListProductsRequest
+	var req apiv1.ListProductsRequest
 	if err := c.Bind(&req); err != nil {
 		status, body := apperrors.HTTPError(apperrors.ErrInvalidInput)
 		return c.JSON(status, body)
@@ -78,11 +78,11 @@ func (h *Handler) List(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	resp, err := h.service.List(c.Request().Context(), &req)
+	products, err := h.service.List(c.Request().Context(), req.Limit, req.Offset)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, toProductResponseList(products))
 }

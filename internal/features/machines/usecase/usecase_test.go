@@ -13,9 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/zercle/zercle-go-template/internal/features/machines/contract"
 	"github.com/zercle/zercle-go-template/internal/features/machines/domain"
-	"github.com/zercle/zercle-go-template/internal/features/machines/repository/mock"
+	"github.com/zercle/zercle-go-template/internal/features/machines/port/mock"
 	"github.com/zercle/zercle-go-template/internal/features/machines/usecase"
 )
 
@@ -28,17 +27,15 @@ func TestService_Create_HappyWithCoins(t *testing.T) {
 	repo.EXPECT().Create(ctx, matchMachine("front", domain.CoinBank{5: 1, 25: 2})).Return(nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.Create(ctx, &contract.CreateMachineRequest{Label: "  front  ", InitialCoins: []int32{5, 25, 25}})
+	machine, err := svc.Create(ctx, "  front  ", []int32{5, 25, 25})
 
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.Equal(t, "front", resp.Label)
-	require.Equal(t, map[int32]int32{5: 1, 25: 2}, resp.CoinBank)
-	parsed, err := uuid.Parse(resp.ID)
-	require.NoError(t, err)
-	require.NotEqual(t, uuid.Nil(), parsed)
-	require.NotEmpty(t, resp.CreatedAt)
-	require.NotEmpty(t, resp.UpdatedAt)
+	require.NotNil(t, machine)
+	require.Equal(t, "front", machine.Label)
+	require.Equal(t, domain.CoinBank{5: 1, 25: 2}, machine.CoinBank)
+	require.NotEqual(t, uuid.Nil(), machine.ID)
+	require.False(t, machine.CreatedAt.IsZero())
+	require.False(t, machine.UpdatedAt.IsZero())
 }
 
 func TestService_Create_HappyWithoutCoins(t *testing.T) {
@@ -50,11 +47,11 @@ func TestService_Create_HappyWithoutCoins(t *testing.T) {
 	repo.EXPECT().Create(ctx, matchMachine("front", domain.CoinBank{})).Return(nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.Create(ctx, &contract.CreateMachineRequest{Label: "front"})
+	machine, err := svc.Create(ctx, "front", nil)
 
 	require.NoError(t, err)
-	require.NotNil(t, resp.CoinBank)
-	require.Empty(t, resp.CoinBank)
+	require.NotNil(t, machine.CoinBank)
+	require.Empty(t, machine.CoinBank)
 }
 
 func TestService_Create_EmptyLabel(t *testing.T) {
@@ -64,10 +61,10 @@ func TestService_Create_EmptyLabel(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
 
-	resp, err := svc.Create(ctx, &contract.CreateMachineRequest{Label: "   "})
+	machine, err := svc.Create(ctx, "   ", nil)
 
 	require.ErrorIs(t, err, domain.ErrInvalidMachineLabel)
-	require.Nil(t, resp)
+	require.Nil(t, machine)
 }
 
 func TestService_Create_OverLengthLabel(t *testing.T) {
@@ -77,10 +74,10 @@ func TestService_Create_OverLengthLabel(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo, 0, 0, 3)
 
-	resp, err := svc.Create(ctx, &contract.CreateMachineRequest{Label: "abcd"})
+	machine, err := svc.Create(ctx, "abcd", nil)
 
 	require.ErrorIs(t, err, domain.ErrInvalidMachineLabel)
-	require.Nil(t, resp)
+	require.Nil(t, machine)
 }
 
 func TestService_Create_UnsupportedCoinRejected(t *testing.T) {
@@ -90,10 +87,10 @@ func TestService_Create_UnsupportedCoinRejected(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
 
-	resp, err := svc.Create(ctx, &contract.CreateMachineRequest{Label: "front", InitialCoins: []int32{7}})
+	machine, err := svc.Create(ctx, "front", []int32{7})
 
 	require.ErrorIs(t, err, domain.ErrUnsupportedCoin)
-	require.Nil(t, resp)
+	require.Nil(t, machine)
 }
 
 func TestService_Create_RepositoryError(t *testing.T) {
@@ -105,10 +102,10 @@ func TestService_Create_RepositoryError(t *testing.T) {
 	repo.EXPECT().Create(ctx, matchMachine("front", domain.CoinBank{})).Return(errors.New("boom"))
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.Create(ctx, &contract.CreateMachineRequest{Label: "front"})
+	machine, err := svc.Create(ctx, "front", nil)
 
 	require.Error(t, err)
-	require.Nil(t, resp)
+	require.Nil(t, machine)
 }
 
 func TestService_Get_Happy(t *testing.T) {
@@ -123,16 +120,10 @@ func TestService_Get_Happy(t *testing.T) {
 	repo.EXPECT().GetByID(ctx, id).Return(expected, nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.Get(ctx, id.String())
+	machine, err := svc.Get(ctx, id.String())
 
 	require.NoError(t, err)
-	require.Equal(t, &contract.MachineResponse{
-		ID:        id.String(),
-		Label:     "found",
-		CoinBank:  map[int32]int32{25: 3},
-		CreatedAt: now.Format(time.RFC3339),
-		UpdatedAt: now.Format(time.RFC3339),
-	}, resp)
+	require.Equal(t, expected, machine)
 }
 
 func TestService_Get_NotFound(t *testing.T) {
@@ -145,10 +136,10 @@ func TestService_Get_NotFound(t *testing.T) {
 	repo.EXPECT().GetByID(ctx, id).Return(nil, domain.ErrMachineNotFound)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.Get(ctx, id.String())
+	machine, err := svc.Get(ctx, id.String())
 
 	require.ErrorIs(t, err, domain.ErrMachineNotFound)
-	require.Nil(t, resp)
+	require.Nil(t, machine)
 }
 
 func TestService_Get_InvalidID(t *testing.T) {
@@ -158,10 +149,10 @@ func TestService_Get_InvalidID(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
 
-	resp, err := svc.Get(ctx, "not-a-uuid")
+	machine, err := svc.Get(ctx, "not-a-uuid")
 
 	require.ErrorIs(t, err, domain.ErrInvalidID)
-	require.Nil(t, resp)
+	require.Nil(t, machine)
 }
 
 func TestService_List_Happy(t *testing.T) {
@@ -175,13 +166,13 @@ func TestService_List_Happy(t *testing.T) {
 	repo.EXPECT().List(ctx, int32(10), int32(5)).Return(expected, nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.List(ctx, &contract.ListMachinesRequest{Limit: 10, Offset: 5})
+	machines, err := svc.List(ctx, 10, 5)
 
 	require.NoError(t, err)
-	require.Len(t, resp.Machines, 1)
-	require.Equal(t, expected[0].ID.String(), resp.Machines[0].ID)
-	require.Equal(t, "one", resp.Machines[0].Label)
-	require.Equal(t, map[int32]int32{5: 2}, resp.Machines[0].CoinBank)
+	require.Len(t, machines, 1)
+	require.Equal(t, expected[0].ID, machines[0].ID)
+	require.Equal(t, "one", machines[0].Label)
+	require.Equal(t, domain.CoinBank{5: 2}, machines[0].CoinBank)
 }
 
 func TestService_List_AppliesDefaultLimit(t *testing.T) {
@@ -193,11 +184,10 @@ func TestService_List_AppliesDefaultLimit(t *testing.T) {
 	repo.EXPECT().List(ctx, int32(20), int32(0)).Return(nil, nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.List(ctx, &contract.ListMachinesRequest{Limit: 0, Offset: 0})
+	machines, err := svc.List(ctx, 0, 0)
 
 	require.NoError(t, err)
-	require.NotNil(t, resp.Machines)
-	require.Empty(t, resp.Machines)
+	require.Empty(t, machines)
 }
 
 func TestService_List_ClampsOverMaxLimit(t *testing.T) {
@@ -209,10 +199,10 @@ func TestService_List_ClampsOverMaxLimit(t *testing.T) {
 	repo.EXPECT().List(ctx, int32(50), int32(0)).Return(nil, nil)
 
 	svc := usecase.NewUsecase(repo, 10, 50, 255)
-	resp, err := svc.List(ctx, &contract.ListMachinesRequest{Limit: 999})
+	machines, err := svc.List(ctx, 999, 0)
 
 	require.NoError(t, err)
-	require.Empty(t, resp.Machines)
+	require.Empty(t, machines)
 }
 
 func TestService_RestockBank_Happy(t *testing.T) {
@@ -228,11 +218,10 @@ func TestService_RestockBank_Happy(t *testing.T) {
 	repo.EXPECT().GetByID(ctx, id).Return(updated, nil)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.RestockBank(ctx, id.String(), &contract.RestockBankRequest{Coins: []int32{25}})
+	machine, err := svc.RestockBank(ctx, id.String(), []int32{25})
 
 	require.NoError(t, err)
-	require.Equal(t, id.String(), resp.ID)
-	require.Equal(t, map[int32]int32{5: 1, 25: 3}, resp.CoinBank)
+	require.Equal(t, updated, machine)
 }
 
 func TestService_RestockBank_InvalidID(t *testing.T) {
@@ -242,10 +231,10 @@ func TestService_RestockBank_InvalidID(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
 
-	resp, err := svc.RestockBank(ctx, "not-a-uuid", &contract.RestockBankRequest{Coins: []int32{25}})
+	machine, err := svc.RestockBank(ctx, "not-a-uuid", []int32{25})
 
 	require.ErrorIs(t, err, domain.ErrInvalidID)
-	require.Nil(t, resp)
+	require.Nil(t, machine)
 }
 
 func TestService_RestockBank_UnsupportedCoinRejected(t *testing.T) {
@@ -255,10 +244,10 @@ func TestService_RestockBank_UnsupportedCoinRejected(t *testing.T) {
 	repo := mock.NewMockRepository(gomock.NewController(t))
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
 
-	resp, err := svc.RestockBank(ctx, uuid.New().String(), &contract.RestockBankRequest{Coins: []int32{7}})
+	machine, err := svc.RestockBank(ctx, uuid.New().String(), []int32{7})
 
 	require.ErrorIs(t, err, domain.ErrUnsupportedCoin)
-	require.Nil(t, resp)
+	require.Nil(t, machine)
 }
 
 func TestService_RestockBank_MachineMissing(t *testing.T) {
@@ -271,10 +260,10 @@ func TestService_RestockBank_MachineMissing(t *testing.T) {
 	repo.EXPECT().RestockBank(ctx, id, []int32{25}).Return(domain.ErrMachineNotFound)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.RestockBank(ctx, id.String(), &contract.RestockBankRequest{Coins: []int32{25}})
+	machine, err := svc.RestockBank(ctx, id.String(), []int32{25})
 
 	require.ErrorIs(t, err, domain.ErrMachineNotFound)
-	require.Nil(t, resp)
+	require.Nil(t, machine)
 }
 
 func TestService_RestockBank_ReadBackMissing(t *testing.T) {
@@ -288,10 +277,10 @@ func TestService_RestockBank_ReadBackMissing(t *testing.T) {
 	repo.EXPECT().GetByID(ctx, id).Return(nil, domain.ErrMachineNotFound)
 
 	svc := usecase.NewUsecase(repo, 0, 0, 0)
-	resp, err := svc.RestockBank(ctx, id.String(), &contract.RestockBankRequest{Coins: []int32{25}})
+	machine, err := svc.RestockBank(ctx, id.String(), []int32{25})
 
 	require.ErrorIs(t, err, domain.ErrMachineNotFound)
-	require.Nil(t, resp)
+	require.Nil(t, machine)
 }
 
 func matchMachine(label string, bank domain.CoinBank) any {

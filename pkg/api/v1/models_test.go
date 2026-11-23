@@ -11,7 +11,7 @@ import (
 	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
-func TestCatalogAliasesRoundTripJSON(t *testing.T) {
+func TestCatalogRoundTripJSON(t *testing.T) {
 	t.Parallel()
 
 	req := apiv1.CreateProductRequest{Name: "widget", PriceCents: 250, Stock: 3}
@@ -30,7 +30,7 @@ func TestCatalogAliasesRoundTripJSON(t *testing.T) {
 		string(data))
 }
 
-func TestMachinesAliasesRoundTripJSON(t *testing.T) {
+func TestMachinesRoundTripJSON(t *testing.T) {
 	t.Parallel()
 
 	req := apiv1.CreateMachineRequest{Label: "m1", InitialCoins: []int32{25, 100}}
@@ -53,7 +53,7 @@ func TestMachinesAliasesRoundTripJSON(t *testing.T) {
 		string(data))
 }
 
-func TestSalesAliasesRoundTripJSON(t *testing.T) {
+func TestSalesRoundTripJSON(t *testing.T) {
 	t.Parallel()
 
 	req := apiv1.PurchaseRequest{

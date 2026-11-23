@@ -8,21 +8,14 @@ import (
 	"unicode/utf8"
 	"uuid"
 
-	"github.com/zercle/zercle-go-template/internal/features/catalog/contract"
 	"github.com/zercle/zercle-go-template/internal/features/catalog/domain"
 )
 
-// Create validates the name and price, persists a new product, and returns its
-// wire form. The name is trimmed first so surrounding whitespace never counts
-// toward the configured length limit.
-func (u *Usecase) Create(ctx context.Context, req *contract.CreateProductRequest) (*contract.ProductResponse, error) {
-	var name string
-	var priceCents, stock int32
-	if req != nil {
-		name = strings.TrimSpace(req.Name)
-		priceCents = req.PriceCents
-		stock = req.Stock
-	}
+// Create validates the name and price, persists a new product, and returns it
+// as a domain value. The name is trimmed first so surrounding whitespace never
+// counts toward the configured length limit.
+func (u *Usecase) Create(ctx context.Context, name string, priceCents, stock int32) (*domain.Product, error) {
+	name = strings.TrimSpace(name)
 	if name == "" || utf8.RuneCountInString(name) > int(u.maxNameLength) {
 		return nil, fmt.Errorf("%w: must be 1..%d characters", domain.ErrInvalidProductName, u.maxNameLength)
 	}
@@ -44,6 +37,5 @@ func (u *Usecase) Create(ctx context.Context, req *contract.CreateProductRequest
 		return nil, fmt.Errorf("create product: %w", err)
 	}
 
-	resp := newProductResponse(product)
-	return &resp, nil
+	return product, nil
 }
