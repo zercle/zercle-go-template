@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/propagation"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
@@ -27,11 +28,13 @@ import (
 )
 
 // newTestHTTP builds an echo instance with the shared middleware using a no-op
-// tracer provider and TraceContext propagator; these tests exercise routing,
-// health, and binding, not span export.
+// tracer provider and meter provider and TraceContext propagator; these tests
+// exercise routing, health, and binding, not span or metric export.
 func newTestHTTP(t *testing.T, cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Registry) *echo.Echo {
 	t.Helper()
-	e, err := transport.NewHTTP(cfg, logger, registry, trace.NewTracerProvider(), propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
+	mp := sdkmetric.NewMeterProvider()
+	t.Cleanup(func() { _ = mp.Shutdown(context.Background()) })
+	e, err := transport.NewHTTP(cfg, logger, registry, trace.NewTracerProvider(), mp, propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
 	require.NoError(t, err)
 	return e
 }
@@ -97,6 +100,29 @@ func TestNewHTTP_Metrics(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "go_info")
 }
 
+// TestNewHTTP_SecurityHeadersAndRequestID pins that every response carries the
+// security headers set by the Secure middleware and an X-Request-Id header set
+// by the RequestID middleware.
+func TestNewHTTP_SecurityHeadersAndRequestID(t *testing.T) {
+	t.Parallel()
+
+	cfg := newTestConfig(t)
+	logger := zerolog.New(nil)
+	registry := telemetry.NewRegistry()
+
+	e := newTestHTTP(t, cfg, &logger, registry)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotEmpty(t, rec.Header().Get("X-Request-Id"))
+	require.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+	require.Equal(t, "SAMEORIGIN", rec.Header().Get("X-Frame-Options"))
+	require.Equal(t, "1; mode=block", rec.Header().Get("X-XSS-Protection"))
+}
+
 func TestNewHTTP_ValidatorRegistered(t *testing.T) {
 	cfg := newTestConfig(t)
 	logger := zerolog.New(nil)
@@ -150,8 +176,10 @@ func TestNewHTTP_RecordsSpanAndLinksParent(t *testing.T) {
 	exporter := tracetest.NewInMemoryExporter()
 	tp := trace.NewTracerProvider(trace.WithSyncer(exporter), trace.WithSampler(trace.AlwaysSample()))
 	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
+	mp := sdkmetric.NewMeterProvider()
+	t.Cleanup(func() { _ = mp.Shutdown(context.Background()) })
 
-	e, err := transport.NewHTTP(cfg, &logger, registry, tp, propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
+	e, err := transport.NewHTTP(cfg, &logger, registry, tp, mp, propagation.TraceContext{}, telemetry.NewPrometheusRegistry())
 	require.NoError(t, err)
 	e.GET("/items/:id", func(c *echo.Context) error { return c.NoContent(http.StatusNoContent) })
 

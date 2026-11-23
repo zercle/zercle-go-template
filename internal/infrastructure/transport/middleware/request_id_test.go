@@ -18,6 +18,8 @@ import (
 const maxRequestIDLen = 128
 
 func TestRequestID_GeneratesWhenAbsent(t *testing.T) {
+	t.Parallel()
+
 	e := echo.New()
 	e.Use(middleware.RequestID())
 	e.GET("/", func(c *echo.Context) error {
@@ -30,11 +32,17 @@ func TestRequestID_GeneratesWhenAbsent(t *testing.T) {
 	e.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	id := rec.Header().Get("X-Request-ID")
+	id := rec.Header().Get("X-Request-Id")
 	require.NotEmpty(t, id, "expected generated request id in response")
+
+	u, err := uuid.Parse(id)
+	require.NoError(t, err, "generated id must be a valid UUID")
+	require.Equal(t, byte(0x70), u[6]&0xF0, "generated id must be UUID v7")
 }
 
 func TestRequestID_PropagatesWhenPresent(t *testing.T) {
+	t.Parallel()
+
 	e := echo.New()
 	e.Use(middleware.RequestID())
 	e.GET("/", func(c *echo.Context) error {
@@ -53,6 +61,8 @@ func TestRequestID_PropagatesWhenPresent(t *testing.T) {
 }
 
 func TestRequestID_RejectsBlankHeader(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name  string
 		input string
@@ -88,6 +98,8 @@ func TestRequestID_RejectsBlankHeader(t *testing.T) {
 }
 
 func TestRequestID_RejectsForbiddenCharacters(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name  string
 		input string
@@ -124,6 +136,8 @@ func TestRequestID_RejectsForbiddenCharacters(t *testing.T) {
 }
 
 func TestRequestID_LengthBoundary(t *testing.T) {
+	t.Parallel()
+
 	t.Run("at_max_accepted", func(t *testing.T) {
 		input := strings.Repeat("a", maxRequestIDLen)
 
@@ -168,6 +182,8 @@ func TestRequestID_LengthBoundary(t *testing.T) {
 }
 
 func TestRequestID_GeneratesValidUUIDOnInvalid(t *testing.T) {
+	t.Parallel()
+
 	const invalid = "bad value!"
 
 	e := echo.New()

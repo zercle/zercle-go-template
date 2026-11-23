@@ -3,6 +3,7 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -12,6 +13,7 @@ import (
 	echomw "github.com/labstack/echo/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
@@ -40,23 +42,25 @@ func (cv *echoValidator) Validate(i any) error {
 const defaultProbeTimeout = 5 * time.Second
 
 // NewHTTP builds and returns an *echo.Echo with the standard middleware stack
-// and shared routes (/healthz, /readyz, /metrics). The tracer provider,
-// propagator, and Prometheus gatherer are injected so request spans are
-// recorded, inbound trace context is honored, and /metrics serves the same
-// registry the meter provider exports into — without depending on
-// process-global OTel or Prometheus state.
-func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Registry, tp trace.TracerProvider, propagator propagation.TextMapPropagator, gatherer prometheus.Gatherer) (*echo.Echo, error) {
+// and shared routes (/healthz, /readyz, /metrics). The tracer provider, meter
+// provider, propagator, and Prometheus gatherer are injected so request spans
+// and metrics are recorded, inbound trace context is honored, and /metrics
+// serves the same registry the meter provider exports into — without
+// depending on process-global OTel or Prometheus state.
+func NewHTTP(cfg *config.Config, logger *zerolog.Logger, registry *telemetry.Registry, tp trace.TracerProvider, mp metric.MeterProvider, propagator propagation.TextMapPropagator, gatherer prometheus.Gatherer) (*echo.Echo, error) {
 	e := echo.New()
 	e.Validator = &echoValidator{v: validator.New()}
 	e.HTTPErrorHandler = errorHandler(logger)
-	// Middleware enters in registration order, so AccessLog is registered first
-	// to wrap Recover: a panicking request is recovered inside its span and still
-	// produces exactly one "http request" line (status 500) rather than being
-	// visible only as a recovered-panic log.
-	e.Use(middleware.AccessLog(logger))
-	e.Use(middleware.Recover(logger))
+	// Middleware enters in registration order, so RequestID is registered
+	// first to be the outermost: the id reaches every later log line and the
+	// response header. OTel is registered outside Recover so a recovered panic
+	// is recorded on the span; RequestLogger is registered outside Recover so
+	// a panicking request still produces exactly one log line (status 500).
 	e.Use(middleware.RequestID())
-	e.Use(middleware.OTel(tp, propagator))
+	e.Use(middleware.Secure(cfg))
+	e.Use(middleware.OTel(tp, mp, propagator))
+	e.Use(middleware.RequestLogger(logger))
+	e.Use(echomw.RecoverWithConfig(echomw.DefaultRecoverConfig))
 	e.Use(middleware.CORS(cfg))
 
 	// An empty limit means "unconfigured" (skip). A non-empty but unparseable
@@ -111,13 +115,18 @@ func errorHandler(logger *zerolog.Logger) echo.HTTPErrorHandler {
 			status, body = apperrors.HTTPError(err)
 		}
 
-		logger.Error().
-			Err(err).
+		log := logger.Error().
 			Str("request_id", middleware.RequestIDFromContext(c)).
 			Str("method", c.Request().Method).
 			Str("path", c.Request().URL.Path).
-			Int("status", status).
-			Msg("request failed")
+			Int("status", status)
+
+		if panicErr, ok := errors.AsType[*echomw.PanicStackError](err); ok {
+			log = log.Err(panicErr.Err).Str("stack", string(panicErr.Stack))
+		} else {
+			log = log.Err(err)
+		}
+		log.Msg("request failed")
 
 		if c.Request().Method == http.MethodHead {
 			_ = c.NoContent(status)

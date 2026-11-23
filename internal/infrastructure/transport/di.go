@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/samber/do/v2"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/zercle/zercle-go-template/internal/infrastructure/config"
@@ -22,9 +23,10 @@ func Register(c do.Injector) error {
 		logger := do.MustInvoke[*zerolog.Logger](i)
 		registry := do.MustInvoke[*telemetry.Registry](i)
 		tp := do.MustInvoke[*trace.TracerProvider](i)
+		mp := do.MustInvoke[*metric.MeterProvider](i)
 		propagator := do.MustInvoke[propagation.TextMapPropagator](i)
 		gatherer := do.MustInvoke[*prometheus.Registry](i)
-		return NewHTTP(cfg, logger, registry, tp, propagator, gatherer)
+		return NewHTTP(cfg, logger, registry, tp, mp, propagator, gatherer)
 	})
 
 	do.Provide(c, func(i do.Injector) (*Application, error) {

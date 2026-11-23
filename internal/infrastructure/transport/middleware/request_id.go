@@ -1,14 +1,13 @@
-// Echo middleware for request identification.
+// Echo middleware for request identification, built on echo's RequestID
+// middleware with a UUID v7 generator.
 package middleware
 
 import (
 	"uuid"
 
 	"github.com/labstack/echo/v5"
+	echomw "github.com/labstack/echo/v5/middleware"
 )
-
-// requestIDHeader is the header used to propagate or generate a request id.
-const requestIDHeader = "X-Request-ID"
 
 // maxRequestIDLen caps the length of an accepted client-supplied request id
 // to prevent log/header injection and DoS via huge values.
@@ -41,21 +40,19 @@ func isValidRequestID(id string) bool {
 
 // RequestID returns echo middleware that reads or generates an X-Request-ID
 // header, stores it in the echo context, and echoes it back in the response.
+// A client-supplied id that fails validation is replaced with a freshly
+// generated UUID v7.
 func RequestID() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			req := c.Request()
-			id := req.Header.Get(requestIDHeader)
+	return echomw.RequestIDWithConfig(echomw.RequestIDConfig{
+		Generator: func() string { return uuid.NewV7().String() },
+		RequestIDHandler: func(c *echo.Context, id string) {
 			if !isValidRequestID(id) {
-				id = uuid.New().String()
+				id = uuid.NewV7().String()
+				c.Response().Header().Set(echo.HeaderXRequestID, id)
 			}
-
 			c.Set(string(requestIDKey), id)
-			c.Response().Header().Set(requestIDHeader, id)
-
-			return next(c)
-		}
-	}
+		},
+	})
 }
 
 // RequestIDFromContext extracts the request id added by RequestID middleware.
