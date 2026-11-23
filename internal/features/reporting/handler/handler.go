@@ -5,12 +5,16 @@ import (
 
 	"github.com/labstack/echo/v5"
 
+	"github.com/zercle/zercle-go-template/internal/features/reporting/domain"
 	"github.com/zercle/zercle-go-template/internal/features/reporting/usecase"
 	apperrors "github.com/zercle/zercle-go-template/internal/shared/errors"
 	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
 )
 
-// Handler exposes the reporting usecase service over HTTP.
+// Handler exposes the reporting usecase service over HTTP. It owns the wire
+// mapping: it binds and validates the pkg/api/v1 request, translates it into
+// the usecase's domain inputs, and maps the domain result back into the
+// pkg/api/v1 response.
 type Handler struct {
 	service usecase.Service
 }
@@ -42,11 +46,39 @@ func (h *Handler) Summary(c *echo.Context) error {
 		return c.JSON(status, body)
 	}
 
-	resp, err := h.service.Summary(c.Request().Context(), &req)
+	summary, err := h.service.Summary(c.Request().Context(), req.TopMachines)
 	if err != nil {
 		status, body := apperrors.HTTPError(err)
 		return c.JSON(status, body)
 	}
 
-	return c.JSON(http.StatusOK, resp)
+	return c.JSON(http.StatusOK, newSummaryResponse(summary))
+}
+
+// newSummaryResponse maps a domain Summary into the published wire response.
+func newSummaryResponse(s *domain.Summary) *apiv1.SummaryResponse {
+	resp := &apiv1.SummaryResponse{
+		Catalog: apiv1.CatalogStats{
+			ProductCount: s.Overview.ProductCount,
+			TotalStock:   s.Overview.TotalStock,
+		},
+		Machines: apiv1.MachineStats{
+			MachineCount:       s.Overview.MachineCount,
+			TotalCoinBankCents: s.Overview.TotalBankCents,
+		},
+		Sales: apiv1.SalesStats{
+			PurchaseCount: s.Overview.PurchaseCount,
+			RevenueCents:  s.Overview.RevenueCents,
+		},
+		TopMachines: make([]apiv1.MachineSales, len(s.TopMachines)),
+	}
+	for i := range s.TopMachines {
+		resp.TopMachines[i] = apiv1.MachineSales{
+			MachineID:     s.TopMachines[i].MachineID.String(),
+			Label:         s.TopMachines[i].Label,
+			PurchaseCount: s.TopMachines[i].PurchaseCount,
+			RevenueCents:  s.TopMachines[i].RevenueCents,
+		}
+	}
+	return resp
 }

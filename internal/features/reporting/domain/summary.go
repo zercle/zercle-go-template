@@ -24,3 +24,11 @@ type MachineSales struct {
 	PurchaseCount int64
 	RevenueCents  int64
 }
+
+// Summary is the reporting feature's full report: the cross-feature aggregate
+// plus the top-machines leaderboard. The zero value is the empty-database
+// report.
+type Summary struct {
+	Overview    Overview
+	TopMachines []MachineSales
+}

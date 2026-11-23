@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"uuid"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
@@ -56,13 +57,18 @@ func TestHandler_Summary(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().Summary(ctx, &apiv1.SummaryRequest{TopMachines: 3}).
-		Return(&apiv1.SummaryResponse{
-			Catalog:  apiv1.CatalogStats{ProductCount: 2, TotalStock: 8},
-			Machines: apiv1.MachineStats{MachineCount: 1, TotalCoinBankCents: 350},
-			Sales:    apiv1.SalesStats{PurchaseCount: 3, RevenueCents: 450},
-			TopMachines: []apiv1.MachineSales{
-				{MachineID: "m1", Label: "lobby", PurchaseCount: 3, RevenueCents: 450},
+	svc.EXPECT().Summary(ctx, int32(3)).
+		Return(&domain.Summary{
+			Overview: domain.Overview{
+				ProductCount:   2,
+				TotalStock:     8,
+				MachineCount:   1,
+				TotalBankCents: 350,
+				PurchaseCount:  3,
+				RevenueCents:   450,
+			},
+			TopMachines: []domain.MachineSales{
+				{MachineID: uuid.MustParse("12345678-1234-1234-1234-123456789abc"), Label: "lobby", PurchaseCount: 3, RevenueCents: 450},
 			},
 		}, nil)
 
@@ -83,8 +89,8 @@ func TestHandler_Summary_DefaultTop(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().Summary(ctx, &apiv1.SummaryRequest{}).
-		Return(&apiv1.SummaryResponse{TopMachines: []apiv1.MachineSales{}}, nil)
+	svc.EXPECT().Summary(ctx, int32(0)).
+		Return(&domain.Summary{TopMachines: []domain.MachineSales{}}, nil)
 
 	rec := testutil.DoJSON(t, e, http.MethodGet, "/api/v1/reports/summary", nil)
 
@@ -111,7 +117,7 @@ func TestHandler_Summary_ServiceError(t *testing.T) {
 	ctx := context.Background()
 	e, svc := setupTest(t)
 
-	svc.EXPECT().Summary(ctx, &apiv1.SummaryRequest{TopMachines: 99}).
+	svc.EXPECT().Summary(ctx, int32(99)).
 		Return(nil, domain.ErrInvalidTopMachines)
 
 	rec := testutil.DoJSON(t, e, http.MethodGet, "/api/v1/reports/summary?top=99", nil)

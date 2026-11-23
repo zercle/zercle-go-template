@@ -7,14 +7,14 @@ package usecase
 import (
 	"context"
 
-	apiv1 "github.com/zercle/zercle-go-template/pkg/api/v1"
+	"github.com/zercle/zercle-go-template/internal/features/reporting/domain"
 )
 
-// Service is the inbound use-case interface for reporting. It speaks the
-// feature's contract types at the boundary so the handler binds responses
-// directly and never maps to or from domain entities.
+// Service is the inbound use-case interface for reporting. It speaks domain
+// types at the boundary: the handler owns the wire shapes and maps the
+// domain values it receives in and out of pkg/api/v1.
 //
 //go:generate go tool mockgen -source=service.go -destination=mock/service_mock.go -package=mock
 type Service interface {
-	Summary(ctx context.Context, req *apiv1.SummaryRequest) (*apiv1.SummaryResponse, error)
+	Summary(ctx context.Context, topMachines int32) (*domain.Summary, error)
 }
